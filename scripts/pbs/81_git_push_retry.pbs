@@ -1,0 +1,32 @@
+#!/bin/bash
+#PBS -N cgm_gitp
+#PBS -P 11704243
+#PBS -j oe
+#
+# Push only. The repository, the commit and the remote already exist from
+# 80_git_push.pbs; that run reached the push and was refused with 403 because the
+# fine-grained token did not carry Contents: write for this repository. Editing a
+# fine-grained token's permissions on github.com does not change the token string, so
+# nothing local needs to change and only the push is retried.
+#
+# Still a job rather than a login-node command: the transfer is ~60 MB and git
+# recompresses objects to build the pack, which is CPU work.
+#
+#   qsub -l select=1:ncpus=8:mem=32gb -l walltime=01:00:00 \
+#        -o logs/81_git_push_retry.log scripts/pbs/81_git_push_retry.pbs       # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+set +e
+module load git/2.39.2
+cd "$REPO"
+{
+  echo "branch $(git branch --show-current)  head $(git log --oneline -1)"
+  echo "remote $(git remote get-url origin)"
+  echo "uncommitted: $(git status --porcelain | wc -l)"
+  echo "########## push ##########"
+  git -c credential.helper="store --file=$HOME/.git-credentials-github" \
+      push -u origin main 2>&1 | sed -E 's#//[^@]*@#//***@#g'
+  rc=${PIPESTATUS[0]}
+  echo "push exit $rc"
+  [ $rc -eq 0 ] && git log --oneline -1 --decorate
+  exit $rc
+} 2>&1 | tee logs/81_git_push_retry.live.log
