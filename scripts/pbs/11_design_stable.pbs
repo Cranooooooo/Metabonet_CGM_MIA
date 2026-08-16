@@ -1,0 +1,35 @@
+#!/bin/bash
+#PBS -N cgm_design_stable
+#PBS -P 11704243
+#PBS -l select=1:ncpus=4:mem=32gb
+#PBS -l walltime=00:20:00
+#PBS -j oe
+#PBS -o logs/11_design_stable.log
+#
+# Rebuild the paired design on the subjects that survive every base seed.
+#
+# results/seed_stability/stability.json: 20 of the 24 consensus outliers are flagged
+# under all four seeds. The other four -- 732 (3/4), 1152 (2/4), 819 (1/4), 909 (1/4)
+# -- are properties of the seed-2026 draw, and each one costs two models (an include
+# and its matched control). At the sampling rates measured in results/probe, that is
+# roughly 19 GPU-hours spent on noise.
+#
+# Written to results/design_stable/, NOT over results/design/. The 49-job design is
+# what results/runs/copy_paste and results/attack/copy_paste were computed against,
+# and nothing in those files records which design produced them -- overwriting it in
+# place would make the validation run unattributable. Same reason build_cohort.py
+# refuses to overwrite a cohort.
+#
+#   qsub scripts/pbs/11_design_stable.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+python scripts/build_design.py \
+    --cohort data/cohort/metabonet875 \
+    --stability results/seed_stability/stability.json \
+    --out results/design_stable
+
+echo
+echo "job count:"
+ls results/design_stable/jobs/*.json | wc -l

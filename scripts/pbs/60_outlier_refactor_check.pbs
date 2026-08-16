@@ -1,0 +1,63 @@
+#!/bin/bash
+#PBS -N cgm_ochk
+#PBS -P 11704243
+#PBS -j oe
+#
+# Before any three-channel number is read: prove the multichannel refactor left the
+# single-channel path alone, then smoke-test the three-channel path cheaply.
+#
+# The published consensus is re-derived from scratch on metabonet875 and compared to
+# tests/fixtures/consensus_metabonet875_seed2026.json. tests/test_regression.py cannot
+# do this -- it compares a stored consensus against a stored run and never recomputes.
+# Group A is taken from the existing cache because `verify_outlier_refactor.py` proves
+# channel_raw and to_mgdl agree exactly on that cohort, so recomputing 32 metrics over
+# 182k windows would test nothing and cost two hours.
+#
+#   qsub -l select=1:ncpus=64:mem=128gb -l walltime=02:00:00 \
+#        -o logs/60_outlier_refactor_check.log \
+#        scripts/pbs/60_outlier_refactor_check.pbs                            # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  python -m py_compile scripts/run_outliers.py scripts/seed_stability.py \
+                       scripts/verify_outlier_refactor.py \
+                       src/cgmoutlier/outliers/run.py src/cgmoutlier/outliers/shape.py \
+                       src/cgmoutlier/outliers/clinical.py src/cgmoutlier/data/cohort.py
+
+  echo "########## 1. identities ##########"
+  python -u scripts/verify_outlier_refactor.py
+
+  echo "########## 2. re-derive the published consensus ##########"
+  rm -rf results/_refactor_check && mkdir -p results/_refactor_check
+  python -u scripts/run_outliers.py \
+    --cohort data/cohort/metabonet875 --out results/_refactor_check \
+    --channels all --device cpu \
+    --clinical-cache results/outliers/_clinical.parquet
+  python - <<'PY'
+import json, sys
+fix = json.load(open("tests/fixtures/consensus_metabonet875_seed2026.json"))
+new = json.load(open("results/_refactor_check/consensus.json"))
+bad = []
+for k in ("n_subjects", "n_candidates", "cut_pct", "min_methods", "cut_n", "candidates"):
+    if new[k] != fix[k]:
+        bad.append(f"{k}: {new[k]} != {fix[k]}")
+if sorted(new["outliers"]) != sorted(fix["outliers"]):
+    bad.append(f"outliers differ: only-new {sorted(set(new['outliers'])-set(fix['outliers']))} "
+               f"only-fixture {sorted(set(fix['outliers'])-set(new['outliers']))}")
+if new.get("votes") != fix.get("votes"):
+    bad.append("votes differ")
+print("REGRESSION: " + ("IDENTICAL to the fixture" if not bad else "CHANGED\n  " + "\n  ".join(bad)))
+sys.exit(1 if bad else 0)
+PY
+
+  echo "########## 3. three-channel smoke ##########"
+  rm -rf results/_smoke3 && mkdir -p results/_smoke3
+  python -u scripts/run_outliers.py \
+    --cohort data/cohort/metabonet_sid_c3 --out results/_smoke3 \
+    --channels all --only B5,B6 --dtw-per-subject 3 --expect-candidates 2 \
+    --min-methods 1 --device cpu
+  python -u scripts/run_outliers.py \
+    --cohort data/cohort/metabonet_sid_c3 --out results/_smoke3 \
+    --channels all --only B7a,B7b,C8,C10,E13,E14 --expect-candidates 7 \
+    --min-methods 2 --device cpu
+} 2>&1 | tee logs/60_outlier_refactor_check.live.log

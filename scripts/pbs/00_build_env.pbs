@@ -1,0 +1,74 @@
+#!/bin/bash
+#PBS -N cgm_env
+#PBS -P 11704243
+#PBS -l select=1:ncpus=8:mem=32gb
+#PBS -l walltime=01:00:00
+#PBS -j oe
+#PBS -o logs/00_build_env.log
+#
+# Build the conda environment. This is CPU work, so it is a job, not a login-node
+# command -- an env build is exactly what tripped the abuse detector before.
+# Zero GPUs + walltime under 2 h routes to qdev (priority 100, 100 jobs/user).
+#
+#   qsub scripts/pbs/00_build_env.pbs
+#
+# Rebuilding: delete the prefix first. Never --force-reinstall a pinned torch over a
+# default one; the half-migrated state fails much later with an unrelated message.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+
+if [ -d "$ENV_PREFIX" ]; then
+    echo "env already exists at $ENV_PREFIX -- delete it to rebuild"; exit 1
+fi
+
+# -p, not -n: `conda create -n` writes into the quota'd home (§5).
+conda create -y -p "$ENV_PREFIX" python=3.10
+conda activate "$ENV_PREFIX"
+
+# torch first, from the CUDA 12.6 index. The default PyPI wheel is built for a newer
+# runtime than this driver (12.8) and silently trains on CPU at exit code 0 (§4).
+# torchvision alongside torch and from the SAME index: installed later, off the default
+# index, it drags torch up to a cu130 build that this driver cannot run (constraints.txt).
+pip install --no-cache-dir torch==2.7.0 torchvision==0.22.0 \
+    --index-url https://download.pytorch.org/whl/cu126
+
+# then the pinned scientific stack, which puts numpy back at 1.24.4. Order matters:
+# torch pulls a numpy 2.x if it gets to choose, and sklearn 1.1.2 dies on that ABI.
+pip install --no-cache-dir -r requirements.txt
+pip install --no-cache-dir -e ".[dev,generators]"
+
+python - <<'PY'
+import numpy, pandas, sklearn, scipy, numba, torch, cgmoutlier
+import pytorch_lightning, einops, ema_pytorch, diffusers, torchvision   # generators
+print("numpy      ", numpy.__version__, numpy.__file__)
+print("sklearn    ", sklearn.__version__)
+print("numba      ", numba.__version__)
+print("torch      ", torch.__version__)
+print("torchvision", torchvision.__version__)
+assert numpy.__version__.startswith("1."), "numpy 2.x breaks the sklearn 1.1 ABI"
+# The build this driver can run. A different local version means something upgraded
+# torch behind the constraint and CUDA will be unavailable at run time.
+assert torch.__version__.startswith("2.7.0+cu126"), torch.__version__
+PY
+
+# Every generator adapter must at least IMPORT before any of them is timed. Two probe
+# jobs were spent discovering one missing dependency each -- diffusers, then
+# torchvision -- because the first thing that touched them was a GPU run.
+python - <<'PY'
+from cgmoutlier.generators.registry import ALL, get
+bad = []
+for n in ALL:
+    if n == "dimts":
+        continue                      # deliberately its own environment, docs/DIMTS.md
+    try:
+        get(n)
+    except Exception as e:
+        bad.append(f"{n}: {type(e).__name__}: {e}")
+print("importable generators:", [n for n in ALL if n != "dimts" and n not in
+                                 [b.split(':')[0] for b in bad]])
+if bad:
+    raise SystemExit("NOT importable:\n  " + "\n  ".join(bad))
+PY
+
+echo "OK: $ENV_PREFIX"
+du -sh "$ENV_PREFIX"

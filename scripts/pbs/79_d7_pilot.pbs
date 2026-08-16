@@ -1,0 +1,98 @@
+#!/bin/bash
+#PBS -N cgm_d7p
+#PBS -P 11704243
+#PBS -j oe
+#
+# PILOT: does the outlier/control difference appear at seven-day windows?
+#
+# 10 outliers + 10 day-matched controls + 1 base = 21 DiM-TS models on
+# metabonet_sid_c1_d7_contiguous (CGM only, T = 7 x 288 = 2016, calendar-contiguous
+# weeks, no fabricated transitions). If a difference shows, the full design is 20
+# outliers and 60 controls.
+#
+# WIDTH 96, NOT 128. The capacity sweep found them indistinguishable on every quality
+# metric -- ContextFID 0.0487 vs 0.0465, discriminative score 0.0042 for both,
+# discriminative accuracy 0.496 for both -- at 81% of the cost. 128 was kept in the
+# published campaign only because it is the width DiM-TS's authors published.
+#
+# STEPS 3700, NOT 100000. docs/PITFALLS.md 11: a budget in optimiser steps is a
+# statement about the DATASET. The published 100,000 steps at batch 64 with grad-accum 2
+# is 64.6 epochs over 197,970 one-day windows. This cohort holds 7,307 seven-day
+# windows, so the same 64.6 epochs is 3,688 steps. Running 100,000 here would be 876
+# epochs -- a different experiment, and one that would manufacture memorisation.
+#
+# THE CONFOUND THIS DESIGN CANNOT REMOVE, and it must travel with the result: seven-day
+# windows are not just longer, there are 27x fewer of them (7,307 against 197,970),
+# because a week needs seven consecutive complete days and most days are not part of
+# one. Fewer training examples means more memorisation per example. A difference found
+# here is "longer windows AND a smaller training set", not "longer windows".
+#
+#   qsub -l select=1:ncpus=64:ngpus=4 -l walltime=06:00:00 \
+#        -o logs/79_d7_pilot.log scripts/pbs/79_d7_pilot.pbs                     # -> g3
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+test -x "$DIMTS_PYTHON" || { echo "no DiM-TS env"; exit 1; }
+
+COH=data/cohort/metabonet_sid_c1_d7_contiguous
+DSN=results/design_d7_pilot/rep1
+OUT=results/runs/dimts_d7_pilot_rep1
+LOGTAG=${PBS_JOBID%%.*}
+
+{
+  python -c "import torch;a=torch.randn(64,64,device='cuda',dtype=torch.bfloat16);print('cuda ok',(a@a).sum().item())"
+
+  echo "########## 1. pick 10 outliers present in the seven-day cohort ##########"
+  TARGETS=$(python - "$COH" <<'PY'
+import json, sys, collections
+import numpy as np
+s = np.load(f"{sys.argv[1]}/subject_ids.npy", allow_pickle=True).astype(str)
+cnt = collections.Counter(s.tolist())
+st = json.load(open("results/outliers_sid_c3/stability_1ch/stability.json"))
+# the CGM-only consensus, flagged under all four detection seeds, on the corrected key
+avail = [o for o in st["always"] if cnt.get(o, 0) >= 4]
+print(f"{len(st['always'])} single-CGM outliers, {len(avail)} of them have >= 4 "
+      f"seven-day windows", file=sys.stderr)
+# most windows first: a per-subject AUC needs windows and the median subject has ten
+avail.sort(key=lambda o: -cnt[o])
+print(",".join(avail[:10]))
+PY
+)
+  echo "targets: $TARGETS"
+
+  echo "########## 2. design ##########"
+  python -u scripts/build_design.py --cohort "$COH" --outliers "$TARGETS" \
+    --out "$DSN" --replicates 1 --n-candidates 1
+
+  echo "########## 3. train 21 models ##########"
+  IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
+  export THREADS=$(( ${NCPUS:-64} / ${#ALLOC[@]} ))
+  pids=(); rc=0
+  for i in "${!ALLOC[@]}"; do
+      ( export CUDA_VISIBLE_DEVICES="${ALLOC[$i]}"
+        python scripts/run_loo.py --design "$DSN" --out "$OUT" --cohort "$COH" \
+          --shard "$i" --n-shards "${#ALLOC[@]}" \
+          --params '{"hidden_size": 96, "steps": 3700, "save_cycle": 1000}'
+      ) > "logs/79_${LOGTAG}_shard${i}.log" 2>&1 &
+      pids+=($!)
+  done
+  for i in "${!pids[@]}"; do
+      if wait "${pids[$i]}"; then echo "shard $i OK"; else echo "shard $i FAILED"; rc=1; fi
+  done
+  echo "$(find "$OUT" -name samples.npy | wc -l) / 21 models"
+
+  echo "########## 4. quality ##########"
+  python -u scripts/eval_quality.py --runs "$OUT/base" --design "$DSN" \
+    --cohort "$COH" --out results/quality_d7_pilot
+
+  echo "########## 5. attack ##########"
+  python -u scripts/run_attack.py --design "$DSN" --runs "$OUT" --cohort "$COH" \
+    --out results/attack_d7_pilot
+
+  echo "########## 6. per-subject AUC ##########"
+  python -u scripts/subject_auc.py --runs dimts_d7_pilot --design results/design_d7_pilot \
+    --cohort "$COH" --replicates 1 --out results/subject_auc_d7_pilot
+  exit $rc
+} 2>&1 | tee logs/79_d7_pilot.live.log

@@ -1,0 +1,69 @@
+#!/bin/bash
+#PBS -N cgm_bz
+#PBS -P 11704243
+#PBS -j oe
+#
+# Can a classifier separate real from synthetic just by looking for exact zeros?
+#
+# Real bolus is 95% exactly 0.0, which normalisation maps to one exact repeated constant.
+# A Gaussian diffusion model denoises from noise into continuous values; it has no
+# mechanism for emitting the same value to the last bit thousands of times. If that is
+# what the discriminator is reading, the three-channel quality gap is a property of the
+# CHANNEL, not of capacity (already excluded) or training length (already excluded).
+#
+# No model is trained: this reads samples.npy and the cohort that are already on disk.
+#
+#   qsub -l select=1:ncpus=8:mem=64gb -l walltime=00:30:00 \
+#        -o logs/73_bolus_zeros.log scripts/pbs/73_bolus_zeros.pbs             # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python - <<'PY' 2>&1 | tee logs/73_bolus_zeros.live.log
+import json
+import numpy as np
+from pathlib import Path
+from cgmoutlier.data.cohort import load
+
+X, sids, man = load("data/cohort/metabonet_sid_c3")
+names = [c["name"] for c in man["channel_constants"]]
+zc = man["zclip"]
+# the value an exact raw 0.0 becomes: clip((0 - mean)/sd, +-5)/5
+zero_norm = {c["name"]: float(np.clip((0.0 - c["mean"]) / c["sd"], -zc, zc) / zc)
+             for c in man["channel_constants"]}
+print("raw 0.0 maps to:", {k: round(v, 6) for k, v in zero_norm.items()})
+
+R = np.asarray(X[:20000])
+S = np.asarray(np.load("results/runs/dimts_c3_h128_rep1/base/samples.npy",
+                       mmap_mode="r")[:20000])
+print(f"\nreal {R.shape}   synthetic {S.shape}")
+
+print(f"\n{'channel':8}{'':>4}{'real':>12}{'synthetic':>12}   (fraction of cells)")
+for i, n in enumerate(names):
+    z = zero_norm[n]
+    for tol, lab in ((1e-6, "exactly at 0"), (0.01, "within 0.01")):
+        fr = float((np.abs(R[..., i] - z) < tol).mean())
+        fs = float((np.abs(S[..., i] - z) < tol).mean())
+        print(f"  {n:8}{lab:>16}{fr:>10.4%}{fs:>12.4%}")
+
+print("\nmost common single value per channel (how repetitive is the channel):")
+for i, n in enumerate(names):
+    for lab, A in (("real", R), ("syn ", S)):
+        v, c = np.unique(np.round(A[..., i].ravel(), 6), return_counts=True)
+        j = c.argmax()
+        print(f"  {n:8} {lab}  value {v[j]:+.6f} appears {c[j] / A[..., i].size:.2%} "
+              f"of the time;  {len(v):,} distinct values")
+
+# the one-feature classifier the argument predicts: threshold on "share of cells at zero"
+print("\na single-feature classifier: per WINDOW, the share of bolus cells at the zero "
+      "constant")
+i = names.index("bolus")
+fr = (np.abs(R[..., i] - zero_norm["bolus"]) < 0.01).mean(axis=1)
+fs = (np.abs(S[..., i] - zero_norm["bolus"]) < 0.01).mean(axis=1)
+print(f"  real      median {np.median(fr):.4f}  q10 {np.quantile(fr,0.1):.4f}  "
+      f"q90 {np.quantile(fr,0.9):.4f}")
+print(f"  synthetic median {np.median(fs):.4f}  q10 {np.quantile(fs,0.1):.4f}  "
+      f"q90 {np.quantile(fs,0.9):.4f}")
+th = 0.5 * (np.median(fr) + np.median(fs))
+acc = 0.5 * ((fr > th).mean() + (fs <= th).mean())
+print(f"  threshold {th:.4f} -> accuracy {acc:.4f}")
+print("  (0.50 = the feature carries nothing; 1.00 = it separates the two sets alone)")
+PY

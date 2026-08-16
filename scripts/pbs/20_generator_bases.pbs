@@ -1,0 +1,91 @@
+#!/bin/bash
+#PBS -N cgm_gen_bases
+#PBS -P 11704243
+#PBS -j oe
+#
+# One base model per GENERATOR, for the quality-vs-cost frontier.
+#
+#   qsub -l select=1:ncpus=64:ngpus=4 -l walltime=25:00:00 \
+#        -o logs/20_generator_bases.log scripts/pbs/20_generator_bases.pbs   # -> glong
+#
+# Answers "which generator is fastest at acceptable quality" for the cost of 4 models
+# instead of 4 x 41. Only if a generator clears the quality bar does it earn a full
+# replicate.
+#
+# WHY glong AND 25 h. fourier_diff measured 15.3 h per model at K=176k -- 1000 denoising
+# steps against DiM-TS's 500 -- so it alone needs more than g2/g1's 24 h ceiling once
+# queue time is allowed for. glong takes 1-64 GPUs at 24-120 h and had zero queued when
+# this was written. The other three finish far earlier and their cards idle until
+# fourier_diff exits; that is the documented cost of packing (README section on stage 4)
+# and it is cheaper here than four serialised single-GPU jobs.
+#
+# Each generator runs on its OWN defaults. run_loo.py refuses to inherit
+# configs/experiment.yaml's params when --generator differs from the config's, because
+# hidden_size and save_cycle are DiM-TS's and mean nothing to timevae -- meta.json would
+# otherwise record parameters the model never used.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+
+# ⛔ Do not pass a generator LIST through -v. PBS splits the -v list on commas, so a
+# comma-separated value fails the submit outright with `qsub: cannot send environment
+# with the job`, and a space-separated one is quoted differently by every shell in the
+# path -- the same class of trap as inline JSON, whose double quotes -v strips
+# (docs/PLAN.md, two jobs dead in one second). A named profile carries the structure;
+# -v carries only a flag.
+#
+#   CHEAP=1   timevae diffwave diffusion_ts   the three whose cost probe is bounded
+#   ONE=<gen> a single generator by name      (one token, no separator, safe)
+#
+if [ -n "${CHEAP:-}" ]; then
+    GENS="timevae diffwave diffusion_ts"
+elif [ -n "${ONE:-}" ]; then
+    GENS="$ONE"
+fi
+read -ra GENS <<< "${GENS:-timevae diffwave diffusion_ts fourier_diff}"
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
+echo "PBS allocated ${#ALLOC[@]} GPU(s) for ${#GENS[@]} generator(s)"
+export THREADS=$(( ${NCPUS:-64} / ${#ALLOC[@]} ))
+
+# BATCH / EPOCHS build the --params JSON HERE rather than arriving through -v, whose
+# double quotes PBS strips (two jobs dead in a second on 2026-08-10, docs/PLAN.md).
+# They exist because a vendored default is a property of the AUTHORS' dataset, not of
+# the generator: TimeVAE's batch_size=16 is 11,028 iterations per epoch on this cohort
+# and measured 46.8 h for its default 1000 epochs, against 1.5 h at batch 256 -- the
+# per-iteration cost is ~1.2-1.7 ms whatever the batch, so the loop is launch-bound and
+# the card is idle. Changing it is a DECLARED change; leaving it measures Python
+# overhead rather than the generator (docs/PITFALLS.md).
+PARAMS=""
+if [ -n "${BATCH:-}" ] || [ -n "${EPOCHS:-}" ]; then
+    PARAMS='{'
+    if [ -n "${BATCH:-}" ];  then PARAMS="$PARAMS\"batch_size\": $BATCH"; fi
+    if [ -n "${BATCH:-}" ] && [ -n "${EPOCHS:-}" ]; then PARAMS="$PARAMS, "; fi
+    if [ -n "${EPOCHS:-}" ]; then PARAMS="$PARAMS\"max_epochs\": $EPOCHS"; fi
+    PARAMS="$PARAMS}"
+    echo "params override: $PARAMS"
+fi
+
+pids=(); rc=0
+for i in "${!GENS[@]}"; do
+    g=${GENS[$i]}
+    ( export CUDA_VISIBLE_DEVICES="${ALLOC[$(( i % ${#ALLOC[@]} ))]}"
+      python scripts/run_loo.py --job base --generator "$g" \
+          --design results/design_sym/rep1 \
+          --out "results/runs/${g}_base" \
+          --cohort data/cohort/metabonet875 \
+          ${PARAMS:+--params "$PARAMS"}
+    ) > "$REPO/logs/20_${PBS_JOBID%%.*}_${g}.log" 2>&1 &
+    pids+=($!)
+    echo "$g -> ${ALLOC[$(( i % ${#ALLOC[@]} ))]}  (pid ${pids[$i]})"
+done
+for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then echo "${GENS[$i]} OK"
+    else echo "${GENS[$i]} FAILED"; rc=1; fi
+done
+
+echo
+for g in "${GENS[@]}"; do
+    echo "--- $g ---"; tail -4 "$REPO/logs/20_${PBS_JOBID%%.*}_${g}.log"
+done
+exit $rc

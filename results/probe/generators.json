@@ -1,0 +1,203 @@
+[
+  {
+    "generator": "fourier_diff",
+    "n_train": 20000,
+    "T": 288,
+    "C": 1,
+    "params": 786887,
+    "train_budget": {
+      "max_epochs": 4,
+      "batch_size": 64
+    },
+    "sample_budget": {
+      "num_diffusion_steps": 1000,
+      "sample_batch": 128
+    },
+    "fit_seconds": 65.4,
+    "train_rate": {
+      "unit": "max_epochs",
+      "per_unit_seconds": 13.2197,
+      "setup_seconds": 0.2,
+      "points": [
+        [
+          1,
+          13.446009874343872
+        ],
+        [
+          4,
+          53.105132818222046
+        ]
+      ]
+    },
+    "n_sampled": 512,
+    "sample_seconds": 91.9,
+    "seconds_per_sample": 0.17951,
+    "hours_for_K": 8.83,
+    "hours_for_49_models_sampling_only": 432.5,
+    "sample_shape": [
+      512,
+      288,
+      1
+    ],
+    "sample_nan_frac": 0.0,
+    "sample_range": [
+      -4.311446189880371,
+      36.74628448486328
+    ]
+  },
+  {
+    "generator": "timevae",
+    "n_train": 20000,
+    "T": 288,
+    "C": 1,
+    "params": null,
+    "train_budget": {
+      "max_epochs": 8,
+      "batch_size": 64
+    },
+    "sample_budget": {},
+    "fit_seconds": 14.5,
+    "train_rate": {
+      "unit": "max_epochs",
+      "per_unit_seconds": 1.481,
+      "setup_seconds": -0.1,
+      "points": [
+        [
+          2,
+          2.8828012943267822
+        ],
+        [
+          8,
+          11.76889705657959
+        ]
+      ]
+    },
+    "n_sampled": 512,
+    "sample_seconds": 0.0,
+    "seconds_per_sample": 1e-05,
+    "hours_for_K": 0.0,
+    "hours_for_49_models_sampling_only": 0.0,
+    "sample_shape": [
+      512,
+      288,
+      1
+    ],
+    "sample_nan_frac": 0.0,
+    "sample_range": [
+      -0.4181259274482727,
+      1.0643196105957031
+    ]
+  },
+  {
+    "generator": "diffusion_ts",
+    "n_train": 20000,
+    "T": 288,
+    "C": 1,
+    "params": 223719,
+    "train_budget": {
+      "train_num_steps": 200,
+      "batch_size": 64
+    },
+    "sample_budget": {},
+    "fit_seconds": 436.1,
+    "train_rate": {
+      "unit": "train_num_steps",
+      "per_unit_seconds": 0.0125,
+      "setup_seconds": 434.7,
+      "points": [
+        [
+          50,
+          435.3520848751068
+        ],
+        [
+          200,
+          437.22947430610657
+        ]
+      ]
+    },
+    "n_sampled": 512,
+    "sample_seconds": 24.0,
+    "seconds_per_sample": 0.04689,
+    "hours_for_K": 2.31,
+    "hours_for_49_models_sampling_only": 113.0,
+    "sample_shape": [
+      512,
+      288,
+      1
+    ],
+    "sample_nan_frac": 0.0,
+    "sample_range": [
+      -0.3909175992012024,
+      0.9492112398147583
+    ]
+  },
+  {
+    "generator": "diffwave",
+    "n_train": 20000,
+    "T": 288,
+    "C": 1,
+    "params": 2718977,
+    "train_budget": {
+      "max_steps": 200,
+      "batch_size": 64
+    },
+    "sample_budget": {},
+    "fit_seconds": 563.9,
+    "train_rate": {
+      "unit": "max_steps",
+      "per_unit_seconds": -0.0065,
+      "setup_seconds": 560.8,
+      "points": [
+        [
+          50,
+          560.5262656211853
+        ],
+        [
+          200,
+          559.5558898448944
+        ]
+      ]
+    },
+    "n_sampled": 512,
+    "sample_seconds": 5.9,
+    "seconds_per_sample": 0.01146,
+    "hours_for_K": 0.56,
+    "hours_for_49_models_sampling_only": 27.6,
+    "sample_shape": [
+      512,
+      288,
+      1
+    ],
+    "sample_nan_frac": 0.0,
+    "sample_range": [
+      -0.4293094277381897,
+      1.1777031421661377
+    ]
+  },
+  {
+    "generator": "copy_paste",
+    "n_train": 20000,
+    "T": 288,
+    "C": 1,
+    "params": null,
+    "train_budget": {},
+    "sample_budget": {},
+    "fit_seconds": 0.0,
+    "train_rate": null,
+    "n_sampled": 512,
+    "sample_seconds": 0.0,
+    "seconds_per_sample": 0.0,
+    "hours_for_K": 0.0,
+    "hours_for_49_models_sampling_only": 0.0,
+    "sample_shape": [
+      512,
+      288,
+      1
+    ],
+    "sample_nan_frac": 0.0,
+    "sample_range": [
+      -0.3715648055076599,
+      0.9000393748283386
+    ]
+  }
+]

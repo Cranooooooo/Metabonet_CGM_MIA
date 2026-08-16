@@ -1,0 +1,40 @@
+# Per-dataset training configuration for IG-FM (train_r10.py).
+#
+# train_r10.py loads this file automatically and, based on --dataset, applies the
+# matching entry below. Precedence: a flag passed explicitly on the command line
+# overrides this file; otherwise the per-dataset value is used; otherwise the
+# `defaults` block; otherwise the script's built-in default.
+#
+# Only these keys are config-driven: window, total_iters, hidden_dim,
+# lambda_schedule. Everything else (lr, batch_size, layers, alphas, ...) stays at
+# train_r10.py's CLI defaults.
+#
+# This reproduces the T=64 benchmark runs (seed 2023).
+
+defaults:
+  window: 64
+  total_iters: 300000
+  hidden_dim: 128
+  lambda_schedule: "100000:1,200000:2,300000:4"
+
+datasets:
+  GENERAL_Stocks:    # D=6
+    window: 64
+    hidden_dim: 128
+    total_iters: 200000
+
+  GENERAL_Etth:      # D=7
+    window: 64
+    hidden_dim: 256
+    total_iters: 300000
+
+  GENERAL_Energy:    # D=28
+    window: 64
+    hidden_dim: 256
+    total_iters: 300000
+
+  GENERAL_KDDCup:    # D=59 — high-dimensional: bigger hidden, longer schedule, larger late-stage lambda
+    window: 64
+    hidden_dim: 512
+    total_iters: 400000
+    lambda_schedule: "100000:1,200000:2,300000:4,400000:8"

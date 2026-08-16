@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -N cgm_c3fix
+#PBS -P 11704243
+#PBS -j oe
+#
+# Rebuild the three-channel cohort with the normalisation constants computed in float64.
+# The float32 axis-0 reduction stalled and wrote CGM mean 96.05 / sd 71.19 into the
+# manifest against a true 145.94 / 57.65. The stored array is a valid invertible
+# encoding either way, so the identifiability results do not change, but every clinical
+# metric is defined by inverting these constants.
+#
+#   qsub -l select=1:ncpus=16:mem=200gb -l walltime=02:00:00 \
+#        -o logs/58_rebuild_c3_fixed.log scripts/pbs/58_rebuild_c3_fixed.pbs   # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  python -u scripts/build_cohort_multi.py --subject-key study_id \
+    --channels CGM basal bolus --out data/cohort/metabonet_sid_c3
+  python -u scripts/verify_cohort_multi.py --cohort data/cohort/metabonet_sid_c3 \
+    --cells results/channel_coverage_studyid/cells_per_day.parquet
+  python -u scripts/check_units.py --cohorts data/cohort/metabonet_sid_c3
+} 2>&1 | tee logs/58_rebuild_c3_fixed.live.log

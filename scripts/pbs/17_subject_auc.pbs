@@ -1,0 +1,29 @@
+#!/bin/bash
+#PBS -N cgm_subject_auc
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=384gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/17_subject_auc.log
+#
+# One membership-inference AUC per SUBJECT: 20 outliers (averaged over their three
+# replicates) + 60 controls = 80 numbers, each with a bootstrap CI.
+#
+# The attack is window-level underneath but only its per-subject REDUCTION reaches
+# gaps.parquet, so the window vectors are recomputed here and ranked instead of
+# averaged. Same BLAS as run_attack, ~20 min a replicate; qdev, no GPU.
+#
+# Read per_subject.csv with n_windows in view. Records run 31 to 363 windows, and an
+# AUC from 31 is far noisier than one from 363 -- the ranking alone would put
+# short-record subjects at both ends for reasons unrelated to exposure. That is why
+# every AUC carries a CI and why Spearman(AUC, n_windows) is printed.
+#
+#   qsub scripts/pbs/17_subject_auc.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+python scripts/subject_auc.py \
+    --runs "${RUNS:-dimts_h128}" \
+    --replicates "${REPS:-3}" \
+    --n-boot "${NBOOT:-2000}"

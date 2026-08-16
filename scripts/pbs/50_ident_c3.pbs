@@ -1,0 +1,25 @@
+#!/bin/bash
+#PBS -N cgm_ident3
+#PBS -P 11704243
+#PBS -j oe
+#
+# Verify the three-channel cohort, then measure its identifiability ceiling and
+# cross-reference both cohorts against the membership findings.
+#
+# The verification is FIRST and the job aborts on its non-zero exit (env.sh sets -e):
+# build_cohort_multi reported 31,292 days that failed to reassemble against only 272
+# that can legitimately be missing, so a duplicated window is live until ruled out, and
+# a duplicate would inflate a subject's day count -- the confound the stratified draw
+# exists to prevent.
+#
+#   qsub -l select=1:ncpus=16:mem=64gb -l walltime=01:00:00 \
+#        -o logs/50_ident_c3.log scripts/pbs/50_ident_c3.pbs                   # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  python -u scripts/verify_cohort_multi.py --cohort data/cohort/metabonet834_c3
+  python -u scripts/identifiability.py --cohort data/cohort/metabonet834_c3
+  python -u scripts/identifiability_vs_outliers.py \
+    --per-subject results/identifiability/metabonet875_per_subject.csv \
+                  results/identifiability/metabonet834_c3_per_subject.csv
+} 2>&1 | tee logs/50_ident_c3.live.log

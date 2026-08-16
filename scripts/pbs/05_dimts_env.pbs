@@ -1,0 +1,82 @@
+#!/bin/bash
+#PBS -N cgm_dimts_env
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=64gb:ngpus=1
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/05_dimts_env.log
+#
+# The second environment. DiM-TS needs a Mamba selective-scan kernel built against a
+# torch that will not coexist with the other baselines', so the adapter drives it as a
+# subprocess (docs/DIMTS.md).
+#
+# CORRECTION to docs/DIMTS.md: `pip install selective_scan_cuda_oflex_rh` does not
+# work -- that package is not on PyPI, it was an internal wheel from the previous
+# project. The kernel is built from the vendored sources under
+# vendor/DiM-TS/kernels/selective_scan (setup.py MODE=oflexrh produces exactly that
+# module name). It needs CUDA >= 11.8 at build time.
+#
+# 1 GPU, not 0: the build is CPU work but the verification is not, and doing both in
+# one job is the difference between "it compiled" and "it runs".
+#
+#   qsub scripts/pbs/05_dimts_env.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+
+DIMTS_ENV=$WORK/envs/dimts
+if [ -d "$DIMTS_ENV" ]; then
+    echo "env already exists at $DIMTS_ENV -- delete it to rebuild"; exit 1
+fi
+
+# $TMPDIR is empty inside a job here (guide §5) and a CUDA extension build wants real
+# space; without this the build silently lands in the current directory.
+export TMPDIR=$WORK/.cache/tmp
+mkdir -p "$TMPDIR"
+
+# nvcc for the extension build. torch 2.0.1's own wheel is cu118, so the toolkit and
+# the wheel have to agree; the 12.8 driver runs a cu118 binary fine.
+module load cuda/11.8.0
+nvcc --version
+
+conda create -y -p "$DIMTS_ENV" python=3.10
+conda activate "$DIMTS_ENV"
+
+pip install --no-cache-dir torch==2.0.1 --index-url https://download.pytorch.org/whl/cu118
+
+# vendor/DiM-TS/requirements.txt pins torch and triton itself; installing those again
+# from PyPI would pull the cu117 default over the cu118 build just installed.
+grep -v -E '^(torch|triton)==' vendor/DiM-TS/requirements.txt > "$TMPDIR/dimts_reqs.txt"
+pip install --no-cache-dir -r "$TMPDIR/dimts_reqs.txt"
+
+# A100 is sm_80. Naming it avoids the build querying a device and avoids compiling
+# every architecture, which triples the build time.
+export TORCH_CUDA_ARCH_LIST="8.0"
+export MAX_JOBS=$THREADS
+
+# torch 2.0.1's cpp_extension does `from pkg_resources import packaging`, and
+# setuptools >= 81 removed pkg_resources. The build then dies during metadata
+# generation with "No module named 'pkg_resources'", which names neither torch nor
+# setuptools and reads like a broken package.
+pip install --no-cache-dir "setuptools<81"
+
+pip install --no-cache-dir --no-build-isolation ./vendor/DiM-TS/kernels/selective_scan
+
+# The kernel links against the environment's libstdc++, not the system one. Without
+# this the import fails with `CXXABI_1.3.15 not found`, which points nowhere near the
+# real cause (docs/DIMTS.md).
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+
+python - <<'PY'
+import torch, selective_scan_cuda_oflex_rh
+print("torch", torch.__version__, "cuda_available", torch.cuda.is_available())
+assert torch.cuda.is_available(), "no CUDA: wrong torch wheel, see guide section 4"
+print("device", torch.cuda.get_device_name(0))
+a = torch.randn(64, 64, device="cuda", dtype=torch.bfloat16)
+print("matmul", (a @ a).sum().item())
+print("kernel ok:", selective_scan_cuda_oflex_rh.__file__)
+PY
+
+echo
+echo "OK: $DIMTS_ENV"
+echo "export DIMTS_PYTHON=$DIMTS_ENV/bin/python"
+du -sh "$DIMTS_ENV"

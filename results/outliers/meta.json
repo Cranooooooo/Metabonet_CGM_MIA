@@ -1,0 +1,36 @@
+{
+  "B5_B6": {
+    "route": "kmedoids",
+    "sizes": [
+      1208,
+      78,
+      914
+    ],
+    "n_probe": 2200,
+    "dtw_per_subject": 30
+  },
+  "C8": {
+    "sigma": 0.2484753578901291,
+    "n_ref": 4000,
+    "leave_self_out": false
+  },
+  "E14": {
+    "sigma": 0.2513279616832733,
+    "n_ref": 4000,
+    "leave_self_out": true
+  },
+  "encoder": {
+    "fitted": false,
+    "cache": "/home/ling/workspace/project_cgm/CGM-OutlierMIA/results/_encoder_cache/ts2vec_a93691f85dfc6288.pt",
+    "fingerprint": "a93691f85dfc6288",
+    "n_train": 5000,
+    "dims": 320,
+    "seed": 2026
+  },
+  "C9": {
+    "sigma": 0.12154204398393631,
+    "n_ref": 4000,
+    "leave_self_out": false
+  },
+  "seed": 2026
+}

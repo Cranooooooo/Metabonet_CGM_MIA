@@ -1,0 +1,16 @@
+#!/bin/bash
+#PBS -N cgm_idcol
+#PBS -P 11704243
+#PBS -j oe
+#
+# Are the oversized (id, day) groups repeated timestamps or a finer sampling rate, and
+# does any id span more than one source study? 51_dupdays ruled out the repeated-VALUE
+# form of the problem in the shipped cohort (14 windows of 182,597); it cannot see the
+# finer-resolution form, where a day's first 288 rows are a few hours at 1-minute
+# spacing and every value is distinct.
+#
+#   qsub -l select=1:ncpus=8:mem=64gb -l walltime=00:40:00 \
+#        -o logs/52_id_collisions.log scripts/pbs/52_id_collisions.pbs         # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -u scripts/check_id_collisions.py 2>&1 | tee logs/52_id_collisions.live.log

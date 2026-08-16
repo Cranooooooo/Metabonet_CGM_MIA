@@ -1,0 +1,29 @@
+{
+  "source": "data/cohort/metabonet_sid_c1",
+  "channels": [
+    "CGM"
+  ],
+  "C": 1,
+  "T": 6048,
+  "dt_min": 5,
+  "zclip": 5.0,
+  "n_subjects": 999,
+  "n_windows": 8077,
+  "min_days": 30,
+  "seed": 2026,
+  "stratified_on": "n_days",
+  "channel_constants": [
+    {
+      "name": "CGM",
+      "mean": 145.93704223632812,
+      "sd": 57.653873443603516,
+      "nonzero_frac": 1.0
+    }
+  ],
+  "denorm_formula": "raw[:, :, i] = x * zclip * sd[i] + mean[i]",
+  "note": "An L-day window. Constants are inherited from the source cohort unchanged -- this is a regrouping of the same normalised values, not a renormalisation, so a metric computed here is on the same scale as one computed there.",
+  "days_per_window": 21,
+  "mode": "concat",
+  "min_windows_per_subject": 4,
+  "seams_total": 50552
+}

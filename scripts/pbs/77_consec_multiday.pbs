@@ -1,0 +1,11 @@
+#!/bin/bash
+#PBS -N cgm_cons2
+#PBS -P 11704243
+#PBS -j oe
+#   qsub -l select=1:ncpus=8:mem=32gb -l walltime=00:20:00 \
+#        -o logs/77_consec_multiday.log scripts/pbs/77_consec_multiday.pbs      # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -u scripts/consecutive_days.py --sets CGM --lengths 1 7 14 21 28 \
+  --out results/channel_coverage_studyid/consecutive_multiday.csv \
+  2>&1 | tee logs/77_consec_multiday.live.log

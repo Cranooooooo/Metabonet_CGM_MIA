@@ -1,0 +1,32 @@
+# The fourteen outlier methods. Keys match cgmoutlier.outliers.run.ALL.
+# Rationale and citations: docs/METHODS.md
+
+clinical:            # group A -- Battelino et al., Diabetes Care 2019
+  consensus_metrics: [tir_70_180, tbr_70, t_lt_54, tar_180, t_gt_250, mean, gmi, cv]
+  cluster_reps:      [conga1, grade_hypo, grade_hyper, cv, gri]
+  cv_unstable: 36.0  # the consensus threshold for unstable glycaemia
+  isolation_forest: {n_estimators: 400, random_state: 0}
+
+shape:               # group B -- Hall et al., PLOS Biology 2018 (glucotypes)
+  dtw_band: 12
+  dtw_per_subject: 30    # cost cap; raises noise for subjects with few days
+  n_signatures: 3
+  cluster_probe: 2200
+  knn_k: 5
+  knn_reference: 6000
+
+distribution:        # groups C and E
+  mmd_reference: 4000
+  bandwidth: median_heuristic   # computed once on the reference, shared by all subjects
+  sliced_wasserstein: {n_proj: 200, n_quantiles: 256}
+
+learned:             # group D -- deliberately thin; see docs/METHODS.md
+  encoder: ts2vec
+  encoder_dims: 320
+  lof_k: 20
+  autoencoder: {epochs: 20, latent: 32, batch: 256}
+
+consensus:
+  top_pct: 5.0       # per-method outlier cut
+  min_methods: 7     # of 13 candidates; the vote histogram has a trough at 3-6
+  exclude: [E13]     # controls never vote

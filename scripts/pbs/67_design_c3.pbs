@@ -1,0 +1,37 @@
+#!/bin/bash
+#PBS -N cgm_dsn3
+#PBS -P 11704243
+#PBS -l select=1:ncpus=4:mem=32gb
+#PBS -l walltime=00:20:00
+#PBS -j oe
+#PBS -o logs/67_design_c3.log
+#
+# The design for the three-channel study: 20 outliers flagged under all four seeds on
+# CGM+basal+bolus, 20 day-matched controls, three disjoint control draws.
+#
+# Same shape as 14_design_sym.pbs and for the same reasons -- symmetric pairing so the
+# base's own offset does not enter the two arms with opposite sign, three replicates
+# because within one replicate the 40 gaps share a base, and --n-candidates 8 so the
+# three draws actually differ (match_controls ignored its seed until 2026-08-07).
+#
+# WHAT IS DIFFERENT, and it changes the power of the experiment: the cohort is 1,253
+# subjects rather than 875, so the base trains on ~1,213 and one subject is 0.08% of
+# the training set instead of 0.11%. A membership signal has to survive being that
+# small a fraction. Read `matching` in the output before spending any GPU time.
+#
+#   qsub scripts/pbs/67_design_c3.pbs                                        # -> qdev
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+python -u scripts/build_design.py \
+    --cohort data/cohort/metabonet_sid_c3 \
+    --stability results/outliers_sid_c3/stability_3ch/stability.json \
+    --replicates 3 \
+    --n-candidates 8 \
+    --out results/design_sid_c3 2>&1 | tee logs/67_design_c3.live.log
+
+echo
+for r in 1 2 3; do
+    printf "rep%s: %s jobs\n" "$r" "$(ls results/design_sid_c3/rep$r/jobs/*.json | wc -l)"
+done

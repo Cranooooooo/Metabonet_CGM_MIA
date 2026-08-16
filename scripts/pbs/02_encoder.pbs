@@ -1,0 +1,50 @@
+#!/bin/bash
+#PBS -N cgm_encoder
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=64gb:ngpus=1
+#PBS -l walltime=01:00:00
+#PBS -j oe
+#PBS -o logs/02_encoder.log
+#
+# Fit the TS2Vec encoder once and cache it, so the three seed jobs that follow are
+# pure CPU work and can run concurrently in qdev.
+#
+# The encoder is seeded at a fixed 2026 inside get_encoder() and is NOT a function of
+# the run's base seed, so one cache serves every seed. Cache is ~225 MB and lives in
+# results/_encoder_cache/, symlinked to the project space by 99_setup_links.sh.
+#
+# 1 GPU + walltime <= 2 h routes to gdev: priority 100, a card in 1-2 minutes.
+#
+#   qsub scripts/pbs/02_encoder.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+# is_available() alone returns True on a wheel built without this card's architecture,
+# where every kernel launch then fails. Do a real matmul (§4).
+python - <<'PY'
+import torch
+print("torch", torch.__version__, "cuda_available", torch.cuda.is_available())
+assert torch.cuda.is_available(), "no CUDA: wrong torch wheel, see guide section 4"
+print("device", torch.cuda.get_device_name(0))
+a = torch.randn(64, 64, device="cuda", dtype=torch.bfloat16)
+print("matmul", (a @ a).sum().item())
+PY
+
+# C9 and D11 are the two methods that need the encoder. Running them here also fills
+# results/outliers-side caches for the seed jobs. Scores go to a throwaway directory:
+# the real seed-2026 scores already exist and must not be recomputed.
+python - <<'PY'
+import numpy as np
+from cgmoutlier._env import check; check()
+from cgmoutlier.data.cohort import load
+from cgmoutlier.attack.learned_features import get_encoder, encode_real_cached
+
+X, sids, man = load("data/cohort/metabonet875")
+model, em = get_encoder(np.asarray(X))
+E = np.asarray(encode_real_cached(model, np.asarray(X), em["fingerprint"]))
+print("encoder", em)
+print("embeddings", E.shape, E.dtype)
+PY
+
+ls -la results/_encoder_cache/

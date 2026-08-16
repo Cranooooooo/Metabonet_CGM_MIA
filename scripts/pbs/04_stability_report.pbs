@@ -1,0 +1,28 @@
+#!/bin/bash
+#PBS -N cgm_stab_report
+#PBS -P 11704243
+#PBS -l select=1:ncpus=4:mem=32gb
+#PBS -l walltime=00:20:00
+#PBS -j oe
+#PBS -o logs/04_stability_report.log
+#
+# Reads the four seed directories that already exist and writes
+# results/seed_stability/stability.json. Runs nothing: --analyse-only.
+#
+# Submit after all three 03_stability_seed jobs report Exit_status=0.
+#
+#   qsub scripts/pbs/04_stability_report.pbs
+#
+# The output that matters is `always`: subjects flagged under every base seed. That
+# list, not the 24 in results/outliers/consensus.json, is what should be carried into
+# the generator stage -- a subject flagged under one draw is a property of the draw,
+# and a 49-model experiment is too expensive to spend on it.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+python scripts/seed_stability.py \
+    --cohort data/cohort/metabonet875 \
+    --out results/seed_stability \
+    --seeds 2026,7,101,999 \
+    --analyse-only

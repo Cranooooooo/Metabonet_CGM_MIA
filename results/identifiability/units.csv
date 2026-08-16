@@ -1,0 +1,8 @@
+study,count,median,min,max,cohort
+DCLP3,112,155.3509,120.72875,232.22214,data/cohort/metabonet_sid_c3
+DCLP5,100,162.60541,121.630714,224.21764,data/cohort/metabonet_sid_c3
+Flair,74,158.0964,137.91565,191.46399,data/cohort/metabonet_sid_c3
+Loop,749,139.93813,86.03982,229.63045,data/cohort/metabonet_sid_c3
+OhioT1DM,1,167.25294,167.25294,167.25294,data/cohort/metabonet_sid_c3
+PEDAP,61,149.64055,123.446465,177.15556,data/cohort/metabonet_sid_c3
+ReplaceBG,156,159.62955,111.304085,256.95847,data/cohort/metabonet_sid_c3

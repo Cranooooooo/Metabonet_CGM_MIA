@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -N cgm_chancov
+#PBS -P 11704243
+#PBS -j oe
+#
+# One pass over the raw parquet: per-(subject, day) cell counts for every time-varying
+# channel, then the cohort size each channel combination would give. Replaces stage B of
+# 44_inspect_raw.pbs, which was one pass per channel and did not fit the walltime.
+#
+#   qsub -l select=1:ncpus=16:mem=64gb -l walltime=02:00:00 \
+#        -o logs/46_channel_coverage.log scripts/pbs/46_channel_coverage.pbs   # -> qdev
+#
+# Single-threaded pandas; the cores are for pyarrow's decode. Peak memory is one batch
+# of 2M rows plus the accumulated (id, day) index, both well under the request.
+#
+# Output is teed to a file on the shared filesystem as well as to PBS's log, because
+# PBS only stages its own log back when the job ENDS -- during 44_inspect_raw's two
+# hours there was no way to tell a job making progress from one that had hung.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -u scripts/channel_coverage.py --parquet data/raw/metabonet_public.parquet \
+  2>&1 | tee logs/46_channel_coverage.live.log

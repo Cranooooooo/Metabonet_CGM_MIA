@@ -1,0 +1,29 @@
+#!/bin/bash
+#PBS -N cgm_sauc2
+#PBS -P 11704243
+#PBS -j oe
+#
+# Per-subject membership AUC for every pair of channels, completing the lattice: three
+# singles (done, 75_subject_auc_bychannel.pbs), three pairs, and the triple.
+#
+# The singles said the whole outlier-vs-control difference is one subject, Loop/1142,
+# and that his leakage is entirely in CGM (0.636 there, 0.498 in basal, 0.504 in bolus).
+# The pairs test whether any COMBINATION carries something the singles do not -- the
+# distance is Euclidean over the flattened window, so a pair is not the average of its
+# parts and a signal could in principle live in the joint geometry.
+#
+#   qsub -l select=1:ncpus=32:mem=128gb -l walltime=02:00:00 \
+#        -o logs/76_subject_auc_pairs.log scripts/pbs/76_subject_auc_pairs.pbs   # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  for CH in CGM,basal CGM,bolus basal,bolus CGM,basal,bolus; do
+    tag=$(echo "$CH" | tr ',' '+')
+    echo "########## channels: $CH ##########"
+    python -u scripts/subject_auc.py \
+      --runs dimts_c3_h128 --design results/design_sid_c3 \
+      --cohort data/cohort/metabonet_sid_c3 \
+      --replicates 1 --channels "$CH" --skip-missing \
+      --out "results/subject_auc_c3/${tag}"
+  done
+} 2>&1 | tee logs/76_subject_auc_pairs.live.log

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cgmoutlier"
+version = "0.1.0"
+description = "Are atypical CGM subjects more exposed to membership inference?"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24,<2", "pandas>=2.0", "pyarrow>=12", "scikit-learn>=1.1",
+  "scipy>=1.10", "numba>=0.57", "torch>=2.0", "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+# `make install` and docs/SETUP.md have always said `pip install -e ".[dev]"`; the
+# extra it refers to was never declared, so the environment came up without pytest
+# and `make test` failed with "No module named pytest".
+dev = ["pytest>=7"]
+# requirements.txt covers the outlier stage only -- the environment it builds cannot
+# import a single heavy generator. These are what vendor/ needs; DiM-TS is the one
+# exception and needs its own environment entirely (docs/DIMTS.md).
+generators = ["pytorch-lightning>=2.0", "einops>=0.6", "ema-pytorch>=0.2", "tqdm>=4.64",
+              "diffusers>=0.25", "torchvision"]   # both pulled in by FourierDiffusion
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,34 @@
+#!/bin/bash
+#PBS -N cgm_atk3
+#PBS -P 11704243
+#PBS -j oe
+#
+# Where does the membership signal live? The same attack, on the same models, restricted
+# to one channel at a time. No model is retrained: the statistic is a Euclidean distance
+# over the flattened window, so dropping a channel drops its contribution and nothing
+# else.
+#
+# This is a PARTIAL read -- replicate 1 is not finished, so pairs whose model is still
+# training are skipped and reported. It is run now because the answer changes the design
+# of what comes next: `bolus` is the channel that spoils generation quality (a single
+# feature, the share of near-zero bolus cells, separates real from synthetic at 0.74,
+# better than the full discriminator's 0.60), and `basal` is the channel that carries
+# identity in real data (29.3% top-1 against CGM's 1.5%). If the leakage also sits in
+# basal and not in bolus, dropping bolus costs quality nothing and leakage nothing.
+#
+#   qsub -l select=1:ncpus=32:mem=128gb -l walltime=02:00:00 \
+#        -o logs/74_attack_by_channel.log scripts/pbs/74_attack_by_channel.pbs   # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  for CH in all CGM basal bolus CGM,basal; do
+    tag=$(echo "$CH" | tr ',' '+')
+    echo "########## channels: $CH ##########"
+    python -u scripts/run_attack.py \
+      --design results/design_sid_c3/rep1 \
+      --runs results/runs/dimts_c3_h128_rep1 \
+      --cohort data/cohort/metabonet_sid_c3 \
+      --channels "$CH" \
+      --out "results/attack_c3_bychannel/rep1_${tag}"
+  done
+} 2>&1 | tee logs/74_attack_by_channel.live.log

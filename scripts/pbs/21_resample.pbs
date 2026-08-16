@@ -1,0 +1,72 @@
+#!/bin/bash
+#PBS -N cgm_resample
+#PBS -P 11704243
+#PBS -j oe
+#
+# Sample from trained checkpoints. NO training happens here.
+#
+#   qsub -l select=1:ncpus=16:ngpus=1 -l walltime=04:00:00 \
+#        -o logs/21_resample.log scripts/pbs/21_resample.pbs                  # -> g1
+#
+# Defaults to rescuing h=96, whose training finished on 2026-08-10 and whose sampling
+# pass was killed at ~26%. Override with RUNS, a space-separated list of
+# <run_dir>:<job_file>[:<out_dir>] triples:
+#
+#   qsub ... -v RUNS="results/runs/dimts_h128_rep1/base:results/design_sym/rep1/jobs/base.json:results/runs/dimts_h128_rep1_st50/base",ST=50
+#
+# NEVER pass structure as inline JSON through -v. PBS strips double quotes from the
+# value, so '{"hidden_size": 96}' arrives as {hidden_size: 96} and json.loads dies on
+# "Expecting property name enclosed in double quotes" -- two jobs died that way inside
+# a second on 2026-08-10 (logs/19_h{52,96}_base.log). Colon-separated scalars survive.
+#
+# WHY ONE CARD AND 4 h. Sampling 176,445 windows at 500 denoising steps measured 1.8 h
+# on the h=52 base and scales with width, so h=96 is ~2.2 h; 4 h is honest headroom
+# without asking for a queue that has none. g1 takes single-card jobs up to 24 h and had
+# 19 queued against 55 running when this was written -- re-check `qstat -Q`, it moves.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+test -x "$DIMTS_PYTHON" || { echo "no DiM-TS env; run 05_dimts_env.pbs"; exit 1; }
+
+read -ra TRIPLES <<< "${RUNS:-results/runs/dimts_h96_rep1/base:results/design_sym/rep1/jobs/base.json}"
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
+echo "PBS allocated ${#ALLOC[@]} GPU(s) for ${#TRIPLES[@]} run(s)"
+export THREADS=$(( ${NCPUS:-16} / ${#ALLOC[@]} ))
+
+pids=(); rc=0
+for i in "${!TRIPLES[@]}"; do
+    IFS=':' read -r run job out <<< "${TRIPLES[$i]}"
+    tag=$(basename "$(dirname "$run")")
+    # `if`, not `[ -n x ] && ...`: env.sh sets -e, and an AND-list whose test fails
+    # returns non-zero as a whole, which exits the job. An optional argument is not
+    # an error.
+    args=(--from-run "$run" --job-file "$job")
+    if [ -n "${out:-}" ];        then args+=(--out "$out"); fi
+    if [ -n "${ST:-}" ];         then args+=(--sampling-timesteps "$ST"); fi
+    if [ -n "${MILESTONE:-}" ];  then args+=(--milestone "$MILESTONE"); fi
+
+    ( export CUDA_VISIBLE_DEVICES="${ALLOC[$(( i % ${#ALLOC[@]} ))]}"
+      python scripts/resample.py "${args[@]}"
+    ) > "$REPO/logs/21_${PBS_JOBID%%.*}_${tag}.log" 2>&1 &
+    pids+=($!)
+    echo "$run -> ${ALLOC[$(( i % ${#ALLOC[@]} ))]}  (pid ${pids[$i]})"
+done
+# Individually: a bare `wait` reports only the last task, and a run where every task
+# died has reported Exit_status=0 that way before.
+for i in "${!pids[@]}"; do
+    IFS=':' read -r run _ _ <<< "${TRIPLES[$i]}"
+    if wait "${pids[$i]}"; then echo "$run OK"
+    else echo "$run FAILED"; rc=1; fi
+done
+
+echo
+for i in "${!TRIPLES[@]}"; do
+    IFS=':' read -r run _ _ <<< "${TRIPLES[$i]}"
+    tag=$(basename "$(dirname "$run")")
+    echo "--- $run ---"; tail -4 "$REPO/logs/21_${PBS_JOBID%%.*}_${tag}.log"
+done
+exit $rc

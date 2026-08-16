@@ -1,0 +1,395 @@
+{
+  "n_jobs": 21,
+  "n_outliers": 10,
+  "n_controls": 10,
+  "n_normals": 563,
+  "n_background": 553,
+  "symmetric": true,
+  "outliers": [
+    "Loop/1142",
+    "Loop/1153",
+    "Loop/727",
+    "Loop/19",
+    "Loop/256",
+    "Loop/467",
+    "DCLP3/91",
+    "DCLP5/52",
+    "Loop/263",
+    "Loop/100"
+  ],
+  "controls": [
+    "Loop/1067",
+    "Loop/435",
+    "Loop/1071",
+    "DCLP3/22",
+    "BrisT1D/P07",
+    "BrisT1D/P15",
+    "BrisT1D/P04",
+    "BrisT1D/P03",
+    "DCLP3/118",
+    "BrisT1D/P10"
+  ],
+  "borderline_controls": {},
+  "pairs": [
+    {
+      "target": "Loop/1142",
+      "group": "outlier",
+      "member": "include_Loop__1142",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1153",
+      "group": "outlier",
+      "member": "include_Loop__1153",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/727",
+      "group": "outlier",
+      "member": "include_Loop__727",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/19",
+      "group": "outlier",
+      "member": "include_Loop__19",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/256",
+      "group": "outlier",
+      "member": "include_Loop__256",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/467",
+      "group": "outlier",
+      "member": "include_Loop__467",
+      "nonmember": "base"
+    },
+    {
+      "target": "DCLP3/91",
+      "group": "outlier",
+      "member": "include_DCLP3__91",
+      "nonmember": "base"
+    },
+    {
+      "target": "DCLP5/52",
+      "group": "outlier",
+      "member": "include_DCLP5__52",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/263",
+      "group": "outlier",
+      "member": "include_Loop__263",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/100",
+      "group": "outlier",
+      "member": "include_Loop__100",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1067",
+      "group": "control",
+      "member": "include_Loop__1067",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/435",
+      "group": "control",
+      "member": "include_Loop__435",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1071",
+      "group": "control",
+      "member": "include_Loop__1071",
+      "nonmember": "base"
+    },
+    {
+      "target": "DCLP3/22",
+      "group": "control",
+      "member": "include_DCLP3__22",
+      "nonmember": "base"
+    },
+    {
+      "target": "BrisT1D/P07",
+      "group": "control",
+      "member": "include_BrisT1D__P07",
+      "nonmember": "base"
+    },
+    {
+      "target": "BrisT1D/P15",
+      "group": "control",
+      "member": "include_BrisT1D__P15",
+      "nonmember": "base"
+    },
+    {
+      "target": "BrisT1D/P04",
+      "group": "control",
+      "member": "include_BrisT1D__P04",
+      "nonmember": "base"
+    },
+    {
+      "target": "BrisT1D/P03",
+      "group": "control",
+      "member": "include_BrisT1D__P03",
+      "nonmember": "base"
+    },
+    {
+      "target": "DCLP3/118",
+      "group": "control",
+      "member": "include_DCLP3__118",
+      "nonmember": "base"
+    },
+    {
+      "target": "BrisT1D/P10",
+      "group": "control",
+      "member": "include_BrisT1D__P10",
+      "nonmember": "base"
+    }
+  ],
+  "matching": {
+    "pairs": [
+      {
+        "outlier": "Loop/1142",
+        "control": "Loop/1067",
+        "outlier_days": 34,
+        "control_days": 34,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "Loop/1153",
+        "control": "Loop/435",
+        "outlier_days": 28,
+        "control_days": 28,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "Loop/727",
+        "control": "Loop/1071",
+        "outlier_days": 22,
+        "control_days": 22,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "Loop/19",
+        "control": "DCLP3/22",
+        "outlier_days": 15,
+        "control_days": 15,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "Loop/256",
+        "control": "BrisT1D/P07",
+        "outlier_days": 12,
+        "control_days": 12,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "Loop/467",
+        "control": "BrisT1D/P15",
+        "outlier_days": 11,
+        "control_days": 11,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "DCLP3/91",
+        "control": "BrisT1D/P04",
+        "outlier_days": 10,
+        "control_days": 10,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "DCLP5/52",
+        "control": "BrisT1D/P03",
+        "outlier_days": 9,
+        "control_days": 9,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "Loop/263",
+        "control": "DCLP3/118",
+        "outlier_days": 7,
+        "control_days": 7,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "Loop/100",
+        "control": "BrisT1D/P10",
+        "outlier_days": 5,
+        "control_days": 5,
+        "rel_gap": 0.0
+      }
+    ],
+    "tol": 0.15,
+    "seed": 2026,
+    "n_candidates": 1,
+    "n_excluded": 0,
+    "max_rel_gap": 0.0,
+    "median_rel_gap": 0.0,
+    "n_over_tol": 0,
+    "outlier_days": {
+      "median": 11.5,
+      "min": 5,
+      "max": 34
+    },
+    "pool_days": {
+      "median": 10.0,
+      "min": 4,
+      "max": 81
+    }
+  },
+  "jobs": [
+    {
+      "name": "base",
+      "role": "base",
+      "target": null,
+      "group": null,
+      "n_subjects": 553
+    },
+    {
+      "name": "include_Loop__1142",
+      "role": "include",
+      "target": "Loop/1142",
+      "group": "outlier",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_Loop__1153",
+      "role": "include",
+      "target": "Loop/1153",
+      "group": "outlier",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_Loop__727",
+      "role": "include",
+      "target": "Loop/727",
+      "group": "outlier",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_Loop__19",
+      "role": "include",
+      "target": "Loop/19",
+      "group": "outlier",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_Loop__256",
+      "role": "include",
+      "target": "Loop/256",
+      "group": "outlier",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_Loop__467",
+      "role": "include",
+      "target": "Loop/467",
+      "group": "outlier",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_DCLP3__91",
+      "role": "include",
+      "target": "DCLP3/91",
+      "group": "outlier",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_DCLP5__52",
+      "role": "include",
+      "target": "DCLP5/52",
+      "group": "outlier",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_Loop__263",
+      "role": "include",
+      "target": "Loop/263",
+      "group": "outlier",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_Loop__100",
+      "role": "include",
+      "target": "Loop/100",
+      "group": "outlier",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_Loop__1067",
+      "role": "include",
+      "target": "Loop/1067",
+      "group": "control",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_Loop__435",
+      "role": "include",
+      "target": "Loop/435",
+      "group": "control",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_Loop__1071",
+      "role": "include",
+      "target": "Loop/1071",
+      "group": "control",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_DCLP3__22",
+      "role": "include",
+      "target": "DCLP3/22",
+      "group": "control",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_BrisT1D__P07",
+      "role": "include",
+      "target": "BrisT1D/P07",
+      "group": "control",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_BrisT1D__P15",
+      "role": "include",
+      "target": "BrisT1D/P15",
+      "group": "control",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_BrisT1D__P04",
+      "role": "include",
+      "target": "BrisT1D/P04",
+      "group": "control",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_BrisT1D__P03",
+      "role": "include",
+      "target": "BrisT1D/P03",
+      "group": "control",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_DCLP3__118",
+      "role": "include",
+      "target": "DCLP3/118",
+      "group": "control",
+      "n_subjects": 554
+    },
+    {
+      "name": "include_BrisT1D__P10",
+      "role": "include",
+      "target": "BrisT1D/P10",
+      "group": "control",
+      "n_subjects": 554
+    }
+  ]
+}

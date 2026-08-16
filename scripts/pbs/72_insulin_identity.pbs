@@ -1,0 +1,43 @@
+#!/bin/bash
+#PBS -N cgm_ins
+#PBS -P 11704243
+#PBS -j oe
+#
+# Is `insulin` just basal + bolus? The three-channel cohort uses CGM+basal+bolus where
+# the proposal said CGM+basal+insulin, on the reading that insulin is the total and the
+# other two are its parts -- so {basal, insulin} would be nearly collinear and waste a
+# channel. That reading came from column names and non-zero fractions (basal 0.751,
+# insulin 0.767, bolus 0.066), not from the values. Check the values.
+#
+#   qsub -l select=1:ncpus=8:mem=64gb -l walltime=00:30:00 \
+#        -o logs/72_insulin_identity.log scripts/pbs/72_insulin_identity.pbs    # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python - <<'PY' 2>&1 | tee logs/72_insulin_identity.live.log
+import numpy as np, pyarrow.parquet as pq
+
+pf = pq.ParquetFile("data/raw/metabonet_public.parquet")
+b = next(pf.iter_batches(batch_size=3_000_000,
+                         columns=["basal", "bolus", "insulin", "source_file"]))
+d = b.to_pandas()
+m = d[["basal", "bolus", "insulin"]].notna().all(axis=1)
+d = d[m]
+print(f"{len(d):,} rows with all three present (of {len(b):,} sampled)")
+
+s = d["basal"] + d["bolus"]
+r = d["insulin"] - s
+print(f"\ninsulin - (basal + bolus):")
+print(f"  mean {r.mean():+.6f}   sd {r.std():.6f}")
+print(f"  max |residual| {r.abs().max():.6f}")
+print(f"  fraction within 1e-6: {(r.abs() < 1e-6).mean():.4%}")
+print(f"  fraction within 1e-3: {(r.abs() < 1e-3).mean():.4%}")
+print(f"  correlation insulin vs basal+bolus: {np.corrcoef(d['insulin'], s)[0,1]:.6f}")
+print(f"  correlation insulin vs basal alone: {np.corrcoef(d['insulin'], d['basal'])[0,1]:.6f}")
+print(f"  correlation basal vs bolus:         {np.corrcoef(d['basal'], d['bolus'])[0,1]:.6f}")
+
+print("\nby study (fraction where insulin == basal + bolus to 1e-6):")
+for st, g in d.groupby("source_file"):
+    rr = (g["insulin"] - g["basal"] - g["bolus"]).abs()
+    print(f"  {st:12} n={len(g):>9,}  exact {(rr < 1e-6).mean():>7.2%}  "
+          f"max resid {rr.max():.4f}")
+PY

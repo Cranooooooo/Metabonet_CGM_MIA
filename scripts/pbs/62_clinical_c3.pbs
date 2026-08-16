@@ -1,0 +1,20 @@
+#!/bin/bash
+#PBS -N cgm_clin3
+#PBS -P 11704243
+#PBS -j oe
+#
+# Group A on the corrected three-channel cohort, computed once. A1-A4 read the CGM
+# channel only and are invariant to both the seed and the channel set, so this one file
+# serves all eight runs that follow (2 channel sets x 4 seeds).
+#
+# Single-threaded by construction: clinical.per_subject_metrics loops over 172k windows
+# in Python. The cpu request is for queue routing, not for speed.
+#
+#   qsub -l select=1:ncpus=8:mem=64gb -l walltime=06:00:00 \
+#        -o logs/62_clinical_c3.log scripts/pbs/62_clinical_c3.pbs               # -> q2
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -u scripts/run_outliers.py \
+  --cohort data/cohort/metabonet_sid_c3 --out results/outliers_sid_c3/_groupA \
+  --only A1,A2,A3,A4 --expect-candidates 4 --min-methods 1 --device cpu \
+  2>&1 | tee logs/62_clinical_c3.live.log

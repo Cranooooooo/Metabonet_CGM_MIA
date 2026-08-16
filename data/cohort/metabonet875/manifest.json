@@ -1,0 +1,25 @@
+{
+  "source": "/mnt/nvme2/ling/Project_Physiology/Model_7_MIA_Framework/raw_metabonet/metabonet_public.parquet",
+  "channel": "CGM",
+  "C": 1,
+  "T": 288,
+  "dt_min": 5,
+  "zclip": 5.0,
+  "n_subjects": 875,
+  "n_windows": 182597,
+  "min_days": 30,
+  "seed": 2026,
+  "stratified_on": "n_days",
+  "mean_mgdl": 144.77699279785156,
+  "sd_mgdl": 56.93595886230469,
+  "denorm_formula": "mgdl = x * zclip * sd_mgdl + mean_mgdl",
+  "note": "Constants are specific to this cohort.",
+  "pack": {
+    "file": "cohort.npz",
+    "format": "npz/deflate",
+    "dtype": "float32",
+    "lossless": true,
+    "size_mb": 58.5,
+    "sha256": "eeb4d58d56002c71dba89a14ccafef2ac4e5105bee1e31a2cc037710340476d8"
+  }
+}

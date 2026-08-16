@@ -1,0 +1,13 @@
+{
+  "cohort": "data/cohort/metabonet_sid_c3",
+  "channels": [
+    "CGM",
+    "basal",
+    "bolus"
+  ],
+  "max_days": 30,
+  "min_days": 10,
+  "seed": 2026,
+  "n_windows": 37590,
+  "n_subjects": 1253
+}

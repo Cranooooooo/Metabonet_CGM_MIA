@@ -1,0 +1,16 @@
+#!/bin/bash
+#PBS -N cgm_ident
+#PBS -P 11704243
+#PBS -j oe
+#
+# Real-data ceiling on any membership attack: leave-one-day-out subject retrieval.
+# The single-channel cohort runs first because it is the published one and it validates
+# the script; the three-channel cohort is the comparison that decides whether more
+# channels are worth retraining the generators for.
+#
+#   qsub -l select=1:ncpus=16:mem=32gb -l walltime=01:00:00 \
+#        -o logs/48_identifiability.log scripts/pbs/48_identifiability.pbs     # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -u scripts/identifiability.py --cohort data/cohort/metabonet875 \
+  2>&1 | tee logs/48_identifiability.live.log

@@ -1,0 +1,17 @@
+#!/bin/bash
+#PBS -N cgm_variant
+#PBS -P 11704243
+#PBS -l select=1:ncpus=4:mem=16gb
+#PBS -l walltime=00:15:00
+#PBS -j oe
+#PBS -o logs/09_choose_variant.log
+#
+# Reads results/attack/copy_paste/gaps.parquet and picks the distance variant on
+# evidence. Recomputes nothing.
+#
+#   qsub scripts/pbs/09_choose_variant.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+python scripts/choose_variant.py --generator copy_paste

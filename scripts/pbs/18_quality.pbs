@@ -1,0 +1,59 @@
+#!/bin/bash
+#PBS -N cgm_quality
+#PBS -P 11704243
+#PBS -j oe
+#
+# Generation quality for released sample sets: Context-FID, discriminative score,
+# predictive (TSTR) score. The check stage 4 shipped 123 models without.
+#
+#   qsub -l select=1:ncpus=16:mem=110gb:ngpus=1 -l walltime=02:00:00 \
+#        -v RUNS="results/runs/dimts_h128_rep1/base results/runs/dimts_h128_rep2/base results/runs/dimts_h128_rep3/base" \
+#        -o logs/18_quality_base.log scripts/pbs/18_quality.pbs          # -> gdev
+#
+# 1 GPU: the discriminative and predictive scores each train a small GRU, and
+# Context-FID refits TS2Vec per call. All three are minutes, not hours.
+#
+# WHY THE THREE BASES FIRST. They are the only models every pair in a replicate reads,
+# they are the largest training sets, and three of them give a read on how much of the
+# quality number is the run rather than the configuration -- the same instability that
+# made within-arm attack readings swing by orders of magnitude.
+#
+# Read the numbers only against each other. cgmoutlier.quality documents why they are
+# not comparable to the DiM-TS or TimeGAN papers: torch reimplementations of two TF1
+# metrics, and a predictive score REDEFINED because the published cross-channel form
+# is undefined at C=1 -- the third time this vendored code's multivariate assumption
+# has surfaced, after mmd_alpha and the two metrics' own dim-1 arithmetic.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+
+: "${RUNS:?pass -v RUNS=\"dir1 dir2 ...\"}"
+# SEED and OUT exist so the same run can be scored more than once. Every number here
+# is measured on a 3,000-window subsample with a seeded classifier init, so re-scoring
+# ONE model at several seeds separates the evaluator's own noise from the difference
+# between two configurations -- without which a single base per capacity says nothing.
+# OUT must move with SEED: the filename is <run>__<job>.json and would otherwise be
+# overwritten by the last seed to finish.
+# SEEDSET=1 scores every run at all four seeds inside ONE job. Each seed is minutes,
+# and gdev's GPU pool is 16 cards for the WHOLE machine -- eight one-seed jobs on
+# 2026-08-12 held half of it for work that batches like this (docs/PITFALLS.md).
+# Spaces inside a -v value are fine; commas are not, which is why RUNS is a
+# space-separated list and the seeds are a flag rather than a list.
+if [ -n "${SEEDSET:-}" ]; then
+    rc=0
+    for s in 2026 7 101 999; do
+        if [ "$s" = "2026" ]; then out="results/quality"
+        else out="results/quality/seedcheck_$s"; fi
+        echo "=== seed $s -> $out ==="
+        python scripts/eval_quality.py --runs $RUNS \
+            --n "${N:-3000}" --n-fid "${NFID:-2000}" --device "${DEVICE:-cuda}" \
+            --seed "$s" --out "$out" ${SKIP:+--skip $SKIP} || rc=1
+    done
+    exit $rc
+fi
+
+python scripts/eval_quality.py --runs $RUNS \
+    --n "${N:-3000}" --n-fid "${NFID:-2000}" --device "${DEVICE:-cuda}" \
+    ${SEED:+--seed $SEED} ${OUT:+--out $OUT} \
+    ${SKIP:+--skip $SKIP}

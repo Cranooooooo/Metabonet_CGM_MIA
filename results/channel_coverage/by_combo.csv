@@ -1,0 +1,7 @@
+combo,subjects,days,pct_of_cgm
+CGM,875,199933,1.0
+CGM+basal,839,178558,0.9588571428571429
+CGM+insulin,852,185363,0.9737142857142858
+CGM+basal+bolus,834,175165,0.9531428571428572
+CGM+basal+bolus+carbs,805,143942,0.92
+CGM+basal+bolus+carbs+insulin,805,143939,0.92

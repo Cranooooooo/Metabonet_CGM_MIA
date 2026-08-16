@@ -1,0 +1,49 @@
+#!/bin/bash
+#PBS -N cgm_design_sym
+#PBS -P 11704243
+#PBS -l select=1:ncpus=4:mem=32gb
+#PBS -l walltime=00:20:00
+#PBS -j oe
+#PBS -o logs/14_design_sym.log
+#
+# The design the study actually runs: symmetric, three replicates.
+#
+# SYMMETRIC. results/design_stable/ reused one base as the OUT model for outliers and
+# the IN model for controls. That halves the model count and puts the base's own
+# offset into the two arms with OPPOSITE SIGN -- and the offset is shared within an
+# arm, so 20 targets do not average it away. docs/DESIGN.md derives it. Here the 20
+# controls are drawn out of the pool first, the base trains on the remaining 835, and
+# every pair is (include_t, base) whichever arm t is in.
+#
+# THREE REPLICATES. Inside one replicate every target shares one base, so the 40 gaps
+# are correlated and a p-value over them is overstated. Three disjoint control draws
+# give three independent backgrounds, bases and arm differences; those are the units a
+# p-value can rest on. The outlier arm is the same 20 people every time -- only 20
+# survive all four detection seeds -- so this estimates model and draw variance, not
+# outlier-sample variance.
+#
+# --n-candidates 8 is what makes the draws differ at all. match_controls accepted a
+# `seed` and never read it until 2026-08-07, so three replicates varying only the seed
+# would have shared one control set. k=8 picks uniformly among the 8 nearest AVAILABLE
+# subjects by day count, so the draw is random without giving up the day matching that
+# keeps the arms comparable. Read median_rel_gap below to see what k cost: the greedy
+# k=1 draw achieved 0.0% median / 0.45% worst.
+#
+#   qsub scripts/pbs/14_design_sym.pbs
+#
+# qdev: no GPU, under 2 h, priority 100.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+python scripts/build_design.py \
+    --cohort data/cohort/metabonet875 \
+    --stability results/seed_stability/stability.json \
+    --replicates 3 \
+    --n-candidates 8 \
+    --out results/design_sym
+
+echo
+for r in 1 2 3; do
+    printf "rep%s: %s jobs\n" "$r" "$(ls results/design_sym/rep$r/jobs/*.json | wc -l)"
+done

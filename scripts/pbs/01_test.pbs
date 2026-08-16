@@ -1,0 +1,23 @@
+#!/bin/bash
+#PBS -N cgm_test
+#PBS -P 11704243
+#PBS -l select=1:ncpus=8:mem=32gb
+#PBS -l walltime=00:30:00
+#PBS -j oe
+#PBS -o logs/01_test.log
+#
+# 35 unit tests plus the whole pipeline on a fake cohort. Both are CPU work and both
+# belong in a job. `make smoke` proves the code runs; it proves nothing about CGM.
+#
+#   qsub scripts/pbs/01_test.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+# Idempotent and a few seconds when already satisfied. Here rather than only in
+# 00_build_env so that a test job is runnable against an environment built before the
+# dev extra existed.
+pip install -q --no-cache-dir -e ".[dev]"
+
+make test THREADS="$THREADS"
+make smoke THREADS="$THREADS"

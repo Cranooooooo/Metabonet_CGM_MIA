@@ -1,0 +1,9 @@
+{
+  "channels": [
+    "CGM",
+    "basal",
+    "bolus"
+  ],
+  "channel_dim": 864,
+  "seed": 2026
+}

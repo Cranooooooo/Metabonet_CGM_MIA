@@ -1,0 +1,63 @@
+#!/bin/bash
+#PBS -N cgm_cap_bases
+#PBS -P 11704243
+#PBS -j oe
+#
+# One base model per capacity, for the quality-vs-cost frontier.
+#
+#   qsub -l select=1:ncpus=32:ngpus=2 -l walltime=08:00:00 \
+#        -o logs/19_capacity_bases.log scripts/pbs/19_capacity_bases.pbs   # -> g2
+#
+# WHY ONE BASE AND NOT A REPLICATE. Measuring generation QUALITY at a capacity needs
+# one model; measuring MIA at a capacity needs a whole 41-model replicate. 2 models
+# against 82. The frontier decides which capacities are worth a campaign, so it runs
+# first and cheaply.
+#
+# WHY TWO CARDS IN ONE JOB. Above 2 h each g* queue admits one running job per user, so
+# two separate g1 jobs would serialise -- ~8 h for work that is 4 h wide. g2 takes 2-3
+# GPUs, one capacity per card (guide section 3), and had zero queued when this was
+# written. Re-check `qstat -Q` before resubmitting.
+#
+# The h=128 bases already exist from the main campaign; only 52 and 96 are new.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+test -x "$DIMTS_PYTHON" || { echo "no DiM-TS env; run 05_dimts_env.pbs"; exit 1; }
+
+read -ra WIDTHS <<< "${WIDTHS:-52 96}"
+# PBS hands out ABSOLUTE device ids -- GPU UUIDs here, not 0..n. A loop counter would
+# point a task at a card the job does not own and torch would report "CUDA not
+# available", which reads as a bad wheel.
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
+echo "PBS allocated ${#ALLOC[@]} GPU(s) for ${#WIDTHS[@]} width(s)"
+export THREADS=$(( ${NCPUS:-32} / ${#ALLOC[@]} ))
+
+pids=(); rc=0
+for i in "${!WIDTHS[@]}"; do
+    h=${WIDTHS[$i]}
+    ( export CUDA_VISIBLE_DEVICES="${ALLOC[$(( i % ${#ALLOC[@]} ))]}"
+      python scripts/run_loo.py --job base \
+          --design results/design_sym/rep1 \
+          --out "results/runs/dimts_h${h}_rep1" \
+          --cohort data/cohort/metabonet875 \
+          --params "{\"hidden_size\": $h}"
+    ) > "$REPO/logs/19_${PBS_JOBID%%.*}_h${h}.log" 2>&1 &
+    pids+=($!)
+    echo "hidden_size $h -> ${ALLOC[$(( i % ${#ALLOC[@]} ))]}  (pid ${pids[$i]})"
+done
+# Individually: a bare `wait` reports only the last task, and a run where every task
+# died has reported Exit_status=0 that way before.
+for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then echo "h=${WIDTHS[$i]} OK"
+    else echo "h=${WIDTHS[$i]} FAILED"; rc=1; fi
+done
+
+echo
+for h in "${WIDTHS[@]}"; do
+    echo "--- h=$h ---"; tail -4 "$REPO/logs/19_${PBS_JOBID%%.*}_h${h}.log"
+done
+exit $rc

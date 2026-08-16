@@ -1,0 +1,44 @@
+#!/bin/bash
+#PBS -N cgm_q3e
+#PBS -P 11704243
+#PBS -j oe
+#
+# Quality of the first fully-trained three-channel models, read at hour ~6 of a 64-hour
+# campaign. The smoke test checked the plumbing at 300 steps; it cannot see mode
+# collapse after 100,000. A model that trains to completion and releases degenerate
+# samples produces a perfectly ordinary model count, so the count is not the check.
+#
+#   qsub -l select=1:ncpus=16:mem=64gb:ngpus=1 -l walltime=01:00:00 \
+#        -o logs/69_quality_c3_early.log scripts/pbs/69_quality_c3_early.pbs  # -> gdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  RUNS=$(find results/runs/dimts_c3_h128_rep1 -name samples.npy | head -3 | xargs -n1 dirname)
+  echo "scoring: $RUNS"
+  python -u scripts/eval_quality.py --runs $RUNS \
+    --design results/design_sid_c3/rep1 \
+    --cohort data/cohort/metabonet_sid_c3 \
+    --out results/quality_c3
+
+  echo "########## per-channel marginals, synthetic vs real ##########"
+  python - <<'PY'
+import json, numpy as np
+from pathlib import Path
+from cgmoutlier.data.cohort import load
+X, sids, man = load("data/cohort/metabonet_sid_c3")
+X = np.asarray(X[:20000])
+names = [c["name"] for c in man["channel_constants"]]
+for d in sorted(Path("results/runs/dimts_c3_h128_rep1").glob("*/samples.npy"))[:2]:
+    S = np.asarray(np.load(d, mmap_mode="r")[:20000])
+    print(f"\n{d.parent.name}  {S.shape}")
+    print(f"  {'channel':8}{'real mean':>11}{'syn mean':>11}{'real sd':>10}{'syn sd':>9}"
+          f"{'syn uniq':>10}")
+    for c, n in enumerate(names):
+        # distinct rounded windows: a collapsed model emits a handful of shapes
+        uniq = len(np.unique(np.round(S[:2000, ::16, c], 3), axis=0))
+        print(f"  {n:8}{X[...,c].mean():>11.4f}{S[...,c].mean():>11.4f}"
+              f"{X[...,c].std():>10.4f}{S[...,c].std():>9.4f}{uniq:>10}")
+    print(f"  distinct windows in the first 2000: "
+          f"{len(np.unique(np.round(S[:2000,::16,:].reshape(2000,-1),3),axis=0))}/2000")
+PY
+} 2>&1 | tee logs/69_quality_c3_early.live.log

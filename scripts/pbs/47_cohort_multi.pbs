@@ -1,0 +1,15 @@
+#!/bin/bash
+#PBS -N cgm_cohort3
+#PBS -P 11704243
+#PBS -j oe
+#
+# Build the CGM+basal+bolus cohort (834 subjects) on the same rules as the shipped
+# single-channel one, so the two differ in channel count and nothing else.
+#
+#   qsub -l select=1:ncpus=16:mem=128gb -l walltime=02:00:00 \
+#        -o logs/47_cohort_multi.log scripts/pbs/47_cohort_multi.pbs          # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -u scripts/build_cohort_multi.py \
+  --channels CGM basal bolus --out data/cohort/metabonet834_c3 \
+  2>&1 | tee logs/47_cohort_multi.live.log

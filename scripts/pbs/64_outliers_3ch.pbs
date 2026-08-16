@@ -1,0 +1,29 @@
+#!/bin/bash
+#PBS -N cgm_out3
+#PBS -P 11704243
+#PBS -j oe
+#
+# Three-channel (CGM+basal+bolus) outlier consensus on the same cohort, same subjects,
+# channel comparison: the same 1,253 subjects and the same 172,119 days as the
+# three-channel run, so the two differ in channels and nothing else.
+#
+# It is not the shipped 24-subject list. That list cannot be reproduced on this machine
+# (docs/PITFALLS.md 15) -- C9 and D11 ride on a cached TS2Vec embedding regenerated
+# here on 2026-08-07, and comparing against it would measure the machine.
+#
+# A GPU because this cohort's encoder is not cached: 1,253 subjects and 172,119 windows
+# give a different fingerprint from the 875-subject one, so TS2Vec trains from scratch.
+#
+#   qsub -W depend=afterok:<clinical> -l select=1:ncpus=32:mem=64gb:ngpus=1 \
+#        -l walltime=02:00:00 -o logs/64_outliers_3ch.log \
+#        scripts/pbs/64_outliers_3ch.pbs                                      # -> gdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -c "import torch;a=torch.randn(64,64,device='cuda',dtype=torch.bfloat16);print('cuda ok',(a@a).sum().item())"
+python -u scripts/seed_stability.py \
+  --cohort data/cohort/metabonet_sid_c3 \
+  --out results/outliers_sid_c3/stability_3ch \
+  --channels all \
+  --clinical-cache results/outliers_sid_c3/_groupA/_clinical.parquet \
+  --seeds 2026,7,101,999 \
+  2>&1 | tee logs/64_outliers_3ch.live.log

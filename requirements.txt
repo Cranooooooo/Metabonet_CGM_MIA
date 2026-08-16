@@ -1,0 +1,20 @@
+# The versions the checked-in results were actually produced with, read off the
+# environment that produced them -- not aspirational pins.
+numpy==1.24.4
+pandas==2.2.3
+pyarrow==17.0.0
+scipy==1.10.1
+scikit-learn==1.1.2
+numba==0.64.0
+pyyaml==6.0.2
+
+# numpy is held below 2.0 deliberately. sklearn 1.1.2 and several vendored generators
+# are compiled against the 1.x C ABI; importing them under numpy 2.x fails with
+#   ValueError: numpy.dtype size changed ... Expected 96 from C header, got 88
+# which names neither numpy nor the real cause. See docs/PITFALLS.md.
+
+# torch is NOT pinned here. Install the build matching your CUDA first, from
+# https://pytorch.org -- e.g. for CUDA 12.8:
+#     pip install torch --index-url https://download.pytorch.org/whl/cu128
+# Results here came from torch 2.7.0+cu128 on an NVIDIA L40S. Outlier scoring is CPU
+# only apart from D12; the GPU is needed for the generators.

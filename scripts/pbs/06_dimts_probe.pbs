@@ -1,0 +1,112 @@
+#!/bin/bash
+#PBS -N cgm_dimts_probe
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=64gb:ngpus=1
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/06_dimts_probe.log
+#
+# Two numbers that have to exist before 49 models can be scheduled:
+#
+#   1. which hidden_size gives ~500k parameters at T=288, C=1
+#   2. what one model costs -- seconds per optimiser step, and seconds per sample
+#
+# Neither is guessable. The parameter count needs the model instantiated, which needs
+# the Mamba kernel, so this runs in the DiM-TS environment built by 05.
+#
+# Timing uses random data of the right shape: step time depends on batch_size, T, C
+# and hidden_size, not on how many windows the training set holds.
+#
+#   qsub scripts/pbs/06_dimts_probe.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+
+DIMTS_ENV=$WORK/envs/dimts
+test -d "$DIMTS_ENV" || { echo "run 05_dimts_env.pbs first"; exit 1; }
+module load cuda/11.8.0
+conda activate "$DIMTS_ENV"
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+export PYTHONPATH="$REPO/vendor/DiM-TS/Models/interpretable_diffusion:$REPO/vendor/DiM-TS:${PYTHONPATH:-}"
+
+cd "$REPO/vendor/DiM-TS"
+
+python - <<'PY'
+import json, time
+import numpy as np
+import torch
+from Models.interpretable_diffusion.gaussian_diffusion import DiM_TS
+
+T, C = 288, 1
+BATCH = 64
+
+def cfg(h):
+    return dict(seq_length=T, feature_size=C, timesteps=500, sampling_timesteps=500,
+                loss_type="l2", beta_schedule="cosine", n_heads=4, mlp_hidden_times=4,
+                attn_pd=0.0, resid_pd=0.0, kernel_size=1, padding_size=0,
+                # 0, not 0.0008: the cross-channel correlation MMD term is undefined
+                # at C=1 and raised "too many indices for tensor of dimension 0" on
+                # the first run. See vendor/DiM-TS/cgm_train_sample.py.
+                mmd_alpha=0.0, l_loss=1.0, sample_type="batch",
+                hidden_size=int(h), n_encoder=1, n_decoder=3,
+                feature_last=True, input_shape=[T, C], mlp_ratio=4.0,
+                d_state=1, d_conv=3, model_type="DiM", conv_num=1)
+
+print(f"{'hidden':>7} {'params':>12}")
+counts = {}
+for h in (32, 40, 48, 52, 56, 64, 80, 96, 128):
+    m = DiM_TS(**cfg(h))
+    n = sum(p.numel() for p in m.parameters())
+    counts[h] = n
+    print(f"{h:>7} {n:>12,}")
+    del m
+
+# nearest to each target the docs and configs talk about
+for target in (500_000, 2_000_000):
+    best = min(counts, key=lambda h: abs(counts[h] - target))
+    print(f"\nclosest to {target:,}: hidden_size={best} -> {counts[best]:,} "
+          f"({counts[best]/target:.2f}x)")
+
+# ---- cost of one model -------------------------------------------------------
+h = int(min(counts, key=lambda k: abs(counts[k] - 500_000)))
+dev = torch.device("cuda")
+model = DiM_TS(**cfg(h)).to(dev)
+opt = torch.optim.Adam(model.parameters(), lr=1e-4)
+x = torch.randn(BATCH, T, C, device=dev)
+
+for _ in range(5):                       # warm up: the first steps include autotuning
+    opt.zero_grad()
+    model(x).backward()
+    opt.step()
+torch.cuda.synchronize()
+
+N_STEP = 50
+t0 = time.time()
+for _ in range(N_STEP):
+    opt.zero_grad()
+    model(x).backward()
+    opt.step()
+torch.cuda.synchronize()
+per_step = (time.time() - t0) / N_STEP
+
+print(f"\nhidden_size={h} batch={BATCH}")
+print(f"  {per_step*1000:.1f} ms / optimiser step")
+for steps in (100_000, 500_000):
+    print(f"  {steps:,} steps (grad-accum 2) -> {per_step*steps*2/3600:.1f} h")
+
+# ---- cost of sampling --------------------------------------------------------
+# 500 denoising steps per batch, so this is not a rounding error next to training.
+model.eval()
+for nb in (64, 256):
+    torch.cuda.synchronize(); t0 = time.time()
+    with torch.no_grad():
+        model.generate_mts(batch_size=nb)
+    torch.cuda.synchronize()
+    dt = time.time() - t0
+    print(f"  sampling {nb:>4} in one call: {dt:.1f} s  ({dt/nb*1000:.1f} ms/sample)")
+    for K in (50_000, 177_000):
+        print(f"      K={K:,} -> {dt/nb*K/3600:.1f} h")
+
+# print, not json.dump to an open("/dev/stdout"): that second file object is not
+# flushed at interpreter exit, so the table went missing from one run's log.
+print(json.dumps({str(k): v for k, v in counts.items()}, indent=2), flush=True)
+PY

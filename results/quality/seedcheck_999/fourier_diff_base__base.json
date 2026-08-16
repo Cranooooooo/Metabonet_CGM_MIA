@@ -1,0 +1,20 @@
+{
+  "n_real": 176445,
+  "n_synth": 12000,
+  "n_eval": 3000,
+  "seed": 999,
+  "context_fid": 0.19140872178061033,
+  "discriminative_score": 0.13249999284744263,
+  "discriminative_accuracy": 0.6324999928474426,
+  "predictive_score_tstr": 0.013601578772068024,
+  "predictive_note": "redefined univariate one-step-ahead; NOT the published cross-channel score, which is undefined at C=1",
+  "label": "fourier_diff_base__base",
+  "run": "results/runs/fourier_diff_base/base",
+  "job": "base",
+  "generator": "fourier_diff",
+  "params": {
+    "n_samples": 176445,
+    "workdir": "results/runs/fourier_diff_base/base"
+  },
+  "fit_seconds": 23204.55
+}

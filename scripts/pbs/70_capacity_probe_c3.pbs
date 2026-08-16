@@ -1,0 +1,136 @@
+#!/bin/bash
+#PBS -N cgm_cap3
+#PBS -P 11704243
+#PBS -j oe
+#
+# What does width cost at THREE channels? The published capacity table
+# (results/probe/capacity.json) was measured at C=1 with mmd_alpha=0, and the campaign
+# now running measures 8.71 h/model at h128 C=3 against that table's 5.16 -- so the
+# table does not transfer and the cost of h256 is currently a guess spanning 8 to 14
+# days of wall clock. This replaces the guess.
+#
+# h128 IS INCLUDED AS A CONTROL, and it is the point of the run. The probe predicts a
+# per-model cost; the campaign has already measured one at h128. If the probe's h128
+# does not land near 8.71 h, its h256 is not to be trusted either, and that is worth
+# knowing before committing a fortnight of GPU time.
+#
+# Output goes to results/probe_c3/ so the published single-channel capacity.json is
+# left alone.
+#
+#   qsub -l select=1:ncpus=16:mem=64gb:ngpus=1 -l walltime=02:00:00 \
+#        -o logs/70_capacity_probe_c3.log scripts/pbs/70_capacity_probe_c3.pbs   # -> gdev
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+
+DIMTS_ENV=$WORK/envs/dimts
+test -d "$DIMTS_ENV" || { echo "run 05_dimts_env.pbs first"; exit 1; }
+module load cuda/11.8.0
+conda activate "$DIMTS_ENV"
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+export PYTHONPATH="$REPO/vendor/DiM-TS/Models/interpretable_diffusion:$REPO/vendor/DiM-TS:${PYTHONPATH:-}"
+
+mkdir -p "$REPO/results/probe_c3"
+cd "$REPO/vendor/DiM-TS"
+
+WIDTHS="${WIDTHS:-128 160 192 256}" OUT="$REPO/results/probe_c3/capacity_c3.json" \
+python - <<'PY' 2>&1 | tee "$REPO/logs/70_capacity_probe_c3.live.log"
+import json, os, time
+import torch
+from Models.interpretable_diffusion.gaussian_diffusion import DiM_TS
+
+T, C = 288, 3              # the three-channel cohort
+BATCH = 64                 # configs/experiment.yaml models.params.batch_size
+STEPS = 100_000            # ... models.params.steps, grad-accum 2
+K = 167_558                # the c3 base job's training set == released samples
+SAMPLE_BATCH = 1000        # ... models.params.sample_batch
+MEASURED_H128 = 8.71       # hours/model, mean of 24 completed campaign models
+
+
+def cfg(h):
+    return dict(seq_length=T, feature_size=C, timesteps=500, sampling_timesteps=500,
+                loss_type="l2", beta_schedule="cosine", n_heads=4, mlp_hidden_times=4,
+                attn_pd=0.0, resid_pd=0.0, kernel_size=1, padding_size=0,
+                # 0.0008, NOT 0: generators/dimts.py switches the cross-channel
+                # correlation MMD term on at C>1, so a probe with it off would price a
+                # different model from the one the campaign trains.
+                mmd_alpha=0.0008, l_loss=1.0, sample_type="batch",
+                hidden_size=int(h), n_encoder=1, n_decoder=3,
+                feature_last=True, input_shape=[T, C], mlp_ratio=4.0,
+                d_state=1, d_conv=3, model_type="DiM", conv_num=1)
+
+
+dev = torch.device("cuda")
+rows = []
+for h in [int(w) for w in os.environ["WIDTHS"].split()]:
+    try:
+        model = DiM_TS(**cfg(h)).to(dev)
+        n_par = sum(p.numel() for p in model.parameters())
+        opt = torch.optim.Adam(model.parameters(), lr=1e-4)
+        x = torch.randn(BATCH, T, C, device=dev)
+
+        for _ in range(5):               # the first steps include kernel autotuning
+            opt.zero_grad(); model(x).backward(); opt.step()
+        torch.cuda.synchronize()
+
+        t0 = time.time()
+        for _ in range(50):
+            opt.zero_grad(); model(x).backward(); opt.step()
+        torch.cuda.synchronize()
+        per_step = (time.time() - t0) / 50
+
+        model.eval()
+        sb = SAMPLE_BATCH
+        while True:
+            try:
+                torch.cuda.synchronize(); t0 = time.time()
+                with torch.no_grad():
+                    model.generate_mts(batch_size=sb)
+                torch.cuda.synchronize()
+                per_sample = (time.time() - t0) / sb
+                break
+            except torch.cuda.OutOfMemoryError:
+                torch.cuda.empty_cache()
+                sb //= 2
+                if sb < 64:
+                    raise
+                print(f"  h={h}: sample batch reduced to {sb} after OOM", flush=True)
+
+        train_h = per_step * STEPS * 2 / 3600
+        sample_h = per_sample * K / 3600
+        tot = train_h + sample_h
+        rows.append(dict(hidden_size=h, params=n_par, C=C,
+                         ms_per_step=round(per_step * 1e3, 2),
+                         ms_per_sample=round(per_sample * 1e3, 3),
+                         sample_batch=sb,
+                         train_hours=round(train_h, 2), sample_hours=round(sample_h, 2),
+                         hours_per_model=round(tot, 2),
+                         gpu_hours_123_models=round(tot * 123, 1),
+                         wall_days_12_cards=round(tot * 123 / 12 / 24, 2)))
+        print(f"hidden_size={h:<4} {n_par:>11,} par  {per_step*1e3:7.1f} ms/step  "
+              f"{per_sample*1e3:7.2f} ms/sample  -> {tot:6.2f} h/model", flush=True)
+        del model, opt, x
+        torch.cuda.empty_cache()
+    except Exception as e:
+        print(f"hidden_size={h} FAILED: {type(e).__name__}: {e}", flush=True)
+
+if not rows:
+    raise SystemExit("no width completed")
+json.dump(rows, open(os.environ["OUT"], "w"), indent=2)
+
+print(f"\n{'hidden':>7}{'params':>13}{'h/model':>10}{'vs h128':>9}"
+      f"{'123 models':>12}{'12-card days':>14}")
+ref = next((r for r in rows if r["hidden_size"] == 128), rows[0])
+for r in rows:
+    print(f"{r['hidden_size']:>7}{r['params']:>13,}{r['hours_per_model']:>10.2f}"
+          f"{r['hours_per_model'] / ref['hours_per_model']:>8.2f}x"
+          f"{r['gpu_hours_123_models']:>11.0f}h{r['wall_days_12_cards']:>13.1f}")
+
+if ref["hidden_size"] == 128:
+    err = abs(ref["hours_per_model"] - MEASURED_H128) / MEASURED_H128
+    print(f"\nCONTROL: probe says {ref['hours_per_model']:.2f} h/model at h128, the "
+          f"campaign measured {MEASURED_H128:.2f} -- {err:.0%} error.")
+    print("Under ~15% the other widths can be read as costs. Above it the probe is "
+          "pricing a different thing than the campaign runs, and the extrapolation "
+          "should not be used.")
+print(f"\nwrote {os.environ['OUT']}")
+PY

@@ -1,0 +1,75 @@
+#!/bin/bash
+#PBS -N cgm_wq3
+#PBS -P 11704243
+#PBS -j oe
+#
+# WHICH WIDTH IS ENOUGH at three channels? The capacity probe priced four widths; it
+# cannot say which one closes the quality gap. At h128 a classifier separates real from
+# synthetic at 0.65-0.68, where the single-channel models sat at 0.50. This trains one
+# `base` model per width under the campaign's own budget and measures that number.
+#
+# Four cards because g3 takes exactly four and it is the only lane the running campaign
+# has not already claimed (glong x2 + g2 + g1 are in use, one job per queue per user).
+# The fourth width is h224 rather than an idle card: the job holds all four until the
+# slowest finishes, so an unused card is pure waste. Useful work is 46.6 of 56.4
+# allocated GPU-hours, 83%.
+#
+# h128 is NOT retrained -- results/runs/dimts_c3_h128_rep1/base is the campaign's own
+# and is the correct reference point.
+#
+#   qsub -l select=1:ncpus=64:ngpus=4 -l walltime=20:00:00 \
+#        -o logs/71_width_quality_c3.log scripts/pbs/71_width_quality_c3.pbs      # -> g3
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+test -x "$DIMTS_PYTHON" || { echo "no DiM-TS env; run 05_dimts_env.pbs"; exit 1; }
+
+LOGTAG=${PBS_JOBID%%.*}
+WIDTHS=(256 224 192 160)          # slowest first, so the tail is short
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
+echo "PBS allocated ${#ALLOC[@]} GPU(s) for ${#WIDTHS[@]} width(s)"
+export THREADS=$(( ${NCPUS:-64} / ${#ALLOC[@]} ))
+
+pids=(); rc=0
+for i in "${!WIDTHS[@]}"; do
+    w=${WIDTHS[$i]}
+    card=${ALLOC[$(( i % ${#ALLOC[@]} ))]}
+    # PARAMS is built HERE, never passed through `qsub -v`: PBS strips the double
+    # quotes and json.loads dies at char 1 (13_loo_dimts.pbs).
+    ( export CUDA_VISIBLE_DEVICES="$card"
+      python scripts/run_loo.py \
+        --design results/design_sid_c3/rep1 \
+        --out "results/runs/dimts_c3_h${w}_probe" \
+        --cohort data/cohort/metabonet_sid_c3 \
+        --job base \
+        --params "{\"hidden_size\": ${w}}"
+    ) > "logs/71_${LOGTAG}_h${w}.log" 2>&1 &
+    pids+=($!)
+    echo "width $w -> $card  (pid ${pids[$i]})"
+done
+for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then echo "width ${WIDTHS[$i]} OK"
+    else echo "width ${WIDTHS[$i]} FAILED"; rc=1; fi
+done
+
+echo
+echo "########## quality by width ##########"
+RUNS=""
+for w in 128 160 192 224 256; do
+    d=results/runs/dimts_c3_h${w}_probe/base
+    [ "$w" = "128" ] && d=results/runs/dimts_c3_h128_rep1/base
+    [ -f "$d/samples.npy" ] && RUNS="$RUNS $d"
+done
+echo "scoring:$RUNS"
+python -u scripts/eval_quality.py --runs $RUNS \
+  --design results/design_sid_c3/rep1 \
+  --cohort data/cohort/metabonet_sid_c3 \
+  --out results/quality_c3_width 2>&1 | tee logs/71_width_quality_c3.live.log
+
+echo
+echo "target: discriminative_accuracy near 0.50, which is where the published"
+echo "single-channel models sat (0.496 / 0.529 / 0.508). At h128 C=3 it is 0.65-0.68."
+exit $rc

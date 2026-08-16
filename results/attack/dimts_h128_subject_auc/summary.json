@@ -1,0 +1,37 @@
+{
+  "runs": "dimts_h128",
+  "replicates": [
+    1,
+    2,
+    3
+  ],
+  "n_subjects": 80,
+  "statistic": "per-subject Mann-Whitney AUC over windows, set_reduce=min",
+  "note": "secondary/exploratory; the frozen primary statistic is min x mean and its result (arm AUC 0.680) is unchanged by anything here",
+  "by_group": {
+    "outlier": {
+      "n": 20,
+      "median": 0.5053379186194931,
+      "mean": 0.5129329918867953,
+      "max": 0.6427017482614777,
+      "q1": 0.5007176183229052,
+      "q3": 0.5136287426242154,
+      "n_over_0_55": 1
+    },
+    "control": {
+      "n": 60,
+      "median": 0.5013755214674134,
+      "mean": 0.5018363628953957,
+      "max": 0.518222371854221,
+      "q1": 0.49758568112532797,
+      "q3": 0.5063426129693407,
+      "n_over_0_55": 0
+    }
+  },
+  "exploratory_arm_auc_of_aucs": 0.6683333333333333,
+  "exploratory_arm_p": 0.01258157331092783,
+  "spearman_auc_vs_n_windows": {
+    "rho": 0.09309659902876077,
+    "p": 0.41144008412403277
+  }
+}

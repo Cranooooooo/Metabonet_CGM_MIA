@@ -1,0 +1,25 @@
+{
+  "n_real": 176445,
+  "n_synth": 12000,
+  "n_eval": 3000,
+  "seed": 7,
+  "context_fid": 0.10034061538210277,
+  "discriminative_score": 0.0033333301544189453,
+  "discriminative_accuracy": 0.503333330154419,
+  "predictive_score_tstr": 0.015004153363406658,
+  "predictive_note": "redefined univariate one-step-ahead; NOT the published cross-channel score, which is undefined at C=1",
+  "label": "dimts_h52_rep1__base",
+  "run": "results/runs/dimts_h52_rep1/base",
+  "job": "base",
+  "generator": "dimts",
+  "params": {
+    "hidden_size": 52,
+    "steps": 100000,
+    "batch_size": 64,
+    "save_cycle": 10000,
+    "sample_batch": 1000,
+    "n_samples": 176445,
+    "workdir": "results/runs/dimts_h52_rep1/base"
+  },
+  "fit_seconds": 11912.51
+}

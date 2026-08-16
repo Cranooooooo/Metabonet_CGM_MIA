@@ -1,0 +1,50 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.ipynb_checkpoints/
+*.log
+
+# Raw data is never committed. It is 1.3 GB and it is not this repository's to
+# redistribute; scripts/fetch_data.py puts it here.
+data/raw/
+
+# The DERIVED cohort is committed, as one lossless compressed file per cohort
+# (scripts/pack_cohort.py). The 210 MB windows.npy it is packed from is not.
+data/cohort/**/*.npy
+!data/cohort/**/cohort.npz
+
+# Synthetic cohorts are rebuilt by scripts/make_fake_data.py in seconds.
+data/cohort/fake*/
+
+# Scores, votes and manifests under results/ ARE committed -- they are small, and a
+# repository that ships the data but not what the data produced cannot be checked.
+# Model weights and released samples are not.
+results/**/*.npy
+results/**/*.pt
+results/**/*.ckpt
+results/_encoder_cache/
+results/_outliers_preseed/
+checkpoints/
+outputs/
+
+# TS2Vec weights + the 182k x 320 encoded cohort: 225 MB, rebuilt from the cohort
+# in a few minutes. Kept on disk, never committed.
+cache/
+results/fake/
+
+# The Mamba kernel's BUILD OUTPUT, 47 MB of it. docs/DIMTS.md says why the sources
+# ship and the binary does not: a .so built here is linked against one specific torch,
+# CUDA and libstdc++, so shipping it produces failures elsewhere that look like code
+# bugs. scripts/pbs/05_dimts_env.pbs rebuilds it.
+vendor/**/build/
+vendor/**/*.so
+vendor/**/*.o
+vendor/**/*.egg-info/
+
+# Scratch outputs from the plumbing checks: a smoke test's model weights are 44 MB and
+# reproduce in five minutes (scripts/pbs/68_dimts_c3_smoke.pbs).
+results/_smoke_c3/
+results/_smoke3/
+results/_refactor_check/
+.campaign_seen/

@@ -1,0 +1,58 @@
+#!/bin/bash
+#PBS -N cgm_attack_dimts
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=384gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#
+# d_OUT - d_IN over one replicate of the DiM-TS run.
+#
+#   qsub -v REP=1 -o logs/15_attack_rep1.log scripts/pbs/15_attack_dimts.pbs
+#
+# CPU only. The frozen statistic is a raw-space Euclidean nearest neighbour
+# (attack/statistic.py:window_distances) -- the TS2Vec cache belongs to stage 2's
+# detection methods, not to this. qdev takes it: 0 GPUs, under 2 h, priority 100.
+#
+# WHAT TO READ, AND IN WHICH ORDER
+#
+#   auc          the study's question: does the OUTLIER arm's gap exceed the CONTROL
+#                arm's. 0.5 is no separation.
+#   p_between    same question as a test. Within ONE replicate every target shares a
+#                base model, so this is a SCREEN, not a test -- read it as "worth
+#                looking at", never as the result. The test is the spread of the arm
+#                difference across the three replicates, which have independent draws,
+#                backgrounds and bases.
+#   p_within_*   is each arm's gap positive at all. On copy_paste both arms had to be
+#                strongly positive; on a generator that does not memorise wholesale
+#                there is no reason they should be, and a null here is not a broken
+#                pipeline.
+#
+# The distance variant was frozen on copy_paste (min x mean, results/attack/copy_paste/
+# variant_choice.json) and `frozen` marks it in the summary. Every variant is still
+# computed -- they are nearly free once the distance matrices exist -- but reopening the
+# choice on this output would be selecting the test on the outcome.
+#
+# This is also the first time run_attack.py sees a real generator AND the symmetric
+# design: until now it had only run on copy_paste, where every pair was (include_s,
+# base) or (base, exclude_c) from the older design. Running it on replicate 1 rather
+# than waiting for all three means a path failure surfaces today.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+: "${REP:?pass -v REP=1}"
+WIDTH=${WIDTH:-h128}
+
+python scripts/run_attack.py \
+    --generator dimts \
+    --design "results/design_sym/rep${REP}" \
+    --runs   "results/runs/dimts_${WIDTH}_rep${REP}" \
+    --out    "results/attack/dimts_${WIDTH}_rep${REP}"
+
+echo
+echo "=== same pairs, K NOT matched (artefact size, not a result) ==="
+python scripts/run_attack.py \
+    --generator dimts --no-match-k \
+    --design "results/design_sym/rep${REP}" \
+    --runs   "results/runs/dimts_${WIDTH}_rep${REP}" \
+    --out    "results/attack/dimts_${WIDTH}_rep${REP}_unmatched"

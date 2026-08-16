@@ -1,0 +1,15 @@
+#!/bin/bash
+#PBS -N cgm_identx
+#PBS -P 11704243
+#PBS -j oe
+#
+# Cross-reference the real-data identifiability ceiling against the two findings of the
+# membership study: subject 1142, and the consensus outliers as a group.
+#
+#   qsub -l select=1:ncpus=4:mem=16gb -l walltime=00:20:00 \
+#        -o logs/49_ident_vs_outliers.log scripts/pbs/49_ident_vs_outliers.pbs  # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -u scripts/identifiability_vs_outliers.py \
+  --per-subject results/identifiability/*_per_subject.csv \
+  2>&1 | tee logs/49_ident_vs_outliers.live.log

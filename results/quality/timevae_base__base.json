@@ -1,0 +1,21 @@
+{
+  "n_real": 176445,
+  "n_synth": 12000,
+  "n_eval": 3000,
+  "seed": 2026,
+  "context_fid": 1.504048724408758,
+  "discriminative_score": 0.05750000476837158,
+  "discriminative_accuracy": 0.5575000047683716,
+  "predictive_score_tstr": 0.02058624103665352,
+  "predictive_note": "redefined univariate one-step-ahead; NOT the published cross-channel score, which is undefined at C=1",
+  "label": "timevae_base__base",
+  "run": "results/runs/timevae_base/base",
+  "job": "base",
+  "generator": "timevae",
+  "params": {
+    "batch_size": 256,
+    "n_samples": 176445,
+    "workdir": "results/runs/timevae_base/base"
+  },
+  "fit_seconds": 3671.68
+}

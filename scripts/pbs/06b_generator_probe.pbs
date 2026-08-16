@@ -1,0 +1,45 @@
+#!/bin/bash
+#PBS -N cgm_gen_probe
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=64gb:ngpus=1
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/06b_generator_probe.log
+#
+# What one model of the design costs, for every generator that runs in the main
+# environment -- measured on identical data, at a stated budget, so the numbers are
+# comparable. DiM-TS is not here: it needs its own environment, and 06_dimts_probe.pbs
+# covers it with the same protocol.
+#
+# The published defaults are NOT comparable and should not be used to choose:
+# FourierDiffusion denoises in 1000 steps and DiM-TS in 500; FourierDiffusion counts
+# 200 epochs (~550k steps at N=177k, batch 64) and DiM-TS counts 100k steps. Bigger
+# defaults are not slower architectures.
+#
+# The term to watch is sampling. Every model releases K = its own training-set size,
+# about 177k sequences; at 500-1000 denoising steps each that can exceed the training
+# it follows, and then the real choice is K or denoising steps, not the generator.
+#
+#   qsub scripts/pbs/06b_generator_probe.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+# The generators extra is installed by 00_build_env.pbs, under the torch constraint.
+# It is NOT installed here: doing that inside this job is what replaced torch
+# 2.7.0+cu126 with a cu130 build and left CUDA unavailable on an allocated A100.
+python -c "import pytorch_lightning, diffusers, torchvision" || {
+    echo "generator dependencies missing -- rebuild with 00_build_env.pbs"; exit 1; }
+
+python - <<'PY'
+import torch
+print("torch", torch.__version__, "cuda", torch.cuda.is_available())
+assert torch.cuda.is_available(), "no CUDA: wrong torch wheel, see guide section 4"
+a = torch.randn(64, 64, device="cuda", dtype=torch.bfloat16)
+print("device", torch.cuda.get_device_name(0), "matmul", (a @ a).sum().item())
+PY
+
+python scripts/probe_generator.py \
+    --generator fourier_diff timevae diffusion_ts diffwave copy_paste \
+    --n-train 20000 --n-sample 512 --K 177000 --train-rate \
+    --out results/probe/generators.json

@@ -1,0 +1,32 @@
+[
+  {
+    "hidden_size": 52,
+    "params": 522907,
+    "ms_per_step": 32.43,
+    "ms_per_sample": 30.596,
+    "train_hours": 1.8,
+    "sample_hours": 1.53,
+    "hours_per_model": 3.33,
+    "gpu_hours_123_models": 409.3
+  },
+  {
+    "hidden_size": 96,
+    "params": 1604851,
+    "ms_per_step": 33.16,
+    "ms_per_sample": 46.956,
+    "train_hours": 1.84,
+    "sample_hours": 2.34,
+    "hours_per_model": 4.18,
+    "gpu_hours_123_models": 514.6
+  },
+  {
+    "hidden_size": 128,
+    "params": 2762291,
+    "ms_per_step": 39.14,
+    "ms_per_sample": 59.886,
+    "train_hours": 2.17,
+    "sample_hours": 2.99,
+    "hours_per_model": 5.16,
+    "gpu_hours_123_models": 634.8
+  }
+]

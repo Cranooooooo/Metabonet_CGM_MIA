@@ -1,0 +1,32 @@
+#!/bin/bash
+#PBS -N cgm_identF
+#PBS -P 11704243
+#PBS -j oe
+#
+# Identifiability, with the two corrections that change the numbers:
+#   * ties are mid-ranked. bolus is 95% exact zeros, so many subjects sit at exactly the
+#     same distance; scoring a tie as rank 0 reported 62% top-1 on bolus quantile.
+#   * a within-study pass. Recording units, CGM device, pump model, protocol and era are
+#     constant within a study and differ between them, so cross-study retrieval can
+#     identify the STUDY rather than the person. Ranking a day only against its own
+#     study's subjects removes all of that at once.
+# Units are checked first because the three-channel cohort's CGM mean is 96 mg/dL
+# against 146 for the single-channel one, which a mixture of mg/dL and mmol/L explains
+# and a sicker subgroup does not.
+#
+#   qsub -l select=1:ncpus=32:mem=96gb -l walltime=02:00:00 \
+#        -o logs/57_ident_final.log scripts/pbs/57_ident_final.pbs             # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  python -m py_compile scripts/identifiability.py scripts/check_units.py
+  echo "########## units ##########"
+  python -u scripts/check_units.py
+  echo "########## across studies (ties fixed) ##########"
+  python -u scripts/identifiability.py --cohort data/cohort/metabonet_sid_c3
+  echo "########## within study ##########"
+  python -u scripts/identifiability.py --cohort data/cohort/metabonet_sid_c3 \
+    --within-study --out results/identifiability_within
+  python -u scripts/identifiability.py --cohort data/cohort/metabonet_sid_c1 \
+    --within-study --out results/identifiability_within
+} 2>&1 | tee logs/57_ident_final.live.log

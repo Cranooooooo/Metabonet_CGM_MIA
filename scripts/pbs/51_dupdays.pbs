@@ -1,0 +1,14 @@
+#!/bin/bash
+#PBS -N cgm_dupday
+#PBS -P 11704243
+#PBS -j oe
+#
+# Do duplicate timestamps in the raw file reach the SHIPPED cohort as six-hour windows
+# labelled as days? Reads the raw cell counts and the published windows; changes
+# nothing.
+#
+#   qsub -l select=1:ncpus=8:mem=32gb -l walltime=00:30:00 \
+#        -o logs/51_dupdays.log scripts/pbs/51_dupdays.pbs                     # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -u scripts/check_duplicate_days.py 2>&1 | tee logs/51_dupdays.live.log

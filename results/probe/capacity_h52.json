@@ -1,0 +1,12 @@
+[
+  {
+    "hidden_size": 52,
+    "params": 522907,
+    "ms_per_step": 32.43,
+    "ms_per_sample": 30.596,
+    "train_hours": 1.8,
+    "sample_hours": 1.53,
+    "hours_per_model": 3.33,
+    "gpu_hours_123_models": 409.3
+  }
+]

@@ -1,0 +1,70 @@
+# The paired include/exclude experiment. See docs/DESIGN.md.
+targets:
+  n_outliers: 20           # the subjects flagged under all four detection seeds
+  n_controls: 20
+  match_on: n_days         # NOT random: outliers have fewer days than the cohort
+  match_tolerance: 0.15    # relative; realised max 0.032/0.032/0.065 across replicates
+  n_candidates: 8          # randomise the draw among the k nearest AVAILABLE by day
+                           # count. k=1 is the deterministic greedy draw and would give
+                           # all three replicates the SAME controls -- match_controls
+                           # accepted a seed and never read it until 2026-08-07.
+  replicates: 3            # disjoint control draws -> independent background, base and
+                           # arm difference. Within one replicate all 40 targets share a
+                           # base, so a p-value over them is overstated; the replicate
+                           # differences are the units it can rest on. docs/DESIGN.md
+  symmetric: true          # controls drawn OUT of the background, every pair is
+                           # (include_t, base). Reusing one base as OUT for outliers and
+                           # IN for controls puts its single-run offset into the arms
+                           # with OPPOSITE sign and does not average away.
+  # The outlier count was 28 before outliers/common.method_rng gave each method its own
+  # stream (docs/PITFALLS.md §5), then 24, and is 20 after seed stability.
+
+models:
+  generator: dimts         # any key in cgmoutlier.generators.registry
+  seed: 2026
+  base: background         # normals minus the drawn controls; 835 on this cohort
+  # Measured on an A100-40GB, results/probe/capacity.json: 5.16 h per model at the width
+  # below, so 123 models is ~635 GPU-hours. fourier_diff is far worse (1000 denoising
+  # steps against 500) and diffusion_ts cheaper; neither difference is about model size.
+  params:
+    hidden_size: 128       # 2,762,291 parameters at T=288, C=1.
+      # The width DiM-TS's authors published for Stocks and ETTh1, where it is 2.65 M --
+      # ours is 4% larger because T=288 against their 64, not smaller because C=1.
+      # Capacity is therefore the baseline's choice, not ours, which is the only answer
+      # to "you crippled the model" that needs no defending. The previous 52 (522,907,
+      # our own "~500 k") is what docs/DIMTS.md warns is deliberately under-parameterised
+      # and so biased toward a null.
+      # It costs 1.55x, not 5.3x: 5.3x the parameters is only 1.21x the optimiser step
+      # (32.4 -> 39.1 ms) because 522 k parameters at batch 64 leaves an A100
+      # latency-bound. Sampling carries the rest (30.6 -> 59.9 ms/sample).
+      # Capacity is a declared variable, not a defended constant -- a sweep at one
+      # replicate per width is planned, which is why run directories name the width.
+    steps: 100000          # optimiser steps, grad-accum 2, matching diffusion_ts
+    batch_size: 64
+    save_cycle: 10000      # 10 checkpoints per run; they must survive the job
+    sample_batch: 1000     # 39.1 ms/sample at 256, 101.6 at 64 -- this knob is free
+    # sampling_timesteps is left at the model default (500). Whether the released set
+    # needs all 500 is a question to answer by RE-SAMPLING a trained checkpoint, not by
+    # training again -- which is why loo.train forces a durable workdir.
+
+sampling:
+  K: matched               # matched = training-set size; or an integer
+  # K matters: the attack can only see a memorised window if it is actually released.
+
+attack:
+  encoder: ts2vec
+  # FROZEN on copy_paste, 2026-08-07. Do not re-open on a real generator's output:
+  # choosing the statistic on the outcome is selecting the test. Evidence in
+  # results/attack/copy_paste/variant_choice.json.
+  set_reduce: min          # distance to the NEAREST released sample
+  subject_reduce: mean     # averaged over the subject's windows
+  match_k: true            # cut both released sets to one size first
+  # Why not the alternatives:
+  #   set_reduce=mean   cannot detect membership at all -- one subject added to 178k
+  #                     released samples does not move the mean distance (gap ~1e-5,
+  #                     Wilcoxon n.s. in both arms, where min gives p=6e-8).
+  #   subject_reduce=min  Spearman(gap, n_windows) = -0.64, p=0.0008 inside the
+  #                     control arm: it reads the subject's day count, which is the
+  #                     confound the control matching exists to remove.
+  #   subject_reduce=q10 passes, but with a larger |rho| (0.15 vs 0.12) and a smaller
+  #                     effect-over-spread (0.18 vs 0.21) than the choice above.

@@ -1,0 +1,37 @@
+#!/bin/bash
+#PBS -N cgm_attack_cp
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:mem=192gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/08_attack_copypaste.log
+#
+# d_OUT - d_IN over all 48 pairs of the copy_paste run, for every distance variant.
+#
+# What has to be true here is that EACH ARM's gap is strongly positive (p_within_*),
+# not that the two arms separate. Both arms are membership pairs -- an outlier's is
+# (include_s, base) and a control's is (base, exclude_c) -- so copy_paste memorises
+# both equally and is expected to separate neither. auc ~ 0.5 on this run is the
+# correct result, not a failure; the between-arm comparison is the study's question
+# and only becomes informative on a generator that does not memorise everything.
+#
+# A variant that leaves both arms near zero cannot detect membership at all and is out.
+#
+# The variant is chosen HERE and frozen. Choosing it later, on DiM-TS output, would be
+# picking the test on the outcome.
+#
+# Also worth reading: run once more with --no-match-k to see how much of the gap the
+# released-set-size artefact accounts for. It should be a small fraction; if it is not,
+# K is doing more work than membership.
+#
+#   qsub scripts/pbs/08_attack_copypaste.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+python scripts/run_attack.py --generator copy_paste
+
+echo
+echo "=== same run, K NOT matched (artefact size, not a result) ==="
+python scripts/run_attack.py --generator copy_paste --no-match-k \
+       --out results/attack/copy_paste_unmatched

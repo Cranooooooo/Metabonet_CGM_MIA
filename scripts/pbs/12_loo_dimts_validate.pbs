@@ -1,0 +1,71 @@
+#!/bin/bash
+#PBS -N cgm_dimts_val
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=110gb:ngpus=1
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/12_loo_dimts_validate.log
+#
+# One real DiM-TS model at 2% of the step budget, to prove the path end to end before
+# 164 GPU-hours are committed to it.
+#
+# run_loo.py has only ever run copy_paste, which needs no subprocess, no second
+# environment and no CUDA kernel. Everything specific to DiM-TS is untested inside the
+# driver: DIMTS_PYTHON resolution, the kernel loading under the child interpreter's
+# LD_LIBRARY_PATH, mmd_alpha reaching the config, the workdir surviving, and the
+# (K, T, C) contract on the way back.
+#
+# Writes to results/runs/dimts_validate/, not results/runs/dimts/ -- a 2000-step model
+# must never be mistaken for a run, and `run` skips any job that already has a
+# samples.npy.
+#
+#   qsub scripts/pbs/12_loo_dimts_validate.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+
+# DiM-TS runs as a subprocess under its own interpreter. The kernel links against that
+# environment's libstdc++, not the system one, and the child inherits this (docs/DIMTS.md).
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+# Both directories: libstdc++ lives in the env's lib, and the kernel also needs torch's
+# own libc10.so from site-packages/torch/lib. `import torch` normally puts the second on
+# the loader path, but naming it here means a probe that has not imported torch yet
+# still resolves.
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+test -x "$DIMTS_PYTHON" || { echo "no DiM-TS env; run 05_dimts_env.pbs"; exit 1; }
+
+"$DIMTS_PYTHON" -c "import torch, selective_scan_cuda_oflex_rh as k; \
+print('dimts env: torch', torch.__version__, '| kernel', k.__file__)"
+
+python scripts/run_loo.py \
+    --design results/design_stable \
+    --job base \
+    --params '{"steps": 2000, "save_cycle": 1000}' \
+    --K 5000 \
+    --out results/runs/dimts_validate
+
+echo
+echo "=== what it wrote ==="
+find results/runs/dimts_validate -maxdepth 3 -printf "%10s  %p\n" | sort -k2
+
+python - <<'PY'
+import json, numpy as np
+from pathlib import Path
+d = Path("results/runs/dimts_validate/base")
+S = np.load(d / "samples.npy")
+m = json.loads((d / "meta.json").read_text())
+print("\nsamples", S.shape, S.dtype)
+print("range   [%.3f, %.3f]  nan_frac %.4f" % (S.min(), S.max(), np.isnan(S).mean()))
+print("fit %.1f min, sample %.1f min" % (m["fit_seconds"]/60, m["sample_seconds"]/60))
+# The cohort is z-scored and clipped to +-1; samples far outside it mean the adapter's
+# normalisation contract broke, which no shape check would catch.
+assert S.shape == (5000, 288, 1), S.shape
+assert np.isfinite(S).all(), "non-finite samples"
+assert abs(S).max() < 5, f"samples leave the model's space: max |x| = {abs(S).max():.2f}"
+ck = list((d).rglob("*.pt"))
+print("checkpoints:", [str(p.relative_to(d)) for p in ck] or "NONE -- resampling later "
+      "would need a full retrain")
+assert ck, "no checkpoint survived the job"
+print("\nOK")
+PY

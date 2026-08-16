@@ -1,0 +1,17 @@
+#!/bin/bash
+#PBS -N cgm_cov_sid
+#PBS -P 11704243
+#PBS -j oe
+#
+# Channel coverage again, keyed on (source_file, id) instead of id. `id` is unique only
+# within a study: 241 of 1,291 ids appear under two or more, 238 of the 875 cohort
+# subjects are such composites, and they hold 41% of the windows. This says what the
+# cohort looks like once each study's participants are separate people.
+#
+#   qsub -l select=1:ncpus=16:mem=64gb -l walltime=02:00:00 \
+#        -o logs/54_coverage_studyid.log scripts/pbs/54_coverage_studyid.pbs   # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -u scripts/channel_coverage.py --subject-key study_id \
+  --out results/channel_coverage_studyid \
+  2>&1 | tee logs/54_coverage_studyid.live.log

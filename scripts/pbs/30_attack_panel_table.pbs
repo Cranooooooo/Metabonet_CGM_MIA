@@ -1,0 +1,40 @@
+#!/bin/bash
+#PBS -N cgm_panel_tab
+#PBS -P 11704243
+#PBS -j oe
+#
+# Stage B of the attacker panel: train the per-subject classifiers, emit the table.
+# Also runs the test suite, because the login node is not a place to run pytest.
+#
+#   qsub -l select=1:ncpus=32:mem=16gb -l walltime=02:00:00 \
+#        -W depend=afterok:<repA>:<repB>:<repC> \
+#        -o logs/30_panel_table.log scripts/pbs/30_attack_panel_table.pbs    # -> qdev
+#
+# ⛔ EVERYTHING PYTHON BELONGS IN A JOB, INCLUDING THE CHEAP THINGS. The guide's §1 is
+# not scoped to heavy work: no python on the login node at all, and the abuse detector
+# is documented to have fired on exactly one CPU featurization run. Analysis snippets,
+# smoke tests and pytest all go here. This script exists so there is somewhere for
+# them to go.
+#
+# Cost is minutes: the features are already on disk and a per-subject classifier
+# trains on a few hundred rows. The 2 h ask is the qdev ceiling, not an estimate.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+echo "=== tests ==="
+python -m pytest tests -q
+
+echo
+echo "=== panel table ==="
+# ALSO_RAW=1 runs every cell twice, on normalised and on unnormalised features. The
+# pair IS the evidence for the normalisation: the raw negative control reads well above
+# the 0.5 it must read, and the normalised one is what shows that was fixed rather than
+# assumed. PBS copies this script at qsub time, so a variable added here after the
+# submit does nothing to the job already queued -- qdel and resubmit.
+python scripts/attack_panel_table.py \
+    --panel "${PANEL:-results/attack_panel/dimts_h128}" \
+    --out "${OUT:-results/attack_panel/table.json}" \
+    --n-repeat "${NREPEAT:-5}" \
+    ${ALSO_RAW:+--also-raw} \
+    ${CELLS:+--cells "$CELLS"}

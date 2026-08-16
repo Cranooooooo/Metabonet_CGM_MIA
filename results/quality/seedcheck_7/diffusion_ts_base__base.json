@@ -1,0 +1,20 @@
+{
+  "n_real": 176445,
+  "n_synth": 12000,
+  "n_eval": 3000,
+  "seed": 7,
+  "context_fid": 1.052358073173169,
+  "discriminative_score": 0.1783333420753479,
+  "discriminative_accuracy": 0.6783333420753479,
+  "predictive_score_tstr": 0.023086756467819214,
+  "predictive_note": "redefined univariate one-step-ahead; NOT the published cross-channel score, which is undefined at C=1",
+  "label": "diffusion_ts_base__base",
+  "run": "results/runs/diffusion_ts_base/base",
+  "job": "base",
+  "generator": "diffusion_ts",
+  "params": {
+    "n_samples": 176445,
+    "workdir": "results/runs/diffusion_ts_base/base"
+  },
+  "fit_seconds": 466.61
+}

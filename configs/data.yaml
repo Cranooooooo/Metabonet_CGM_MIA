@@ -1,0 +1,21 @@
+# Cohort construction. Every rule that changes which subjects exist lives here.
+source:
+  parquet: data/raw/metabonet_public.parquet   # fetch_data.py puts it here
+  url: https://metabo-net.org/data
+
+window:
+  T: 288          # 24 h at 5-minute resolution
+  dt_min: 5
+  channel: CGM    # single-variate; see README for why the insulin channels are dropped
+  require_complete: true   # all 288 cells present, stricter than the 70% consensus bar
+
+cohort:
+  min_days: 30    # below this a subject's own distribution cannot be estimated
+  n_subjects: null   # null = every eligible subject
+  stratify_on: n_days
+  seed: 2026
+
+normalise:
+  scheme: zscore_clip
+  zclip: 5.0
+  # constants are RECOMPUTED per cohort and written to manifest.json -- never reused

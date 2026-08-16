@@ -1,0 +1,15 @@
+#!/bin/bash
+#PBS -N cgm_schema
+#PBS -P 11704243
+#PBS -j oe
+#
+# Stage A only: columns, dtypes, null fractions from the parquet row-group statistics.
+# No row is read, so this returns in seconds -- it exists because PBS only stages a
+# job's log back when the job ends, and 44_inspect_raw.pbs holds stage A hostage behind
+# a two-hour stage B.
+#
+#   qsub -l select=1:ncpus=4:mem=16gb -l walltime=00:10:00 \
+#        -o logs/45_schema.log scripts/pbs/45_schema.pbs                    # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python scripts/inspect_raw.py --parquet data/raw/metabonet_public.parquet --stage a

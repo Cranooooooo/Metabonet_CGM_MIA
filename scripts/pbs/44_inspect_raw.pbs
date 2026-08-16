@@ -1,0 +1,15 @@
+#!/bin/bash
+#PBS -N cgm_inspect
+#PBS -P 11704243
+#PBS -j oe
+#
+# Schema and per-channel density of the raw parquet.
+#   qsub -l select=1:ncpus=32:mem=128gb -l walltime=02:00:00 \
+#        -o logs/44_inspect_raw.log scripts/pbs/44_inspect_raw.pbs        # -> qdev
+#
+# 154M rows. Stage A is parquet metadata only and is instant; stage B streams one
+# channel at a time so peak memory is a batch, not the table. 128gb is headroom for
+# the id column materialising as python objects, not a measurement.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python scripts/inspect_raw.py --parquet data/raw/metabonet_public.parquet

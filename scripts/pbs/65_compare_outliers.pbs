@@ -1,0 +1,18 @@
+#!/bin/bash
+#PBS -N cgm_cmp
+#PBS -P 11704243
+#PBS -j oe
+#
+# Does adding basal and bolus change who the outliers are? Both sides computed on this
+# machine, on the same cohort, same subjects, same days.
+#
+#   qsub -W depend=afterok:<1ch>:<3ch> -l select=1:ncpus=4:mem=16gb \
+#        -l walltime=00:20:00 -o logs/65_compare.log \
+#        scripts/pbs/65_compare_outliers.pbs                                   # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -u scripts/compare_outlier_sets.py \
+  --a results/outliers_sid_c3/stability_1ch \
+  --b results/outliers_sid_c3/stability_3ch \
+  --label-a CGM --label-b CGM+basal+bolus \
+  2>&1 | tee logs/65_compare.live.log

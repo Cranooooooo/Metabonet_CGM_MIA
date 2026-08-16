@@ -1,0 +1,15 @@
+# pip constraints, applied to EVERY install in this project via PIP_CONSTRAINT
+# (exported by scripts/pbs/env.sh).
+#
+# WHY. `pip install -e ".[generators]"` needed torchvision, and pip satisfied it by
+# upgrading torch from 2.7.0+cu126 to 2.13.0+cu130 off the default index. cu130 wants a
+# newer driver than this machine's 12.8, so torch.cuda.is_available() went False on an
+# allocated A100 -- the failure the operating guide calls out, and one that costs a
+# whole run when nothing checks for it. A constraint makes torch un-upgradable by
+# accident: an install that would move it now fails loudly instead.
+#
+# To change the torch version, change it HERE and rebuild the environment from
+# scratch. Do not pip-install over the top: a half-migrated torch fails later with
+# messages that point nowhere near the cause.
+torch==2.7.0
+torchvision==0.22.0

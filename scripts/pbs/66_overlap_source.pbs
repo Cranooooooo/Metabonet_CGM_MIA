@@ -1,0 +1,15 @@
+#!/bin/bash
+#PBS -N cgm_ovl
+#PBS -P 11704243
+#PBS -j oe
+#
+# How much of the 15-subject overlap between the CGM and CGM+basal+bolus outlier lists
+# is forced? Group A is glucose-only in both runs, so its four votes are identical by
+# construction and a subject carried by them appears in both lists whatever the extra
+# channels do. Split the overlap by where its votes came from.
+#
+#   qsub -l select=1:ncpus=4:mem=16gb -l walltime=00:15:00 \
+#        -o logs/66_overlap_source.log scripts/pbs/66_overlap_source.pbs       # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -u scripts/overlap_source.py 2>&1 | tee logs/66_overlap_source.live.log

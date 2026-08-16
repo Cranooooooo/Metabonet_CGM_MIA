@@ -1,0 +1,59 @@
+#!/bin/bash
+#PBS -N cgm_power
+#PBS -P 11704243
+#PBS -j oe
+#
+# Does the attacker panel detect leakage that is CERTAIN to be there?
+#
+#   qsub -l select=1:ncpus=32:mem=32gb -l walltime=02:00:00 \
+#        -o logs/41_power_check.log scripts/pbs/41_panel_power_check.pbs      # -> qdev
+#
+# WHY THIS EXISTS. The negative control shows the panel does not produce FALSE
+# POSITIVES: with a release the subject is not in, every cell reads 0.500. It says
+# nothing about false NEGATIVES. "Eight attackers found nothing" is evidence of absence
+# only if those attackers can find something when it is present, and that has never
+# been shown -- so the whole negative result currently rests on an untested assumption.
+#
+# `copy_paste` is the known positive: it releases training rows verbatim, so a member's
+# own windows appear in its release at distance ~0 (the float32 floor, ~5e-5). Its gaps
+# are about 200x DiM-TS's -- d_in 0.042 against d_out 0.115, where DiM-TS's median gap
+# is 0.0003. If the panel cannot read that, it cannot read anything.
+#
+# Same design, same feature code, same classifiers, same LOSO. Only the generator
+# differs, which is what makes this a check on the INSTRUMENT rather than a separate
+# experiment.
+#
+# Reading it:
+#   per-subject AUC ~ 1.0   the panel has power; the DiM-TS null is trustworthy
+#   per-subject AUC ~ 0.5   the panel is blind and every null it produced is void
+#
+# All three stages are CPU. copy_paste "trains" by selecting rows, so the 41 models
+# cost only the 8.3 GB they write.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+OUT_RUNS="${OUT_RUNS:-results/runs/copy_paste_sym_rep1}"
+OUT_PANEL="${OUT_PANEL:-results/attack_panel/copy_paste}"
+
+echo "=== stage 1/3: 41 copy_paste models on design_sym/rep1 ==="
+python scripts/run_loo.py \
+    --design results/design_sym/rep1 \
+    --out "$OUT_RUNS" \
+    --generator copy_paste \
+    --cohort data/cohort/metabonet875 \
+    --device cpu
+
+echo
+echo "=== stage 2/3: panel features ==="
+python scripts/attack_panel_features.py \
+    --rep 1 \
+    --runs "$OUT_RUNS" \
+    --design results/design_sym/rep1 \
+    --out "$OUT_PANEL"
+
+echo
+echo "=== stage 3/3: pooled LOSO table ==="
+python scripts/attack_panel_pooled.py \
+    --panel "$OUT_PANEL" \
+    --out results/attack_panel/table_pooled_copypaste.json

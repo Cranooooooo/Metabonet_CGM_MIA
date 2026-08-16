@@ -1,0 +1,745 @@
+{
+  "n_jobs": 41,
+  "n_outliers": 20,
+  "n_controls": 20,
+  "n_normals": 855,
+  "n_background": 835,
+  "symmetric": true,
+  "outliers": [
+    "1142",
+    "1145",
+    "1163",
+    "1183",
+    "186",
+    "263",
+    "329",
+    "342",
+    "481",
+    "569",
+    "602",
+    "633",
+    "727",
+    "755",
+    "763",
+    "764",
+    "805",
+    "806",
+    "936",
+    "973"
+  ],
+  "controls": [
+    "80",
+    "1177",
+    "792",
+    "1209",
+    "788",
+    "668",
+    "1031",
+    "274",
+    "253",
+    "135",
+    "790",
+    "996",
+    "37",
+    "880",
+    "683",
+    "404",
+    "712",
+    "680",
+    "208",
+    "2304"
+  ],
+  "borderline_controls": {},
+  "pairs": [
+    {
+      "target": "1142",
+      "group": "outlier",
+      "member": "include_1142",
+      "nonmember": "base"
+    },
+    {
+      "target": "1145",
+      "group": "outlier",
+      "member": "include_1145",
+      "nonmember": "base"
+    },
+    {
+      "target": "1163",
+      "group": "outlier",
+      "member": "include_1163",
+      "nonmember": "base"
+    },
+    {
+      "target": "1183",
+      "group": "outlier",
+      "member": "include_1183",
+      "nonmember": "base"
+    },
+    {
+      "target": "186",
+      "group": "outlier",
+      "member": "include_186",
+      "nonmember": "base"
+    },
+    {
+      "target": "263",
+      "group": "outlier",
+      "member": "include_263",
+      "nonmember": "base"
+    },
+    {
+      "target": "329",
+      "group": "outlier",
+      "member": "include_329",
+      "nonmember": "base"
+    },
+    {
+      "target": "342",
+      "group": "outlier",
+      "member": "include_342",
+      "nonmember": "base"
+    },
+    {
+      "target": "481",
+      "group": "outlier",
+      "member": "include_481",
+      "nonmember": "base"
+    },
+    {
+      "target": "569",
+      "group": "outlier",
+      "member": "include_569",
+      "nonmember": "base"
+    },
+    {
+      "target": "602",
+      "group": "outlier",
+      "member": "include_602",
+      "nonmember": "base"
+    },
+    {
+      "target": "633",
+      "group": "outlier",
+      "member": "include_633",
+      "nonmember": "base"
+    },
+    {
+      "target": "727",
+      "group": "outlier",
+      "member": "include_727",
+      "nonmember": "base"
+    },
+    {
+      "target": "755",
+      "group": "outlier",
+      "member": "include_755",
+      "nonmember": "base"
+    },
+    {
+      "target": "763",
+      "group": "outlier",
+      "member": "include_763",
+      "nonmember": "base"
+    },
+    {
+      "target": "764",
+      "group": "outlier",
+      "member": "include_764",
+      "nonmember": "base"
+    },
+    {
+      "target": "805",
+      "group": "outlier",
+      "member": "include_805",
+      "nonmember": "base"
+    },
+    {
+      "target": "806",
+      "group": "outlier",
+      "member": "include_806",
+      "nonmember": "base"
+    },
+    {
+      "target": "936",
+      "group": "outlier",
+      "member": "include_936",
+      "nonmember": "base"
+    },
+    {
+      "target": "973",
+      "group": "outlier",
+      "member": "include_973",
+      "nonmember": "base"
+    },
+    {
+      "target": "80",
+      "group": "control",
+      "member": "include_80",
+      "nonmember": "base"
+    },
+    {
+      "target": "1177",
+      "group": "control",
+      "member": "include_1177",
+      "nonmember": "base"
+    },
+    {
+      "target": "792",
+      "group": "control",
+      "member": "include_792",
+      "nonmember": "base"
+    },
+    {
+      "target": "1209",
+      "group": "control",
+      "member": "include_1209",
+      "nonmember": "base"
+    },
+    {
+      "target": "788",
+      "group": "control",
+      "member": "include_788",
+      "nonmember": "base"
+    },
+    {
+      "target": "668",
+      "group": "control",
+      "member": "include_668",
+      "nonmember": "base"
+    },
+    {
+      "target": "1031",
+      "group": "control",
+      "member": "include_1031",
+      "nonmember": "base"
+    },
+    {
+      "target": "274",
+      "group": "control",
+      "member": "include_274",
+      "nonmember": "base"
+    },
+    {
+      "target": "253",
+      "group": "control",
+      "member": "include_253",
+      "nonmember": "base"
+    },
+    {
+      "target": "135",
+      "group": "control",
+      "member": "include_135",
+      "nonmember": "base"
+    },
+    {
+      "target": "790",
+      "group": "control",
+      "member": "include_790",
+      "nonmember": "base"
+    },
+    {
+      "target": "996",
+      "group": "control",
+      "member": "include_996",
+      "nonmember": "base"
+    },
+    {
+      "target": "37",
+      "group": "control",
+      "member": "include_37",
+      "nonmember": "base"
+    },
+    {
+      "target": "880",
+      "group": "control",
+      "member": "include_880",
+      "nonmember": "base"
+    },
+    {
+      "target": "683",
+      "group": "control",
+      "member": "include_683",
+      "nonmember": "base"
+    },
+    {
+      "target": "404",
+      "group": "control",
+      "member": "include_404",
+      "nonmember": "base"
+    },
+    {
+      "target": "712",
+      "group": "control",
+      "member": "include_712",
+      "nonmember": "base"
+    },
+    {
+      "target": "680",
+      "group": "control",
+      "member": "include_680",
+      "nonmember": "base"
+    },
+    {
+      "target": "208",
+      "group": "control",
+      "member": "include_208",
+      "nonmember": "base"
+    },
+    {
+      "target": "2304",
+      "group": "control",
+      "member": "include_2304",
+      "nonmember": "base"
+    }
+  ],
+  "matching": {
+    "pairs": [
+      {
+        "outlier": "263",
+        "control": "668",
+        "outlier_days": 273,
+        "control_days": 276,
+        "rel_gap": 0.011
+      },
+      {
+        "outlier": "569",
+        "control": "135",
+        "outlier_days": 223,
+        "control_days": 222,
+        "rel_gap": 0.0045
+      },
+      {
+        "outlier": "1142",
+        "control": "80",
+        "outlier_days": 363,
+        "control_days": 363,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "1145",
+        "control": "1177",
+        "outlier_days": 79,
+        "control_days": 78,
+        "rel_gap": 0.0127
+      },
+      {
+        "outlier": "1163",
+        "control": "792",
+        "outlier_days": 31,
+        "control_days": 30,
+        "rel_gap": 0.0323
+      },
+      {
+        "outlier": "1183",
+        "control": "1209",
+        "outlier_days": 60,
+        "control_days": 61,
+        "rel_gap": 0.0167
+      },
+      {
+        "outlier": "186",
+        "control": "788",
+        "outlier_days": 84,
+        "control_days": 84,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "329",
+        "control": "1031",
+        "outlier_days": 123,
+        "control_days": 124,
+        "rel_gap": 0.0081
+      },
+      {
+        "outlier": "342",
+        "control": "274",
+        "outlier_days": 153,
+        "control_days": 154,
+        "rel_gap": 0.0065
+      },
+      {
+        "outlier": "481",
+        "control": "253",
+        "outlier_days": 110,
+        "control_days": 110,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "602",
+        "control": "790",
+        "outlier_days": 68,
+        "control_days": 69,
+        "rel_gap": 0.0147
+      },
+      {
+        "outlier": "633",
+        "control": "996",
+        "outlier_days": 185,
+        "control_days": 183,
+        "rel_gap": 0.0108
+      },
+      {
+        "outlier": "727",
+        "control": "37",
+        "outlier_days": 311,
+        "control_days": 310,
+        "rel_gap": 0.0032
+      },
+      {
+        "outlier": "755",
+        "control": "880",
+        "outlier_days": 219,
+        "control_days": 216,
+        "rel_gap": 0.0137
+      },
+      {
+        "outlier": "763",
+        "control": "683",
+        "outlier_days": 174,
+        "control_days": 175,
+        "rel_gap": 0.0057
+      },
+      {
+        "outlier": "764",
+        "control": "404",
+        "outlier_days": 62,
+        "control_days": 62,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "805",
+        "control": "712",
+        "outlier_days": 135,
+        "control_days": 136,
+        "rel_gap": 0.0074
+      },
+      {
+        "outlier": "806",
+        "control": "680",
+        "outlier_days": 149,
+        "control_days": 150,
+        "rel_gap": 0.0067
+      },
+      {
+        "outlier": "936",
+        "control": "208",
+        "outlier_days": 206,
+        "control_days": 206,
+        "rel_gap": 0.0
+      },
+      {
+        "outlier": "973",
+        "control": "2304",
+        "outlier_days": 67,
+        "control_days": 68,
+        "rel_gap": 0.0149
+      }
+    ],
+    "tol": 0.15,
+    "seed": 2026,
+    "n_candidates": 8,
+    "n_excluded": 0,
+    "max_rel_gap": 0.0323,
+    "median_rel_gap": 0.007050000000000001,
+    "n_over_tol": 0,
+    "outlier_days": {
+      "median": 142.0,
+      "min": 31,
+      "max": 363
+    },
+    "pool_days": {
+      "median": 173.0,
+      "min": 30,
+      "max": 800
+    }
+  },
+  "jobs": [
+    {
+      "name": "base",
+      "role": "base",
+      "target": null,
+      "group": null,
+      "n_subjects": 835
+    },
+    {
+      "name": "include_1142",
+      "role": "include",
+      "target": "1142",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_1145",
+      "role": "include",
+      "target": "1145",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_1163",
+      "role": "include",
+      "target": "1163",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_1183",
+      "role": "include",
+      "target": "1183",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_186",
+      "role": "include",
+      "target": "186",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_263",
+      "role": "include",
+      "target": "263",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_329",
+      "role": "include",
+      "target": "329",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_342",
+      "role": "include",
+      "target": "342",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_481",
+      "role": "include",
+      "target": "481",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_569",
+      "role": "include",
+      "target": "569",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_602",
+      "role": "include",
+      "target": "602",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_633",
+      "role": "include",
+      "target": "633",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_727",
+      "role": "include",
+      "target": "727",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_755",
+      "role": "include",
+      "target": "755",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_763",
+      "role": "include",
+      "target": "763",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_764",
+      "role": "include",
+      "target": "764",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_805",
+      "role": "include",
+      "target": "805",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_806",
+      "role": "include",
+      "target": "806",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_936",
+      "role": "include",
+      "target": "936",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_973",
+      "role": "include",
+      "target": "973",
+      "group": "outlier",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_80",
+      "role": "include",
+      "target": "80",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_1177",
+      "role": "include",
+      "target": "1177",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_792",
+      "role": "include",
+      "target": "792",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_1209",
+      "role": "include",
+      "target": "1209",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_788",
+      "role": "include",
+      "target": "788",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_668",
+      "role": "include",
+      "target": "668",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_1031",
+      "role": "include",
+      "target": "1031",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_274",
+      "role": "include",
+      "target": "274",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_253",
+      "role": "include",
+      "target": "253",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_135",
+      "role": "include",
+      "target": "135",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_790",
+      "role": "include",
+      "target": "790",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_996",
+      "role": "include",
+      "target": "996",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_37",
+      "role": "include",
+      "target": "37",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_880",
+      "role": "include",
+      "target": "880",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_683",
+      "role": "include",
+      "target": "683",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_404",
+      "role": "include",
+      "target": "404",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_712",
+      "role": "include",
+      "target": "712",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_680",
+      "role": "include",
+      "target": "680",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_208",
+      "role": "include",
+      "target": "208",
+      "group": "control",
+      "n_subjects": 836
+    },
+    {
+      "name": "include_2304",
+      "role": "include",
+      "target": "2304",
+      "group": "control",
+      "n_subjects": 836
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+#!/bin/bash
+#PBS -N cgm_loo_cp
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:mem=128gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/07_loo_copypaste.log
+#
+# All 49 design jobs with the copy_paste generator. No GPU, no model: its "samples"
+# are the training windows replayed, so it memorises by construction.
+#
+# This is the known-positive that has to pass before any GPU is spent. It exercises
+# the same code path the real generators will use -- job spec -> training set ->
+# fit -> release K samples -> d_OUT - d_IN -- with an outcome that is known in
+# advance. If the outlier arm does not separate from the control arm here, the
+# statistic is wrong, and a null result from DiM-TS would be uninterpretable.
+#
+#   qsub scripts/pbs/07_loo_copypaste.pbs
+#
+# Four shards, one process each: the slices are disjoint (job_order()[i::4]), so no
+# two processes train the same job (docs/PITFALLS.md §3). Samples land in
+# results/runs/copy_paste/, which is a symlink into the project space -- 49 x ~200 MB.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+test -L results/runs || { echo "run scripts/pbs/setup_links.sh first"; exit 1; }
+
+NSHARD=4
+export OMP_NUM_THREADS=$((THREADS / NSHARD))
+export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
+
+# Wait on each PID individually and keep the worst status. A bare `wait` returns only
+# the last job's code, and the commands after it then set the job's own exit status --
+# which is how a run where every shard died still reported Exit_status=0.
+pids=(); rc=0
+for i in $(seq 0 $((NSHARD - 1))); do
+    python scripts/run_loo.py --generator copy_paste \
+        --shard "$i" --n-shards "$NSHARD" --device cpu \
+        > "logs/07_shard$i.log" 2>&1 &
+    pids+=($!)
+done
+for i in "${!pids[@]}"; do
+    if ! wait "${pids[$i]}"; then echo "shard $i FAILED"; rc=1; fi
+done
+
+echo "--- results/runs/copy_paste ---"
+ls results/runs/copy_paste | wc -l
+du -sh results/runs/copy_paste
+for i in $(seq 0 $((NSHARD - 1))); do echo "--- shard $i ---"; tail -3 "logs/07_shard$i.log"; done
+
+n_done=$(find results/runs/copy_paste -name samples.npy | wc -l)
+n_want=$(ls results/design/jobs/*.json | wc -l)
+echo "$n_done / $n_want models have a sample file"
+[ "$n_done" = "$n_want" ] || rc=1
+exit $rc

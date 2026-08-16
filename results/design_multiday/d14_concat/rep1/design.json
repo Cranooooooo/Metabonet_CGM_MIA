@@ -1,0 +1,746 @@
+{
+  "n_jobs": 41,
+  "n_outliers": 20,
+  "n_controls": 20,
+  "n_normals": 1150,
+  "n_background": 1130,
+  "symmetric": true,
+  "outliers": [
+    "HUPA-UCM/27",
+    "Loop/692",
+    "Loop/511",
+    "Loop/1081",
+    "Loop/388",
+    "Loop/1173",
+    "Loop/1199",
+    "Loop/245",
+    "Loop/420",
+    "Loop/693",
+    "Loop/11",
+    "Loop/164",
+    "Loop/524",
+    "Loop/852",
+    "Loop/920",
+    "Loop/944",
+    "Loop/998",
+    "Loop/1140",
+    "Loop/236",
+    "Loop/745"
+  ],
+  "controls": [
+    "Loop/807",
+    "Loop/85",
+    "Loop/1036",
+    "Loop/1123",
+    "Loop/227",
+    "Loop/432",
+    "Loop/589",
+    "Loop/63",
+    "Loop/67",
+    "Loop/766",
+    "Loop/773",
+    "Loop/982",
+    "Loop/213",
+    "Loop/282",
+    "Loop/43",
+    "Loop/458",
+    "Loop/75",
+    "Loop/842",
+    "Loop/884",
+    "Loop/9"
+  ],
+  "borderline_controls": {},
+  "pairs": [
+    {
+      "target": "HUPA-UCM/27",
+      "group": "outlier",
+      "member": "include_HUPA-UCM__27",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/692",
+      "group": "outlier",
+      "member": "include_Loop__692",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/511",
+      "group": "outlier",
+      "member": "include_Loop__511",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1081",
+      "group": "outlier",
+      "member": "include_Loop__1081",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/388",
+      "group": "outlier",
+      "member": "include_Loop__388",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1173",
+      "group": "outlier",
+      "member": "include_Loop__1173",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1199",
+      "group": "outlier",
+      "member": "include_Loop__1199",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/245",
+      "group": "outlier",
+      "member": "include_Loop__245",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/420",
+      "group": "outlier",
+      "member": "include_Loop__420",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/693",
+      "group": "outlier",
+      "member": "include_Loop__693",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/11",
+      "group": "outlier",
+      "member": "include_Loop__11",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/164",
+      "group": "outlier",
+      "member": "include_Loop__164",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/524",
+      "group": "outlier",
+      "member": "include_Loop__524",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/852",
+      "group": "outlier",
+      "member": "include_Loop__852",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/920",
+      "group": "outlier",
+      "member": "include_Loop__920",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/944",
+      "group": "outlier",
+      "member": "include_Loop__944",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/998",
+      "group": "outlier",
+      "member": "include_Loop__998",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1140",
+      "group": "outlier",
+      "member": "include_Loop__1140",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/236",
+      "group": "outlier",
+      "member": "include_Loop__236",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/745",
+      "group": "outlier",
+      "member": "include_Loop__745",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/807",
+      "group": "control",
+      "member": "include_Loop__807",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/85",
+      "group": "control",
+      "member": "include_Loop__85",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1036",
+      "group": "control",
+      "member": "include_Loop__1036",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1123",
+      "group": "control",
+      "member": "include_Loop__1123",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/227",
+      "group": "control",
+      "member": "include_Loop__227",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/432",
+      "group": "control",
+      "member": "include_Loop__432",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/589",
+      "group": "control",
+      "member": "include_Loop__589",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/63",
+      "group": "control",
+      "member": "include_Loop__63",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/67",
+      "group": "control",
+      "member": "include_Loop__67",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/766",
+      "group": "control",
+      "member": "include_Loop__766",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/773",
+      "group": "control",
+      "member": "include_Loop__773",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/982",
+      "group": "control",
+      "member": "include_Loop__982",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/213",
+      "group": "control",
+      "member": "include_Loop__213",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/282",
+      "group": "control",
+      "member": "include_Loop__282",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/43",
+      "group": "control",
+      "member": "include_Loop__43",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/458",
+      "group": "control",
+      "member": "include_Loop__458",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/75",
+      "group": "control",
+      "member": "include_Loop__75",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/842",
+      "group": "control",
+      "member": "include_Loop__842",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/884",
+      "group": "control",
+      "member": "include_Loop__884",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/9",
+      "group": "control",
+      "member": "include_Loop__9",
+      "nonmember": "base"
+    }
+  ],
+  "matching": {
+    "pairs": [
+      {
+        "outlier": "HUPA-UCM/27",
+        "control": "Loop/807",
+        "outlier_days": 40,
+        "control_days": 28,
+        "rel_gap": 0.3
+      },
+      {
+        "outlier": "Loop/692",
+        "control": "Loop/85",
+        "outlier_days": 37,
+        "control_days": 28,
+        "rel_gap": 0.2432
+      },
+      {
+        "outlier": "Loop/511",
+        "control": "Loop/1036",
+        "outlier_days": 32,
+        "control_days": 27,
+        "rel_gap": 0.1562
+      },
+      {
+        "outlier": "Loop/1081",
+        "control": "Loop/1123",
+        "outlier_days": 31,
+        "control_days": 27,
+        "rel_gap": 0.129
+      },
+      {
+        "outlier": "Loop/388",
+        "control": "Loop/227",
+        "outlier_days": 31,
+        "control_days": 27,
+        "rel_gap": 0.129
+      },
+      {
+        "outlier": "Loop/1173",
+        "control": "Loop/432",
+        "outlier_days": 30,
+        "control_days": 27,
+        "rel_gap": 0.1
+      },
+      {
+        "outlier": "Loop/1199",
+        "control": "Loop/589",
+        "outlier_days": 30,
+        "control_days": 27,
+        "rel_gap": 0.1
+      },
+      {
+        "outlier": "Loop/245",
+        "control": "Loop/63",
+        "outlier_days": 30,
+        "control_days": 27,
+        "rel_gap": 0.1
+      },
+      {
+        "outlier": "Loop/420",
+        "control": "Loop/67",
+        "outlier_days": 30,
+        "control_days": 27,
+        "rel_gap": 0.1
+      },
+      {
+        "outlier": "Loop/693",
+        "control": "Loop/766",
+        "outlier_days": 30,
+        "control_days": 27,
+        "rel_gap": 0.1
+      },
+      {
+        "outlier": "Loop/11",
+        "control": "Loop/773",
+        "outlier_days": 29,
+        "control_days": 27,
+        "rel_gap": 0.069
+      },
+      {
+        "outlier": "Loop/164",
+        "control": "Loop/982",
+        "outlier_days": 29,
+        "control_days": 27,
+        "rel_gap": 0.069
+      },
+      {
+        "outlier": "Loop/524",
+        "control": "Loop/213",
+        "outlier_days": 29,
+        "control_days": 26,
+        "rel_gap": 0.1034
+      },
+      {
+        "outlier": "Loop/852",
+        "control": "Loop/282",
+        "outlier_days": 29,
+        "control_days": 26,
+        "rel_gap": 0.1034
+      },
+      {
+        "outlier": "Loop/920",
+        "control": "Loop/43",
+        "outlier_days": 29,
+        "control_days": 26,
+        "rel_gap": 0.1034
+      },
+      {
+        "outlier": "Loop/944",
+        "control": "Loop/458",
+        "outlier_days": 29,
+        "control_days": 26,
+        "rel_gap": 0.1034
+      },
+      {
+        "outlier": "Loop/998",
+        "control": "Loop/75",
+        "outlier_days": 29,
+        "control_days": 26,
+        "rel_gap": 0.1034
+      },
+      {
+        "outlier": "Loop/1140",
+        "control": "Loop/842",
+        "outlier_days": 28,
+        "control_days": 26,
+        "rel_gap": 0.0714
+      },
+      {
+        "outlier": "Loop/236",
+        "control": "Loop/884",
+        "outlier_days": 28,
+        "control_days": 26,
+        "rel_gap": 0.0714
+      },
+      {
+        "outlier": "Loop/745",
+        "control": "Loop/9",
+        "outlier_days": 28,
+        "control_days": 26,
+        "rel_gap": 0.0714
+      }
+    ],
+    "tol": 0.15,
+    "seed": 2026,
+    "n_candidates": 1,
+    "n_excluded": 0,
+    "max_rel_gap": 0.3,
+    "median_rel_gap": 0.10170000000000001,
+    "n_over_tol": 3,
+    "outlier_days": {
+      "median": 29.5,
+      "min": 28,
+      "max": 40
+    },
+    "pool_days": {
+      "median": 9.0,
+      "min": 4,
+      "max": 28
+    },
+    "warning": "3 of 20 controls are further than 15% in day count from their outlier. Day count then differs between the arms and any gap in the attack statistic is partly that."
+  },
+  "jobs": [
+    {
+      "name": "base",
+      "role": "base",
+      "target": null,
+      "group": null,
+      "n_subjects": 1130
+    },
+    {
+      "name": "include_HUPA-UCM__27",
+      "role": "include",
+      "target": "HUPA-UCM/27",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__692",
+      "role": "include",
+      "target": "Loop/692",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__511",
+      "role": "include",
+      "target": "Loop/511",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__1081",
+      "role": "include",
+      "target": "Loop/1081",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__388",
+      "role": "include",
+      "target": "Loop/388",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__1173",
+      "role": "include",
+      "target": "Loop/1173",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__1199",
+      "role": "include",
+      "target": "Loop/1199",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__245",
+      "role": "include",
+      "target": "Loop/245",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__420",
+      "role": "include",
+      "target": "Loop/420",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__693",
+      "role": "include",
+      "target": "Loop/693",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__11",
+      "role": "include",
+      "target": "Loop/11",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__164",
+      "role": "include",
+      "target": "Loop/164",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__524",
+      "role": "include",
+      "target": "Loop/524",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__852",
+      "role": "include",
+      "target": "Loop/852",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__920",
+      "role": "include",
+      "target": "Loop/920",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__944",
+      "role": "include",
+      "target": "Loop/944",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__998",
+      "role": "include",
+      "target": "Loop/998",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__1140",
+      "role": "include",
+      "target": "Loop/1140",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__236",
+      "role": "include",
+      "target": "Loop/236",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__745",
+      "role": "include",
+      "target": "Loop/745",
+      "group": "outlier",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__807",
+      "role": "include",
+      "target": "Loop/807",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__85",
+      "role": "include",
+      "target": "Loop/85",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__1036",
+      "role": "include",
+      "target": "Loop/1036",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__1123",
+      "role": "include",
+      "target": "Loop/1123",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__227",
+      "role": "include",
+      "target": "Loop/227",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__432",
+      "role": "include",
+      "target": "Loop/432",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__589",
+      "role": "include",
+      "target": "Loop/589",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__63",
+      "role": "include",
+      "target": "Loop/63",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__67",
+      "role": "include",
+      "target": "Loop/67",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__766",
+      "role": "include",
+      "target": "Loop/766",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__773",
+      "role": "include",
+      "target": "Loop/773",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__982",
+      "role": "include",
+      "target": "Loop/982",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__213",
+      "role": "include",
+      "target": "Loop/213",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__282",
+      "role": "include",
+      "target": "Loop/282",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__43",
+      "role": "include",
+      "target": "Loop/43",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__458",
+      "role": "include",
+      "target": "Loop/458",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__75",
+      "role": "include",
+      "target": "Loop/75",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__842",
+      "role": "include",
+      "target": "Loop/842",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__884",
+      "role": "include",
+      "target": "Loop/884",
+      "group": "control",
+      "n_subjects": 1131
+    },
+    {
+      "name": "include_Loop__9",
+      "role": "include",
+      "target": "Loop/9",
+      "group": "control",
+      "n_subjects": 1131
+    }
+  ]
+}

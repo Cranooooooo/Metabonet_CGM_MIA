@@ -1,0 +1,125 @@
+#!/bin/bash
+#PBS -N cgm_loo_dimts
+#PBS -P 11704243
+#PBS -j oe
+#
+# The real stage-4 run: DiM-TS over one replicate of results/design_sym (41 models).
+#
+# ONE WAVE PER REPLICATE. The campaign is 3 replicates x 41 models = 123, and they do
+# NOT go out as one 12-shard fan-out: 10-11 models per shard is ~38 h, past g2's and
+# g1's 24 h ceiling. A wave is the shape that has already been validated -- 41 models,
+# 12 cards, ~14 h -- and each wave that finishes is a COMPLETE replicate rather than a
+# third of three. Chain them with -W depend=afterany on the matching lane.
+#
+# Submitted with the resources on the command line, because the shape IS the queue:
+#
+#   R=1                                        # replicate
+#   D=results/design_sym/rep$R
+#   O=results/runs/dimts_h128_rep$R            # the width is in the path on purpose:
+#                                              # a later capacity sweep must not collide
+#   qsub -l select=1:ncpus=64:ngpus=4 -l walltime=25:00:00 \
+#        -v DESIGN=$D,OUT=$O,SHARD_BASE=0,N_SHARDS=12 \
+#        -N cgm_d${R}a -o logs/13_r${R}a.log scripts/pbs/13_loo_dimts.pbs    # -> glong
+#   qsub ... -v DESIGN=$D,OUT=$O,SHARD_BASE=4,N_SHARDS=12  ... 25:00:00      # -> glong
+#   qsub -l select=1:ncpus=48:ngpus=3 -l walltime=16:00:00 \
+#        -v DESIGN=$D,OUT=$O,SHARD_BASE=8,N_SHARDS=12  ...                   # -> g2
+#   qsub -l select=1:ncpus=16:ngpus=1 -l walltime=16:00:00 \
+#        -v DESIGN=$D,OUT=$O,SHARD_BASE=11,N_SHARDS=12 ...                   # -> g1
+#
+# WHY THAT SPLIT. Above two hours each g* queue admits ONE running job per user, so
+# throughput comes from asking for a queue's whole GPU band and running one independent
+# model per card (guide §3). glong takes 1-64 GPUs at 24-120 h and allows two
+# concurrent jobs; g2 takes 2-3 and g1 takes 1, both at 2-24 h. That is 4+4+3+1 = 12
+# cards. g3 also takes exactly 4 and was the original fourth lane, but it was 97 jobs
+# deep on 2026-08-07 while these four had room -- re-check `qstat -Q` before every wave
+# rather than trusting this list.
+#
+# g4 (>=5 GPUs on one node) is structurally unplaceable -- every node has exactly 4.
+#
+# mem is deliberately absent: PBS pins it to 110 gb per card whatever is asked
+# (mem=120gb:ngpus=3 was admitted as 330 gb), so naming it only misleads.
+#
+# Shards are disjoint slices of one fixed job order, so no two cards train the same
+# model, and a finished model is skipped on requeue (docs/PITFALLS.md §3). OUT is per
+# replicate because every replicate has a job named `base`; loo.train refuses to skip a
+# directory whose meta.json fingerprints a different subject list, so mixing two
+# designs in one tree fails loudly instead of silently reusing the wrong model.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+test -x "$DIMTS_PYTHON" || { echo "no DiM-TS env; run 05_dimts_env.pbs"; exit 1; }
+
+DESIGN=${DESIGN:-results/design_sym/rep1}
+OUT=${OUT:-results/runs/dimts_h128_rep1}
+LOGTAG=${PBS_JOBID%%.*}
+
+# PARAMS overrides configs/experiment.yaml's models.params (run_loo.py merges the CLI
+# dict OVER the config), which is how a capacity sweep reuses this script rather than
+# forking it. OUT must change with it -- loo.train refuses to treat a finished
+# directory as done when the job fingerprint disagrees, but two capacities of the SAME
+# job would agree, so nothing downstream would catch the mix.
+#
+# ⚠ Do NOT pass PARAMS through `qsub -v`: PBS strips the double quotes, so
+# {"hidden_size": 52} arrives as {hidden_size: 52} and json.loads dies at char 1. Two
+# jobs failed in under a second that way. Set it in a wrapper script instead --
+# 19_capacity_bases.pbs builds the JSON inside the job.
+# COHORT is a variable because the three-channel study runs the identical shape on
+# data/cohort/metabonet_sid_c3. Nothing else has to change: loo.train reads N, T, C from
+# the cohort and checks the generator returned (k, T, C), and DiM-TS takes feature_size
+# from train.npy rather than from a flag.
+#
+# ⚠ ONE THING IS NOT THE SAME BETWEEN THE TWO CAMPAIGNS. generators/dimts.py sets
+# `mmd_alpha` to 0.0 at C=1 and 0.0008 at C>1 -- the term matches cross-CHANNEL
+# correlation distributions and a single channel has no channel pairs. So the
+# three-channel models train with a loss term the single-channel ones did not have.
+# That is the adapter's intent and the authors' default, but it means the two campaigns
+# differ in the objective as well as in the data, and any comparison must say so.
+COHORT=${COHORT:-data/cohort/metabonet875}
+common=(--design "$DESIGN" --out "$OUT" --cohort "$COHORT")
+echo "cohort=$COHORT design=$DESIGN out=$OUT"
+[ -n "${PARAMS:-}" ] && common+=(--params "$PARAMS")
+
+if [ -n "${JOB:-}" ]; then
+    # one named model, one process, this whole job
+    export THREADS=${NCPUS:-16}
+    python scripts/run_loo.py "${common[@]}" --job "$JOB"
+    rc=$?
+else
+    : "${SHARD_BASE:?pass -v SHARD_BASE=0,N_SHARDS=12}"
+    : "${N_SHARDS:?pass -v SHARD_BASE=0,N_SHARDS=12}"
+
+    # PBS hands out ABSOLUTE device ids -- GPU UUIDs on this machine, not 0..n. Writing
+    # a loop counter into CUDA_VISIBLE_DEVICES points a task at a card the job does not
+    # own, and torch then reports "CUDA not available", which reads as a bad wheel.
+    IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
+    echo "PBS allocated ${#ALLOC[@]} GPU(s)"
+    export THREADS=$(( ${NCPUS:-64} / ${#ALLOC[@]} ))
+
+    pids=(); rc=0
+    for i in "${!ALLOC[@]}"; do
+        s=$(( SHARD_BASE + i ))
+        ( export CUDA_VISIBLE_DEVICES="${ALLOC[$i]}"
+          python scripts/run_loo.py "${common[@]}" --shard "$s" --n-shards "$N_SHARDS"
+        ) > "logs/13_${LOGTAG}_shard${s}.log" 2>&1 &
+        pids+=($!)
+        echo "shard $s -> ${ALLOC[$i]}  (pid ${pids[$i]})"
+    done
+    # Individually: a bare `wait` reports only the last task, and anything after it
+    # would then set the job's exit status. A run where every shard died once reported
+    # Exit_status=0 that way.
+    for i in "${!pids[@]}"; do
+        if wait "${pids[$i]}"; then echo "shard $(( SHARD_BASE + i )) OK"
+        else echo "shard $(( SHARD_BASE + i )) FAILED"; rc=1; fi
+    done
+fi
+
+echo
+n_done=$(find "$OUT" -name samples.npy 2>/dev/null | wc -l)
+n_want=$(ls "$DESIGN"/jobs/*.json | wc -l)
+echo "$n_done / $n_want models have a sample file"
+du -sh "$OUT" 2>/dev/null
+exit $rc

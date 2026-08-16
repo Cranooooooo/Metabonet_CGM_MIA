@@ -1,0 +1,7 @@
+#!/bin/bash
+#PBS -N cgm_subgrp
+#PBS -P 11704243
+#PBS -j oe
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python scripts/subgroup_coverage.py

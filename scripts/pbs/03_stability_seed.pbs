@@ -1,0 +1,47 @@
+#!/bin/bash
+#PBS -N cgm_stab
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=64gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/03_stability.log
+#
+# Finish the seed-stability sweep. results/seed_stability/seed{7,101,999}/ currently
+# hold A1-C8 only; C9, C10, D11 and E14 were never run, which is why none of them has
+# a consensus.json -- consensus() refuses a 9-method denominator (docs/PITFALLS.md §6).
+#
+# One seed per job: one process, one unit of work (§3). Three of these run at once in
+# qdev, which allows 100 concurrent CPU jobs per user.
+#
+#   for s in 7 101 999; do
+#     qsub -v SEED=$s -N cgm_stab_$s -o logs/03_stability_$s.log \
+#          scripts/pbs/03_stability_seed.pbs
+#   done
+#
+# Run 02_encoder.pbs first. Without the cache each of these refits TS2Vec on CPU.
+#
+# walltime is exactly 02:00:00 and must stay there: 02:00:01 leaves qdev for q2,
+# priority 100 -> 10, with no warning (§2).
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+: "${SEED:?pass the base seed: qsub -v SEED=7 ...}"
+OUT=results/seed_stability/seed${SEED}
+
+test -d "$OUT" || { echo "no such seed dir: $OUT"; exit 1; }
+
+# --only skips what already exists on disk, so this adds the four missing methods and
+# leaves the nine that are there untouched.
+# --expect-candidates 13: after this the directory holds all 13 candidates, and the
+# vote is 7-of-13, the same denominator as the seed-2026 result it is compared with.
+python scripts/run_outliers.py \
+    --cohort data/cohort/metabonet875 \
+    --out "$OUT" \
+    --only C9,C10,D11,E14 \
+    --seed "$SEED" \
+    --device cpu \
+    --expect-candidates 13
+
+echo "--- $OUT ---"
+ls -la "$OUT"

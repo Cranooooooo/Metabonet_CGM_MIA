@@ -1,0 +1,54 @@
+#!/bin/bash
+#PBS -N cgm_drift
+#PBS -P 11704243
+#PBS -j oe
+#
+# The re-derived consensus lost exactly two subjects (819, 909) and gained none, which
+# is the signature of a borderline vote falling from 7 to 6 rather than of a reordered
+# index. Compare the PUBLISHED per-method score files against the re-run's to find which
+# method's top-5% set moved.
+#
+#   qsub -l select=1:ncpus=8:mem=32gb -l walltime=00:20:00 \
+#        -o logs/61_locate_drift.log scripts/pbs/61_locate_drift.pbs           # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  python -u scripts/compare_outlier_sets.py \
+    --a results/outliers --b results/_refactor_check \
+    --label-a published --label-b rerun \
+    --out results/_refactor_check/drift.json || true
+
+  echo "########## votes for the two lost subjects ##########"
+  python - <<'PY'
+import json
+from pathlib import Path
+import pandas as pd
+
+CAND = ["A1","A2","A3","A4","B5","B6","B7a","B7b","C8","C9","C10","D11","E14"]
+def tops(d):
+    out = {}
+    for k in CAND:
+        s = pd.read_parquet(Path(d)/f"{k}.parquet").set_index("id")["score"]
+        s.index = s.index.astype(str)
+        out[k] = set(s.nlargest(max(1, int(len(s)*0.05))).index)
+    return out
+pub, new = tops("results/outliers"), tops("results/_refactor_check")
+for sid in ("819", "909"):
+    p = [k for k in CAND if sid in pub[k]]
+    n = [k for k in CAND if sid in new[k]]
+    print(f"  {sid}: published {len(p)} votes {p}")
+    print(f"       rerun     {len(n)} votes {n}")
+    print(f"       lost      {sorted(set(p)-set(n))}   gained {sorted(set(n)-set(p))}")
+
+print("\n########## score correlation per method ##########")
+for k in CAND:
+    a = pd.read_parquet(f"results/outliers/{k}.parquet").set_index("id")["score"]
+    b = pd.read_parquet(f"results/_refactor_check/{k}.parquet").set_index("id")["score"]
+    a.index, b.index = a.index.astype(str), b.index.astype(str)
+    j = a.align(b, join="inner")
+    same = bool((j[0].to_numpy() == j[1].to_numpy()).all())
+    r = float(j[0].corr(j[1]))
+    md = float((j[0]-j[1]).abs().max())
+    print(f"  {k:>5}  identical={str(same):>5}  pearson={r:.6f}  max|diff|={md:.3e}")
+PY
+} 2>&1 | tee logs/61_locate_drift.live.log

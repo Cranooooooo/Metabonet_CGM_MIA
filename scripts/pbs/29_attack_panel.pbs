@@ -1,0 +1,44 @@
+#!/bin/bash
+#PBS -N cgm_panel
+#PBS -P 11704243
+#PBS -j oe
+#
+# Stage A of the supervised attacker panel: per-window features against each released
+# set. CPU only -- the attack is BLAS, nothing here needs a GPU.
+#
+#   for r in 1 2 3; do
+#     qsub -l select=1:ncpus=32:mem=16gb -l walltime=02:00:00 -v REP=$r \
+#          -N cgm_panel_r$r -o logs/29_panel_rep$r.log scripts/pbs/29_attack_panel.pbs
+#   done                                                                  # -> qdev
+#
+# ⛔ mem IS NOT OPTIONAL. A CPU job that does not ask for memory gets the queue default
+# -- 10 mb here -- and dies as `cgroup/OOM: Killed because of memory limit`. Three jobs
+# were lost that way on 2026-08-12. GPU jobs hide this: PBS pins ~110 gb per card
+# whatever the request says, so a recipe carried over from a g* lane has never needed
+# the field. 16gb against a measured 1.6 gb peak is headroom, not a guess -- the
+# feature pass is blocked at 128 rows precisely so peak memory does not scale with the
+# subject's window count.
+#
+# WHY qdev AND WHY THREE JOBS. Under 2 h with no GPU lands in qdev at priority 100 and
+# 100 concurrent jobs, so the three replicates run side by side instead of queueing
+# behind one another the way the g* lanes force. Measured at ~13 s per released set on
+# 3 subjects; 41 sets per replicate puts a job around 20 min, well inside the 2 h
+# ceiling that keeps it in that queue. 2:00:01 would drop it to priority 10.
+#
+# qdev is the CPU fast lane and has no 16-card pool to exhaust, unlike gdev -- but the
+# same courtesy applies: three jobs here, not thirty.
+#
+# The output is small -- (n_windows x 10) float32 per (subject, set), ~2 MB a
+# replicate -- so it goes to the repo, not to $WORK.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+
+: "${REP:?pass -v REP=<1|2|3>}"
+
+python scripts/attack_panel_features.py \
+    --rep "$REP" \
+    --runs "${RUNS:-results/runs/dimts_h128_rep{rep}}" \
+    --design "${DESIGN:-results/design_sym/rep{rep}}" \
+    --out "${OUT:-results/attack_panel/dimts_h128}" \
+    --n-neg "${NNEG:-4}"

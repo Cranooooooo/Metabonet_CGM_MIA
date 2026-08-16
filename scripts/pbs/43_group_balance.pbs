@@ -1,0 +1,13 @@
+#!/bin/bash
+#PBS -N cgm_balance
+#PBS -P 11704243
+#PBS -j oe
+#
+# Covariate balance across candidate groups, before any generator is trained.
+#   qsub -l select=1:ncpus=8:mem=16gb -l walltime=00:30:00 \
+#        -o logs/43_group_balance.log scripts/pbs/43_group_balance.pbs      # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+echo "########## by gender ##########";      python scripts/group_balance.py --by gender
+echo; echo "########## by age ##########";   python scripts/group_balance.py --by age
+echo; echo "########## age x gender ##########"; python scripts/group_balance.py --by age --by gender

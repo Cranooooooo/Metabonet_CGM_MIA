@@ -1,0 +1,56 @@
+#!/bin/bash
+#PBS -N cgm_smk3
+#PBS -P 11704243
+#PBS -j oe
+#
+# One DiM-TS model on the three-channel cohort at a token step count, before 655 GPU
+# hours are committed to a path that has never been run. The adapter is channel-aware
+# on inspection -- feature_size comes from train.npy, and mmd_alpha switches from 0.0 to
+# 0.0008 at C>1 -- but inspection is not a measurement, and the failure this guards
+# against would otherwise appear twenty hours into the first wave.
+#
+# PARAMS is built INSIDE the job: passing it through `qsub -v` strips the double quotes
+# and json.loads dies at char 1 (13_loo_dimts.pbs, and two jobs lost to it).
+#
+#   qsub -l select=1:ncpus=16:ngpus=1 -l walltime=01:00:00 \
+#        -o logs/68_dimts_c3_smoke.log scripts/pbs/68_dimts_c3_smoke.pbs      # -> gdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+test -x "$DIMTS_PYTHON" || { echo "no DiM-TS env; run 05_dimts_env.pbs"; exit 1; }
+export THREADS=${NCPUS:-16}
+
+{
+  python -c "import torch;a=torch.randn(64,64,device='cuda',dtype=torch.bfloat16);print('cuda ok',(a@a).sum().item())"
+
+  python -u scripts/run_loo.py \
+    --design results/design_sid_c3/rep1 \
+    --out results/_smoke_c3 \
+    --cohort data/cohort/metabonet_sid_c3 \
+    --job base --K 2000 \
+    --params '{"hidden_size": 128, "steps": 300, "save_cycle": 300, "sample_batch": 500}'
+
+  python - <<'PY'
+import json, numpy as np
+from pathlib import Path
+d = Path("results/_smoke_c3/base")
+S = np.load(d / "samples.npy", mmap_mode="r")
+m = json.loads((d / "meta.json").read_text())
+print(f"\nsamples {S.shape} {S.dtype}   meta T={m['T']} C={m['C']}")
+ok = S.ndim == 3 and S.shape[1] == 288 and S.shape[2] == 3
+print(f"shape is (k, 288, 3): {ok}")
+a = np.asarray(S[:500])
+print(f"finite: {bool(np.isfinite(a).all())}")
+for c, name in enumerate(("CGM", "basal", "bolus")):
+    print(f"  {name:6} mean={a[...,c].mean():+.4f} sd={a[...,c].std():.4f} "
+          f"min={a[...,c].min():+.3f} max={a[...,c].max():+.3f}")
+print("\nchannels must differ from each other; identical columns would mean the model "
+      "collapsed them or the adapter broadcast one channel")
+for i in range(3):
+    for j in range(i + 1, 3):
+        print(f"  corr(ch{i},ch{j}) = {np.corrcoef(a[...,i].ravel(), a[...,j].ravel())[0,1]:+.4f}")
+raise SystemExit(0 if ok else 1)
+PY
+} 2>&1 | tee logs/68_dimts_c3_smoke.live.log

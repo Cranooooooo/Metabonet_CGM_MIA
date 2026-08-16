@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /home/users/industry/imperial/lcheng/workspace/Project_CGM/CGM-OutlierMIA-master/ 2>/dev/null | head -50; echo \"=== PARENT ===\"; ls -la /home/users/industry/imperial/lcheng/workspace/Project_CGM/ 2>/dev/null | head -50)",
+      "Bash(ls -la /home/users/industry/imperial/lcheng/.claude/projects/ 2>/dev/null | head -40)",
+      "Bash(echo \"=== runs ===\" && ls -la /data/projects/11704243/lcheng/runs 2>/dev/null | head -40 && echo \"--- du runs ---\" && du -sh /data/projects/11704243/lcheng/runs 2>/dev/null && du -sh /data/projects/11704243/lcheng/runs/* 2>/dev/null | sort -rh | head -30 *)"
+    ]
+  }
+}

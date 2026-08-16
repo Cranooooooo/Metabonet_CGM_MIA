@@ -1,0 +1,746 @@
+{
+  "n_jobs": 41,
+  "n_outliers": 20,
+  "n_controls": 20,
+  "n_normals": 553,
+  "n_background": 533,
+  "symmetric": true,
+  "outliers": [
+    "HUPA-UCM/27",
+    "Loop/388",
+    "Loop/511",
+    "Loop/693",
+    "Loop/1199",
+    "Loop/245",
+    "Loop/1173",
+    "Loop/1081",
+    "Loop/11",
+    "Loop/944",
+    "Loop/164",
+    "Loop/266",
+    "Loop/1067",
+    "Loop/1142",
+    "Loop/149",
+    "Loop/1018",
+    "Loop/214",
+    "Loop/227",
+    "Loop/524",
+    "Loop/420"
+  ],
+  "controls": [
+    "Loop/692",
+    "Loop/745",
+    "Loop/92",
+    "Loop/998",
+    "Loop/235",
+    "Loop/321",
+    "Loop/500",
+    "Loop/561",
+    "Loop/639",
+    "Loop/920",
+    "Loop/979",
+    "Loop/1009",
+    "Loop/1119",
+    "Loop/317",
+    "Loop/458",
+    "Loop/482",
+    "Loop/71",
+    "Loop/814",
+    "Loop/884",
+    "Loop/1123"
+  ],
+  "borderline_controls": {},
+  "pairs": [
+    {
+      "target": "HUPA-UCM/27",
+      "group": "outlier",
+      "member": "include_HUPA-UCM__27",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/388",
+      "group": "outlier",
+      "member": "include_Loop__388",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/511",
+      "group": "outlier",
+      "member": "include_Loop__511",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/693",
+      "group": "outlier",
+      "member": "include_Loop__693",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1199",
+      "group": "outlier",
+      "member": "include_Loop__1199",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/245",
+      "group": "outlier",
+      "member": "include_Loop__245",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1173",
+      "group": "outlier",
+      "member": "include_Loop__1173",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1081",
+      "group": "outlier",
+      "member": "include_Loop__1081",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/11",
+      "group": "outlier",
+      "member": "include_Loop__11",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/944",
+      "group": "outlier",
+      "member": "include_Loop__944",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/164",
+      "group": "outlier",
+      "member": "include_Loop__164",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/266",
+      "group": "outlier",
+      "member": "include_Loop__266",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1067",
+      "group": "outlier",
+      "member": "include_Loop__1067",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1142",
+      "group": "outlier",
+      "member": "include_Loop__1142",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/149",
+      "group": "outlier",
+      "member": "include_Loop__149",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1018",
+      "group": "outlier",
+      "member": "include_Loop__1018",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/214",
+      "group": "outlier",
+      "member": "include_Loop__214",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/227",
+      "group": "outlier",
+      "member": "include_Loop__227",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/524",
+      "group": "outlier",
+      "member": "include_Loop__524",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/420",
+      "group": "outlier",
+      "member": "include_Loop__420",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/692",
+      "group": "control",
+      "member": "include_Loop__692",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/745",
+      "group": "control",
+      "member": "include_Loop__745",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/92",
+      "group": "control",
+      "member": "include_Loop__92",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/998",
+      "group": "control",
+      "member": "include_Loop__998",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/235",
+      "group": "control",
+      "member": "include_Loop__235",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/321",
+      "group": "control",
+      "member": "include_Loop__321",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/500",
+      "group": "control",
+      "member": "include_Loop__500",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/561",
+      "group": "control",
+      "member": "include_Loop__561",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/639",
+      "group": "control",
+      "member": "include_Loop__639",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/920",
+      "group": "control",
+      "member": "include_Loop__920",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/979",
+      "group": "control",
+      "member": "include_Loop__979",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1009",
+      "group": "control",
+      "member": "include_Loop__1009",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1119",
+      "group": "control",
+      "member": "include_Loop__1119",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/317",
+      "group": "control",
+      "member": "include_Loop__317",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/458",
+      "group": "control",
+      "member": "include_Loop__458",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/482",
+      "group": "control",
+      "member": "include_Loop__482",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/71",
+      "group": "control",
+      "member": "include_Loop__71",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/814",
+      "group": "control",
+      "member": "include_Loop__814",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/884",
+      "group": "control",
+      "member": "include_Loop__884",
+      "nonmember": "base"
+    },
+    {
+      "target": "Loop/1123",
+      "group": "control",
+      "member": "include_Loop__1123",
+      "nonmember": "base"
+    }
+  ],
+  "matching": {
+    "pairs": [
+      {
+        "outlier": "HUPA-UCM/27",
+        "control": "Loop/692",
+        "outlier_days": 81,
+        "control_days": 32,
+        "rel_gap": 0.6049
+      },
+      {
+        "outlier": "Loop/388",
+        "control": "Loop/745",
+        "outlier_days": 45,
+        "control_days": 32,
+        "rel_gap": 0.2889
+      },
+      {
+        "outlier": "Loop/511",
+        "control": "Loop/92",
+        "outlier_days": 44,
+        "control_days": 32,
+        "rel_gap": 0.2727
+      },
+      {
+        "outlier": "Loop/693",
+        "control": "Loop/998",
+        "outlier_days": 41,
+        "control_days": 32,
+        "rel_gap": 0.2195
+      },
+      {
+        "outlier": "Loop/1199",
+        "control": "Loop/235",
+        "outlier_days": 38,
+        "control_days": 31,
+        "rel_gap": 0.1842
+      },
+      {
+        "outlier": "Loop/245",
+        "control": "Loop/321",
+        "outlier_days": 38,
+        "control_days": 31,
+        "rel_gap": 0.1842
+      },
+      {
+        "outlier": "Loop/1173",
+        "control": "Loop/500",
+        "outlier_days": 37,
+        "control_days": 31,
+        "rel_gap": 0.1622
+      },
+      {
+        "outlier": "Loop/1081",
+        "control": "Loop/561",
+        "outlier_days": 36,
+        "control_days": 31,
+        "rel_gap": 0.1389
+      },
+      {
+        "outlier": "Loop/11",
+        "control": "Loop/639",
+        "outlier_days": 36,
+        "control_days": 31,
+        "rel_gap": 0.1389
+      },
+      {
+        "outlier": "Loop/944",
+        "control": "Loop/920",
+        "outlier_days": 36,
+        "control_days": 31,
+        "rel_gap": 0.1389
+      },
+      {
+        "outlier": "Loop/164",
+        "control": "Loop/979",
+        "outlier_days": 35,
+        "control_days": 31,
+        "rel_gap": 0.1143
+      },
+      {
+        "outlier": "Loop/266",
+        "control": "Loop/1009",
+        "outlier_days": 35,
+        "control_days": 30,
+        "rel_gap": 0.1429
+      },
+      {
+        "outlier": "Loop/1067",
+        "control": "Loop/1119",
+        "outlier_days": 34,
+        "control_days": 30,
+        "rel_gap": 0.1176
+      },
+      {
+        "outlier": "Loop/1142",
+        "control": "Loop/317",
+        "outlier_days": 34,
+        "control_days": 30,
+        "rel_gap": 0.1176
+      },
+      {
+        "outlier": "Loop/149",
+        "control": "Loop/458",
+        "outlier_days": 34,
+        "control_days": 30,
+        "rel_gap": 0.1176
+      },
+      {
+        "outlier": "Loop/1018",
+        "control": "Loop/482",
+        "outlier_days": 33,
+        "control_days": 30,
+        "rel_gap": 0.0909
+      },
+      {
+        "outlier": "Loop/214",
+        "control": "Loop/71",
+        "outlier_days": 33,
+        "control_days": 30,
+        "rel_gap": 0.0909
+      },
+      {
+        "outlier": "Loop/227",
+        "control": "Loop/814",
+        "outlier_days": 33,
+        "control_days": 30,
+        "rel_gap": 0.0909
+      },
+      {
+        "outlier": "Loop/524",
+        "control": "Loop/884",
+        "outlier_days": 33,
+        "control_days": 30,
+        "rel_gap": 0.0909
+      },
+      {
+        "outlier": "Loop/420",
+        "control": "Loop/1123",
+        "outlier_days": 32,
+        "control_days": 29,
+        "rel_gap": 0.0938
+      }
+    ],
+    "tol": 0.15,
+    "seed": 2026,
+    "n_candidates": 1,
+    "n_excluded": 0,
+    "max_rel_gap": 0.6049,
+    "median_rel_gap": 0.1389,
+    "n_over_tol": 7,
+    "outlier_days": {
+      "median": 35.5,
+      "min": 32,
+      "max": 81
+    },
+    "pool_days": {
+      "median": 10.0,
+      "min": 4,
+      "max": 32
+    },
+    "warning": "7 of 20 controls are further than 15% in day count from their outlier. Day count then differs between the arms and any gap in the attack statistic is partly that."
+  },
+  "jobs": [
+    {
+      "name": "base",
+      "role": "base",
+      "target": null,
+      "group": null,
+      "n_subjects": 533
+    },
+    {
+      "name": "include_HUPA-UCM__27",
+      "role": "include",
+      "target": "HUPA-UCM/27",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__388",
+      "role": "include",
+      "target": "Loop/388",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__511",
+      "role": "include",
+      "target": "Loop/511",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__693",
+      "role": "include",
+      "target": "Loop/693",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__1199",
+      "role": "include",
+      "target": "Loop/1199",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__245",
+      "role": "include",
+      "target": "Loop/245",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__1173",
+      "role": "include",
+      "target": "Loop/1173",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__1081",
+      "role": "include",
+      "target": "Loop/1081",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__11",
+      "role": "include",
+      "target": "Loop/11",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__944",
+      "role": "include",
+      "target": "Loop/944",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__164",
+      "role": "include",
+      "target": "Loop/164",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__266",
+      "role": "include",
+      "target": "Loop/266",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__1067",
+      "role": "include",
+      "target": "Loop/1067",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__1142",
+      "role": "include",
+      "target": "Loop/1142",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__149",
+      "role": "include",
+      "target": "Loop/149",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__1018",
+      "role": "include",
+      "target": "Loop/1018",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__214",
+      "role": "include",
+      "target": "Loop/214",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__227",
+      "role": "include",
+      "target": "Loop/227",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__524",
+      "role": "include",
+      "target": "Loop/524",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__420",
+      "role": "include",
+      "target": "Loop/420",
+      "group": "outlier",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__692",
+      "role": "include",
+      "target": "Loop/692",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__745",
+      "role": "include",
+      "target": "Loop/745",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__92",
+      "role": "include",
+      "target": "Loop/92",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__998",
+      "role": "include",
+      "target": "Loop/998",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__235",
+      "role": "include",
+      "target": "Loop/235",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__321",
+      "role": "include",
+      "target": "Loop/321",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__500",
+      "role": "include",
+      "target": "Loop/500",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__561",
+      "role": "include",
+      "target": "Loop/561",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__639",
+      "role": "include",
+      "target": "Loop/639",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__920",
+      "role": "include",
+      "target": "Loop/920",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__979",
+      "role": "include",
+      "target": "Loop/979",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__1009",
+      "role": "include",
+      "target": "Loop/1009",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__1119",
+      "role": "include",
+      "target": "Loop/1119",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__317",
+      "role": "include",
+      "target": "Loop/317",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__458",
+      "role": "include",
+      "target": "Loop/458",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__482",
+      "role": "include",
+      "target": "Loop/482",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__71",
+      "role": "include",
+      "target": "Loop/71",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__814",
+      "role": "include",
+      "target": "Loop/814",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__884",
+      "role": "include",
+      "target": "Loop/884",
+      "group": "control",
+      "n_subjects": 534
+    },
+    {
+      "name": "include_Loop__1123",
+      "role": "include",
+      "target": "Loop/1123",
+      "group": "control",
+      "n_subjects": 534
+    }
+  ]
+}

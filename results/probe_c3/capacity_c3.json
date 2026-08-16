@@ -1,0 +1,54 @@
+[
+  {
+    "hidden_size": 128,
+    "params": 2762805,
+    "C": 3,
+    "ms_per_step": 98.12,
+    "ms_per_sample": 60.325,
+    "sample_batch": 1000,
+    "train_hours": 5.45,
+    "sample_hours": 2.81,
+    "hours_per_model": 8.26,
+    "gpu_hours_123_models": 1015.9,
+    "wall_days_12_cards": 3.53
+  },
+  {
+    "hidden_size": 160,
+    "params": 4231669,
+    "C": 3,
+    "ms_per_step": 104.82,
+    "ms_per_sample": 78.356,
+    "sample_batch": 1000,
+    "train_hours": 5.82,
+    "sample_hours": 3.65,
+    "hours_per_model": 9.47,
+    "gpu_hours_123_models": 1164.9,
+    "wall_days_12_cards": 4.04
+  },
+  {
+    "hidden_size": 192,
+    "params": 6011829,
+    "C": 3,
+    "ms_per_step": 112.43,
+    "ms_per_sample": 95.796,
+    "sample_batch": 1000,
+    "train_hours": 6.25,
+    "sample_hours": 4.46,
+    "hours_per_model": 10.71,
+    "gpu_hours_123_models": 1316.7,
+    "wall_days_12_cards": 4.57
+  },
+  {
+    "hidden_size": 256,
+    "params": 10506037,
+    "C": 3,
+    "ms_per_step": 133.81,
+    "ms_per_sample": 143.227,
+    "sample_batch": 1000,
+    "train_hours": 7.43,
+    "sample_hours": 6.67,
+    "hours_per_model": 14.1,
+    "gpu_hours_123_models": 1734.3,
+    "wall_days_12_cards": 6.02
+  }
+]

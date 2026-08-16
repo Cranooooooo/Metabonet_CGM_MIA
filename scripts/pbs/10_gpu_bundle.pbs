@@ -1,0 +1,81 @@
+#!/bin/bash
+#PBS -N cgm_gpu_bundle
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:mem=220gb:ngpus=2
+#PBS -l walltime=03:00:00
+#PBS -j oe
+#PBS -o logs/10_gpu_bundle.log
+#
+# The remaining GPU tasks in one job, one independent task per card. The encoder ran
+# in the first invocation of this bundle and its cache is warm, so only two are left:
+# DiM-TS (environment + kernel build + parameter/cost probe) and the comparative
+# generator probe.
+#
+# WHY THIS EXISTS. Submitted separately, all three sat in gdev behind
+#   "Not Running: would exceed overall limit on resource ngpus in queue gdev"
+# -- gdev's whole GPU pool is 16 cards shared by the entire machine, and it was full
+# with 19 jobs queued. Meanwhile g2 had 5 running and 2 queued. 3 GPUs plus a walltime
+# over two hours routes to g2, which is the guide's §3 pattern: ask for a queue's GPU
+# band and give every reserved card work.
+#
+#   qsub scripts/pbs/10_gpu_bundle.pbs
+#
+# Walltime is 3 h deliberately, not 2 h: at 2:00:00 the router sends this back to the
+# saturated gdev. Above 2 h costs priority 100 -> 10, which is the right trade when
+# the fast lane is admitting nothing.
+#
+# COST OF BUNDLING: the job holds all three cards until the slowest task ends (§3).
+# Here that is ~40 min of DiM-TS against ~10 min of encoder, so card 0 idles for about
+# half an hour. That is the price of not queueing three times, and it is small next to
+# the wait these were already accumulating.
+#
+# The .pbs files below are invoked as ordinary bash: #PBS lines are comments, and each
+# one sources env.sh itself. No logic is duplicated between here and the standalone
+# submissions -- they are the same scripts.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+
+# env.sh sizes thread pools from the job's NCPUS; concurrent tasks must not each take
+# all 32, or numba alone will spawn 96 threads (docs/PITFALLS.md §2).
+export THREADS=16
+
+declare -a NAME=(dimts gen_probe)
+declare -a CMD=(
+    "bash scripts/pbs/06_dimts_probe.pbs"
+    "bash scripts/pbs/06b_generator_probe.pbs"
+)
+
+# PBS already sets CUDA_VISIBLE_DEVICES to the ABSOLUTE ids of the cards it gave this
+# job -- "0,2", not necessarily "0,1". Overwriting it with a loop counter points a task
+# at a card the job does not own, the cgroup denies it, and torch.cuda.is_available()
+# comes back False. That surfaces as "no CUDA: wrong torch wheel", which is the wrong
+# diagnosis entirely. Select the i-th ALLOCATED device instead.
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0,1,2,3}"
+echo "PBS allocated GPUs: ${ALLOC[*]}"
+
+# Per-run log names. Reusing one path across runs on this shared filesystem produced a
+# file whose head was the previous run's output, followed by a block of NUL bytes,
+# followed by the current run's -- silently unreadable, and it cost a measurement.
+LOGTAG=${PBS_JOBID%%.*}
+
+pids=(); rc=0
+for i in "${!CMD[@]}"; do
+    ( export CUDA_VISIBLE_DEVICES="${ALLOC[$i]}"; eval "${CMD[$i]}" ) \
+        > "logs/10_${LOGTAG}_card${i}_${NAME[$i]}.log" 2>&1 &
+    pids+=($!)
+    echo "card ${ALLOC[$i]} -> ${NAME[$i]}  (pid ${pids[$i]})"
+done
+
+# Individually, and keep the worst status: a bare `wait` reports only the last task,
+# and a later successful command would then set the job's exit code. That is how an
+# earlier run reported Exit_status=0 with every shard dead.
+for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then echo "card ${ALLOC[$i]} (${NAME[$i]}) OK"
+    else echo "card ${ALLOC[$i]} (${NAME[$i]}) FAILED"; rc=1; fi
+done
+
+for i in "${!NAME[@]}"; do
+    echo; echo "=== ${NAME[$i]} (tail) ==="
+    tail -25 "logs/10_${LOGTAG}_card${i}_${NAME[$i]}.log"
+done
+exit $rc

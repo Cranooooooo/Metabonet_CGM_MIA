@@ -1,0 +1,73 @@
+#!/bin/bash
+#PBS -N cgm_mday
+#PBS -P 11704243
+#PBS -j oe
+#
+# How high can the attack go, as a function of window length?
+#
+# copy_paste is the instrument, not the subject: it bootstraps K rows from its training
+# set with replacement, so 1 - e^-1 = 63.2% of a target's windows are released VERBATIM
+# and the rest are chance. It therefore measures what the ATTACK can detect when the
+# leakage is maximal and known, with the generator's own fitting ability taken out of
+# the question. On one-day windows the published control read 0.82 against that 0.816
+# arithmetic ceiling.
+#
+# What the length changes is not the 63.2% -- that is a property of the bootstrap at any
+# L -- but how distinctive a window is. At L=1 a subject's days resemble each other, so
+# even a window that was NOT copied sits near one that was, and d_in is small for the
+# wrong reason. At larger L that near-duplicate disappears. Whether the ceiling rises,
+# falls or holds is the measurement.
+#
+# L=7 is built BOTH ways. Calendar-contiguous weeks exist for 809 subjects; fortnights
+# for 40 and three-week runs for 11, which cannot support a design. `concat` chops each
+# subject's complete days in date order regardless of gaps and works at every length. If
+# the two agree at L=7, concat is usable at 14 and 21; if not, 14 and 21 are limited
+# claims. That is the only reason L=7 appears twice.
+#
+# No GPU: copy_paste does no training.
+#
+#   qsub -l select=1:ncpus=64:mem=200gb -l walltime=06:00:00 \
+#        -o logs/78_multiday.log scripts/pbs/78_multiday_copypaste.pbs           # -> q2
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  python -m py_compile scripts/build_cohort_multiday.py
+
+  echo "########## 1. build the multi-day cohorts ##########"
+  python -u scripts/build_cohort_multiday.py --days 7  --mode contiguous
+  python -u scripts/build_cohort_multiday.py --days 7  --mode concat
+  python -u scripts/build_cohort_multiday.py --days 14 --mode concat
+  python -u scripts/build_cohort_multiday.py --days 21 --mode concat
+
+  for CFG in d7_contiguous d7_concat d14_concat d21_concat; do
+    COH=data/cohort/metabonet_sid_c1_${CFG}
+    [ -d "$COH" ] || { echo "no $COH -- skipped"; continue; }
+    echo
+    echo "########## 2. $CFG : design ##########"
+    python -u scripts/build_design.py --cohort "$COH" \
+      --outliers "$(python - "$COH" <<'PY'
+import numpy as np, sys, collections
+s = np.load(f"{sys.argv[1]}/subject_ids.npy", allow_pickle=True).astype(str)
+c = collections.Counter(s.tolist())
+# copy_paste is a positive CONTROL: it memorises everyone indiscriminately, so the
+# targets do not have to be outliers. Take the 20 subjects with the most windows --
+# a per-subject AUC needs windows, and at L=21 the median subject has about seven.
+print(",".join(k for k, _ in c.most_common(20)))
+PY
+)" --out "results/design_multiday/${CFG}/rep1" --replicates 1 --n-candidates 1
+
+    echo "########## 3. $CFG : copy_paste ##########"
+    python -u scripts/run_loo.py --design "results/design_multiday/${CFG}/rep1" \
+      --out "results/runs/cp_${CFG}_rep1" --cohort "$COH" --generator copy_paste
+
+    echo "########## 4. $CFG : attack ##########"
+    python -u scripts/run_attack.py --design "results/design_multiday/${CFG}/rep1" \
+      --runs "results/runs/cp_${CFG}_rep1" --cohort "$COH" \
+      --out "results/attack_multiday/${CFG}"
+
+    echo "########## 5. $CFG : per-subject AUC ##########"
+    python -u scripts/subject_auc.py --runs "cp_${CFG}" \
+      --design "results/design_multiday/${CFG}" --cohort "$COH" --replicates 1 \
+      --out "results/subject_auc_multiday/${CFG}" 2>&1 | tail -30
+  done
+} 2>&1 | tee logs/78_multiday.live.log
