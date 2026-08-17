@@ -1,0 +1,40 @@
+#!/bin/bash
+#PBS -N cgm_d7h256
+#PBS -P 11704243
+#PBS -j oe
+#
+# The seven-day pilot again at hidden_size=256, after h96 produced a generator a
+# classifier separates from real data 95% of the time.
+#
+# THE CASE FOR MORE CAPACITY: h96 at T=2016 is 2,270,131 parameters, FEWER than the
+# published one-day model's 2,762,291 at h128/T=288, for a sequence seven times longer.
+# Per timestep the model was under-provisioned.
+#
+# THE CASE AGAINST, which this run also tests: there are only 7,001 training windows and
+# the h96 model was already memorising. Adding capacity in a data-limited regime usually
+# deepens overfitting, so discriminative accuracy may RISE. At three channels a width
+# sweep from 128 to 256 moved it not at all.
+#
+# Same protocol as the h96 run, because it worked: train base with a 59,200-step ceiling
+# and a checkpoint every 2,000, watch the binned loss from outside, stop at the plateau,
+# resample that checkpoint, then train the other twenty to the same step count. Matching
+# budgets across base and include_t is not optional -- a budget difference would enter
+# every gap.
+#
+#   qsub -l select=1:ncpus=16:ngpus=1 -l walltime=12:00:00 \
+#        -o logs/86_d7_h256_base.log scripts/pbs/86_d7_h256_base.pbs            # -> g1
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+export THREADS=${NCPUS:-16}
+{
+  python -c "import torch;a=torch.randn(64,64,device='cuda',dtype=torch.bfloat16);print('cuda ok',(a@a).sum().item())"
+  python -u scripts/run_loo.py \
+    --design results/design_d7_pilot/rep1 \
+    --out results/runs/dimts_d7_h256_rep1 \
+    --cohort data/cohort/metabonet_sid_c1_d7_contiguous \
+    --job base \
+    --params '{"hidden_size": 256, "steps": 59200, "save_cycle": 2000}'
+} 2>&1 | tee logs/86_d7_h256_base.live.log

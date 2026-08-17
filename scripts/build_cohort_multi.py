@@ -80,6 +80,16 @@ def main():
                     help="per-(subject, day) cell counts from scripts/channel_coverage.py; "
                          "defaults to the file matching --subject-key")
     ap.add_argument("--channels", nargs="+", default=["CGM", "basal", "bolus"])
+    ap.add_argument("--per-kg", nargs="*", default=None,
+                    help="channels to divide by the subject's body mass before "
+                         "normalising. Insulin is dosed per kilogram, so basal and "
+                         "bolus in raw IU carry body size -- a stable personal "
+                         "attribute that would inflate any identifiability measurement "
+                         "for a reason that has nothing to do with the regimen. "
+                         "`weight` is in POUNDS per the MetaboNet data dictionary and "
+                         "is converted here; a subject without a weight is DROPPED, "
+                         "because imputing a divisor invents the very quantity the "
+                         "division is meant to remove.")
     ap.add_argument("--out", default="data/cohort/metabonet834_c3")
     ap.add_argument("--min-days", type=int, default=30)
     ap.add_argument("--n-subjects", type=int, default=None)
@@ -105,6 +115,44 @@ def main():
               else np.sort(per.index.to_numpy()))
     picked_set = set(picked)
     print(f"[cohort] taking {len(picked)} subjects")
+
+    # ---- body mass, if any channel is to be expressed per kilogram ------------------
+    kg = {}
+    if a.per_kg:
+        bad = [c for c in a.per_kg if c not in chans]
+        if bad:
+            sys.exit(f"--per-kg names channels that are not in --channels: {bad}")
+        src = ["source_file"] if a.subject_key == "study_id" else []
+        acc = []
+        for b in pq.ParquetFile(a.parquet).iter_batches(
+                batch_size=a.batch, columns=["id"] + src + ["weight"]):
+            d = b.to_pandas().dropna(subset=["weight"])
+            if d.empty:
+                continue
+            if src:
+                d["id"] = d["source_file"].str.cat(d["id"], sep="/")
+            d = d[d["id"].isin(picked_set)]
+            if len(d):
+                acc.append(d.groupby("id")["weight"].median())
+        # the median over a subject's rows: the dictionary says weight "may vary
+        # slightly over study duration", and 17.9% of subjects do vary, by a median of
+        # 3.3%. One value per subject is needed and the median is the stable choice.
+        w_lb = pd.concat(acc).groupby(level=0).median() if acc else pd.Series(dtype=float)
+        kg = (w_lb / 2.20462).to_dict()
+        missing = sorted(picked_set - set(kg))
+        print(f"[cohort] per-kg for {a.per_kg}: {len(kg)} of {len(picked_set)} subjects "
+              f"have a weight; DROPPING {len(missing)} without one")
+        if missing[:6]:
+            print(f"[cohort]   e.g. {missing[:6]}")
+        picked = np.array([s for s in picked if s in kg])
+        picked_set = set(picked)
+        kgv = np.array(list(kg.values()))
+        print(f"[cohort] body mass kg: min {kgv.min():.1f} median "
+              f"{np.median(kgv):.1f} max {kgv.max():.1f}  "
+              f"(from lbs, / 2.20462)")
+        if kgv.min() < 5 or kgv.max() > 250:
+            sys.exit("implausible body mass after conversion; check the unit assumption")
+        print(f"[cohort] {len(picked)} subjects remain")
 
     # Second pass. NO ASSUMPTION IS MADE ABOUT ROW ORDER. An earlier version streamed
     # and carried the last (subject, day) across the batch boundary, on the assumption
@@ -166,6 +214,13 @@ def main():
         if not np.isfinite(v).all():
             incomplete += 1
             continue
+        if kg:
+            # divide BEFORE the per-channel z-score. Afterwards would be a no-op: the
+            # z-score already removes one global scale, and what has to go is the
+            # BETWEEN-SUBJECT scaling that body mass imposes.
+            for i, c in enumerate(chans):
+                if c in a.per_kg:
+                    v[:, i] = v[:, i] / np.float32(kg[sid])
         wins.append(v); sids.append(sid); days.append(day)
 
     X = np.stack(wins)

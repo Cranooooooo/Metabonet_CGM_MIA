@@ -1,0 +1,34 @@
+#!/bin/bash
+#PBS -N cgm_cpq
+#PBS -P 11704243
+#PBS -j oe
+#
+# What does the quality metric read on a generator that copies verbatim?
+#
+# copy_paste bootstraps K rows from its training set, so its "synthetic" set IS real
+# windows. A discriminator asked to separate real from synthetic is being asked to
+# separate real from real and must sit at 0.5. If it does not, the metric is measuring
+# something other than fidelity and the 0.9475 read on the seven-day DiM-TS model needs
+# a different interpretation than the one given.
+#
+# This calibrates the scale. It was never measured: results/quality/ holds dimts,
+# diffwave, diffusion_ts, fourier_diff and timevae, but no copy_paste.
+#
+#   qsub -l select=1:ncpus=16:mem=64gb:ngpus=1 -l walltime=01:00:00 \
+#        -o logs/87_cp_quality.log scripts/pbs/87_cp_quality.pbs               # -> gdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  echo "########## copy_paste, seven-day windows ##########"
+  python -u scripts/eval_quality.py \
+    --runs results/runs/cp_d7_contiguous_rep1/base \
+    --design results/design_multiday/d7_contiguous/rep1 \
+    --cohort data/cohort/metabonet_sid_c1_d7_contiguous \
+    --out results/quality_cp_d7
+  echo "########## copy_paste, one-day windows (the published cohort) ##########"
+  python -u scripts/eval_quality.py \
+    --runs results/runs/copy_paste/base \
+    --design results/design/  \
+    --cohort data/cohort/metabonet875 \
+    --out results/quality_cp_1d 2>&1 | tail -12
+} 2>&1 | tee logs/87_cp_quality.live.log

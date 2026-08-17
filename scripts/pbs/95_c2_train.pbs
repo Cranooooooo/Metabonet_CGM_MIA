@@ -1,0 +1,52 @@
+#!/bin/bash
+#PBS -N cgm_c2tr
+#PBS -P 11704243
+#PBS -j oe
+#
+# The two-channel pilot: 21 DiM-TS models on CGM + basal/kg at hidden_size=128,
+# 100,000 steps -- the published campaign's configuration, so this cohort's result is
+# comparable to the single-channel one on everything except the channels.
+#
+# 100,000 steps is right HERE and was wrong for the seven-day cohort. The budget is a
+# statement about the dataset (docs/PITFALLS.md 11): this cohort holds 167,726 windows,
+# within a few percent of the 197,970 the 100,000 steps were set for, so the epochs come
+# out the same. The seven-day cohort held 7,001 and needed its own number.
+#
+# ~6.6 h/model projected from the measured C=1 (5.35 h) and C=3 (8.71 h); the increase
+# is entirely in training, sampling is flat in C. Twenty models over eight cards is
+# three on the busiest shard, ~20 h. 24 h is requested -- the three-channel campaign
+# died because its walltimes had no margin.
+#
+#   qsub -l select=1:ncpus=64:ngpus=4 -l walltime=24:00:00 -v SHARD_BASE=0,N_SHARDS=8 ... -> g3
+#   qsub -l select=1:ncpus=48:ngpus=3 -l walltime=24:00:00 -v SHARD_BASE=4,N_SHARDS=8 ... -> g2
+#   qsub -l select=1:ncpus=16:ngpus=1 -l walltime=24:00:00 -v SHARD_BASE=7,N_SHARDS=8 ... -> g1
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+: "${SHARD_BASE:?}"; : "${N_SHARDS:?}"
+DSN=results/design_c2_perkg/rep1
+OUT=results/runs/dimts_c2_perkg_rep1
+COH=data/cohort/metabonet_sid_c2_perkg
+LOGTAG=${PBS_JOBID%%.*}
+
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
+export THREADS=$(( ${NCPUS:-16} / ${#ALLOC[@]} ))
+echo "shards ${SHARD_BASE}..$(( SHARD_BASE + ${#ALLOC[@]} - 1 )) of $N_SHARDS"
+pids=(); rc=0
+for i in "${!ALLOC[@]}"; do
+    s=$(( SHARD_BASE + i ))
+    ( export CUDA_VISIBLE_DEVICES="${ALLOC[$i]}"
+      python scripts/run_loo.py --design "$DSN" --out "$OUT" --cohort "$COH" \
+        --shard "$s" --n-shards "$N_SHARDS" \
+        --params '{"hidden_size": 128, "steps": 100000, "save_cycle": 20000}'
+    ) > "logs/95_${LOGTAG}_shard${s}.log" 2>&1 &
+    pids+=($!)
+done
+for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then echo "shard $(( SHARD_BASE + i )) OK"
+    else echo "shard $(( SHARD_BASE + i )) FAILED"; rc=1; fi
+done
+echo "$(find "$OUT" -name samples.npy | wc -l) / 21"
+exit $rc

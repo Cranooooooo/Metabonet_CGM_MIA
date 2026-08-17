@@ -1,0 +1,12 @@
+{
+  "cohort": "data/cohort/metabonet_sid_c2_perkg",
+  "channels": [
+    "CGM",
+    "basal"
+  ],
+  "max_days": 30,
+  "min_days": 10,
+  "seed": 2026,
+  "n_windows": 36240,
+  "n_subjects": 1208
+}

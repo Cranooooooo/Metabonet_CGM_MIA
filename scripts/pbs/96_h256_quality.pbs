@@ -1,0 +1,40 @@
+#!/bin/bash
+#PBS -N cgm_h256q
+#PBS -P 11704243
+#PBS -j oe
+#
+# Sample the seven-day h256 base and score it. This one number answers the question the
+# run was launched for.
+#
+# ONLY THE BASE IS NEEDED. The question is "is the seven-day quality collapse a capacity
+# problem", and discriminative accuracy on one model answers it. The other twenty models
+# would only be worth training if the answer is yes.
+#
+#   h96  at 34,000 steps: loss 0.01244, discriminative accuracy 0.9475
+#   h256 at 22,000 steps: loss 0.01238   <- lower loss, in fewer steps
+#
+# Reference points for reading the accuracy: copy_paste reads 0.53 (verbatim copies are
+# indistinguishable), the published one-day single-channel models 0.50, the one-day
+# three-channel models 0.65-0.68.
+#
+#   qsub -l select=1:ncpus=16:ngpus=1 -l walltime=03:00:00 \
+#        -o logs/96_h256_quality.log scripts/pbs/96_h256_quality.pbs           # -> g1
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+export THREADS=${NCPUS:-16}
+{
+  python -u scripts/resample.py \
+    --from-run results/runs/dimts_d7_h256_rep1/base \
+    --job-file results/design_d7_pilot/rep1/jobs/base.json \
+    --cohort data/cohort/metabonet_sid_c1_d7_contiguous \
+    --milestone 11
+  echo "########## quality ##########"
+  python -u scripts/eval_quality.py \
+    --runs results/runs/dimts_d7_h256_rep1/base results/runs/dimts_d7_conv_rep1/base \
+    --design results/design_d7_pilot/rep1 \
+    --cohort data/cohort/metabonet_sid_c1_d7_contiguous \
+    --out results/quality_d7_h256
+} 2>&1 | tee logs/96_h256_quality.live.log

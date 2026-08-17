@@ -1,0 +1,9 @@
+#!/bin/bash
+#PBS -N cgm_no1142
+#PBS -P 11704243
+#PBS -j oe
+#   qsub -l select=1:ncpus=4:mem=16gb -l walltime=00:15:00 \
+#        -o logs/97_auc_no1142.log scripts/pbs/97_auc_no1142.pbs              # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+python -u scripts/auc_without_1142.py 2>&1 | tee logs/97_auc_no1142.live.log

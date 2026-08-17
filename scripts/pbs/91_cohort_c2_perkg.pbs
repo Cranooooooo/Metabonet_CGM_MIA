@@ -1,0 +1,34 @@
+#!/bin/bash
+#PBS -N cgm_c2kg
+#PBS -P 11704243
+#PBS -j oe
+#
+# Two channels: CGM in mg/dL and basal in IU PER KILOGRAM.
+#
+# Insulin is dosed per kilogram. In raw IU the basal channel carries body size, which is
+# a stable personal attribute, so any identifiability it shows is partly "this person is
+# large" rather than "this person's regimen is distinctive". `weight` is in POUNDS
+# (MetaboNet data dictionary) and is converted here.
+#
+# bolus is dropped. It is 95% exact zeros, and a single feature -- the share of
+# near-zero bolus cells per window -- separates real from synthetic at 0.74, better than
+# the full discriminator at 0.60. It is the measured cause of the three-channel quality
+# collapse, and per-kg division does not change a channel that is mostly zero.
+#
+# Subjects without a weight are dropped rather than imputed: a median divisor would
+# invent the very between-subject quantity the division exists to remove.
+#
+#   qsub -l select=1:ncpus=16:mem=200gb -l walltime=02:00:00 \
+#        -o logs/91_cohort_c2_perkg.log scripts/pbs/91_cohort_c2_perkg.pbs      # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  python -m py_compile scripts/build_cohort_multi.py
+  python -u scripts/build_cohort_multi.py --subject-key study_id \
+    --channels CGM basal --per-kg basal \
+    --out data/cohort/metabonet_sid_c2_perkg
+  python -u scripts/verify_cohort_multi.py \
+    --cohort data/cohort/metabonet_sid_c2_perkg \
+    --cells results/channel_coverage_studyid/cells_per_day.parquet \
+    --channels CGM basal
+} 2>&1 | tee logs/91_cohort_c2_perkg.live.log

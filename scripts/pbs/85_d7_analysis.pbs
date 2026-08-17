@@ -1,0 +1,35 @@
+#!/bin/bash
+#PBS -N cgm_d7an
+#PBS -P 11704243
+#PBS -j oe
+#
+# The seven-day pilot's three analyses, in the order that lets each be read.
+#
+# QUALITY FIRST. If the base model cannot generate plausible weeks, a null attack result
+# means "the generator failed", not "there is no leakage", and the attack numbers cannot
+# be read on their own. The reference points: single-channel one-day models sat at
+# discriminative accuracy 0.50; the three-channel one-day models at 0.65-0.68.
+#
+# Then the frozen statistic (min x mean, K matched) over 10 outliers and 10 day-matched
+# controls, and one AUC per subject.
+#
+#   qsub -l select=1:ncpus=32:mem=128gb:ngpus=1 -l walltime=02:00:00 \
+#        -o logs/85_d7_analysis.log scripts/pbs/85_d7_analysis.pbs             # -> gdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+COH=data/cohort/metabonet_sid_c1_d7_contiguous
+DSN=results/design_d7_pilot/rep1
+OUT=results/runs/dimts_d7_conv_rep1
+{
+  echo "########## 1. quality of the base model ##########"
+  python -u scripts/eval_quality.py --runs "$OUT/base" --design "$DSN" \
+    --cohort "$COH" --out results/quality_d7
+
+  echo "########## 2. attack, frozen min x mean ##########"
+  python -u scripts/run_attack.py --design "$DSN" --runs "$OUT" --cohort "$COH" \
+    --out results/attack_d7
+
+  echo "########## 3. per-subject AUC ##########"
+  python -u scripts/subject_auc.py --runs dimts_d7_conv --design results/design_d7_pilot \
+    --cohort "$COH" --replicates 1 --out results/subject_auc_d7
+} 2>&1 | tee logs/85_d7_analysis.live.log

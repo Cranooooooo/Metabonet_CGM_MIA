@@ -1,0 +1,31 @@
+#!/bin/bash
+#PBS -N cgm_d7rs
+#PBS -P 11704243
+#PBS -j oe
+#
+# Sample the seven-day `base` model from the checkpoint it converged at, without
+# retraining. Training ran to step 34,834 and was stopped there; checkpoint-17 is step
+# 34,000, and 34,000 is the budget the other twenty models will be trained to, so base
+# and every include_t share one training budget exactly. If they did not, the budget
+# difference would enter every gap.
+#
+# scripts/resample.py exists for this: "a run whose training finished and whose sampling
+# pass was killed -- sampling is about 40% of the bill, so the other 60% is on disk".
+#
+#   qsub -l select=1:ncpus=16:ngpus=1 -l walltime=02:00:00 \
+#        -o logs/83_d7_base_resample.log scripts/pbs/83_d7_base_resample.pbs   # -> gdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+export THREADS=${NCPUS:-16}
+{
+  python -c "import torch;a=torch.randn(64,64,device='cuda',dtype=torch.bfloat16);print('cuda ok',(a@a).sum().item())"
+  python -u scripts/resample.py \
+    --from-run results/runs/dimts_d7_conv_rep1/base \
+    --job-file results/design_d7_pilot/rep1/jobs/base.json \
+    --cohort data/cohort/metabonet_sid_c1_d7_contiguous \
+    --milestone 17
+  ls -la results/runs/dimts_d7_conv_rep1/base/samples.npy
+} 2>&1 | tee logs/83_d7_base_resample.live.log

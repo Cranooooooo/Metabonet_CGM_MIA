@@ -1,0 +1,15 @@
+#!/bin/bash
+#PBS -N cgm_wtsh
+#PBS -P 11704243
+#PBS -j oe
+#   qsub -l select=1:ncpus=8:mem=64gb -l walltime=00:40:00 \
+#        -o logs/89_weight_and_shape.log scripts/pbs/89_weight_and_shape.pbs   # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  echo "########## 1. weight units, by study ##########"
+  python -u scripts/fix_weight_units.py
+  echo
+  echo "########## 2. shape of the outlier scores ##########"
+  python -u scripts/score_shape.py results/outliers_sid_c3/stability_1ch/seed2026
+} 2>&1 | tee logs/89_weight_and_shape.live.log

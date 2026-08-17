@@ -1,0 +1,37 @@
+#!/bin/bash
+#PBS -N cgm_c2out
+#PBS -P 11704243
+#PBS -j oe
+#
+# Outlier consensus on CGM + basal/kg, re-voted rather than inherited.
+#
+# Who counts as an outlier depends on what the methods can see: at three channels the
+# list went from 37 (CGM only) to 20, sharing 15, with each method's top-5% set 76-97%
+# replaced. Carrying over a list defined on other channels would answer a different
+# question from the one the cohort now poses.
+#
+# Group A stays CGM-only whatever the channel set -- its metrics are the Battelino
+# consensus, defined on glucose -- so four of thirteen votes are identical across
+# channel sets and the denominator stays 13, which is what keeps two lists comparable.
+#
+# A GPU because this cohort's TS2Vec encoder is not cached: 1,208 subjects and 167,726
+# windows at C=2 is a new fingerprint.
+#
+#   qsub -l select=1:ncpus=32:mem=64gb:ngpus=1 -l walltime=02:00:00 \
+#        -o logs/92_c2_outliers.log scripts/pbs/92_c2_outliers.pbs             # -> gdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+COH=data/cohort/metabonet_sid_c2_perkg
+{
+  python -c "import torch;a=torch.randn(64,64,device='cuda',dtype=torch.bfloat16);print('cuda ok',(a@a).sum().item())"
+  echo "########## group A once, shared by all four seeds ##########"
+  python -u scripts/run_outliers.py --cohort "$COH" \
+    --out results/outliers_c2_perkg/_groupA \
+    --only A1,A2,A3,A4 --expect-candidates 4 --min-methods 1 --device cpu
+  echo "########## four seeds ##########"
+  python -u scripts/seed_stability.py --cohort "$COH" \
+    --out results/outliers_c2_perkg/stability \
+    --channels all \
+    --clinical-cache results/outliers_c2_perkg/_groupA/_clinical.parquet \
+    --seeds 2026,7,101,999
+} 2>&1 | tee logs/92_c2_outliers.live.log

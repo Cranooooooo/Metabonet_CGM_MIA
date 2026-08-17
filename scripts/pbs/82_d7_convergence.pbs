@@ -1,0 +1,42 @@
+#!/bin/bash
+#PBS -N cgm_d7c
+#PBS -P 11704243
+#PBS -j oe
+#
+# Train the seven-day `base` model to convergence, watching the loss rather than
+# guessing a budget.
+#
+# The previous attempt used 3,700 steps, chosen by matching EPOCHS to the published
+# campaign (100,000 steps over 197,970 one-day windows = 64.6 epochs; the same 64.6
+# epochs over 7,001 seven-day windows is 3,700). That was the wrong invariant: binned
+# loss over the run fell to the last bin -- 0.01643 at 2960-3330 against 0.01555 at
+# 3330-3700, still dropping 5.4% -- where the converged three-channel campaign read
+# 0.01198 in both of its last two bins. A 7x longer sequence needs more GRADIENT STEPS
+# regardless of how often each window is seen.
+#
+# An under-trained generator memorises less, so those 21 models were biased toward the
+# null. They are discarded.
+#
+# CEILING 59,200 = 16x, CHECKPOINT EVERY 2,000. Training is only 29% of a model's cost
+# (16.6 min of 57.4; sampling the 7,001-window release is the other 41). So the run is
+# allowed to go long and is stopped from outside when the loss flattens; the checkpoint
+# at that step is then sampled with scripts/resample.py, which needs no retraining --
+# exactly the case its docstring names. 29 checkpoints at 35 MB is 1 GB.
+#
+#   qsub -l select=1:ncpus=16:ngpus=1 -l walltime=08:00:00 \
+#        -o logs/82_d7_convergence.log scripts/pbs/82_d7_convergence.pbs        # -> g1
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+export THREADS=${NCPUS:-16}
+{
+  python -c "import torch;a=torch.randn(64,64,device='cuda',dtype=torch.bfloat16);print('cuda ok',(a@a).sum().item())"
+  python -u scripts/run_loo.py \
+    --design results/design_d7_pilot/rep1 \
+    --out results/runs/dimts_d7_conv_rep1 \
+    --cohort data/cohort/metabonet_sid_c1_d7_contiguous \
+    --job base \
+    --params '{"hidden_size": 96, "steps": 59200, "save_cycle": 2000}'
+} 2>&1 | tee logs/82_d7_convergence.live.log

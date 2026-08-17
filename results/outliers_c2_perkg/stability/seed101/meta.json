@@ -1,0 +1,41 @@
+{
+  "channels": [
+    "CGM",
+    "basal"
+  ],
+  "channel_dim": 576,
+  "B5_B6": {
+    "route": "kmedoids",
+    "sizes": [
+      939,
+      744,
+      517
+    ],
+    "n_probe": 2200,
+    "dtw_per_subject": 30
+  },
+  "C8": {
+    "sigma": 0.24132311344146729,
+    "n_ref": 4000,
+    "leave_self_out": false
+  },
+  "E14": {
+    "sigma": 0.24302715063095093,
+    "n_ref": 4000,
+    "leave_self_out": true
+  },
+  "encoder": {
+    "fitted": false,
+    "cache": "/home/users/industry/imperial/lcheng/workspace/Project_CGM/CGM-OutlierMIA-master/results/_encoder_cache/ts2vec_2d55673cb5c33615.pt",
+    "fingerprint": "2d55673cb5c33615",
+    "n_train": 5000,
+    "dims": 320,
+    "seed": 2026
+  },
+  "C9": {
+    "sigma": 0.14042721688747406,
+    "n_ref": 4000,
+    "leave_self_out": false
+  },
+  "seed": 101
+}

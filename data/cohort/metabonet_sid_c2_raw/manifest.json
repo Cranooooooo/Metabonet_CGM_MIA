@@ -1,0 +1,32 @@
+{
+  "source": "data/raw/metabonet_public.parquet",
+  "channels": [
+    "CGM",
+    "basal"
+  ],
+  "C": 2,
+  "T": 288,
+  "dt_min": 5,
+  "zclip": 5.0,
+  "n_subjects": 1262,
+  "n_windows": 175597,
+  "min_days": 30,
+  "seed": 2026,
+  "stratified_on": "n_days",
+  "channel_constants": [
+    {
+      "name": "CGM",
+      "mean": 145.35342256162994,
+      "sd": 57.369596730214,
+      "nonzero_frac": 1.0
+    },
+    {
+      "name": "basal",
+      "mean": 0.08491320986733764,
+      "sd": 0.10478438526886286,
+      "nonzero_frac": 0.7495712048674585
+    }
+  ],
+  "denorm_formula": "raw[:, :, i] = x * zclip * sd[i] + mean[i]",
+  "note": "Per-channel constants. There are deliberately no scalar mean_mgdl/sd_mgdl fields: cohort.to_mgdl would apply CGM's constants to every channel, so it must fail loudly here."
+}

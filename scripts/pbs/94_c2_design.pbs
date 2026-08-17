@@ -1,0 +1,44 @@
+#!/bin/bash
+#PBS -N cgm_c2dsn
+#PBS -P 11704243
+#PBS -j oe
+#
+# Pilot design on CGM + basal/kg: 10 outliers, 10 day-matched controls, 1 base.
+#
+# THE TEN ARE THE TOP-VOTED, NOT A RANDOM TEN, and that biases toward detection. A pilot
+# asks "is there anything here at all", so taking the strongest ten maximises the chance
+# of seeing it; the price is that a difference found here cannot be extrapolated to all
+# 22. Only the full design gives an unbiased estimate.
+#
+# Loop/1142 is forced in. It is the one subject every previous condition found -- 0.6427
+# at one channel, 0.6358 at three, 1.0000 at seven days -- so its reading here is the
+# only point that connects this cohort to the others.
+#
+#   qsub -l select=1:ncpus=4:mem=32gb -l walltime=00:20:00 \
+#        -o logs/94_c2_design.log scripts/pbs/94_c2_design.pbs                 # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+{
+  TARGETS=$(python - <<'PY'
+import json
+st = json.load(open("results/outliers_c2_perkg/stability/stability.json"))
+always = list(st["always"])
+# rank by consensus votes in the primary seed; ties keep the stability.json order
+c = json.load(open("results/outliers_c2_perkg/stability/seed2026/consensus.json"))
+votes = c.get("votes", {})
+ranked = sorted(always, key=lambda s: (-votes.get(s, 0), s))
+pick = [s for s in ranked if s == "Loop/1142"]          # forced in
+pick += [s for s in ranked if s != "Loop/1142"][:10 - len(pick)]
+import sys
+print(f"{len(always)} stable outliers; taking {len(pick)} by vote count", file=sys.stderr)
+for s in pick:
+    print(f"  {s:16} votes {votes.get(s, 0)}", file=sys.stderr)
+print(",".join(pick))
+PY
+)
+  echo "targets: $TARGETS"
+  python -u scripts/build_design.py \
+    --cohort data/cohort/metabonet_sid_c2_perkg \
+    --outliers "$TARGETS" \
+    --out results/design_c2_perkg/rep1 --replicates 1 --n-candidates 1
+} 2>&1 | tee logs/94_c2_design.live.log
