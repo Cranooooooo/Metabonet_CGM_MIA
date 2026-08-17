@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-palette="#2a78d6,#eb6834,#1baf7a">
+<html lang="en" data-palette="#2a78d6,#eb6834,#1baf7a">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CGM 生成模型的成员推断风险 · 实验报告</title>
+<title>Membership-inference risk in CGM generative models</title>
 <style>
 :root{
   color-scheme: light;
@@ -32,10 +32,10 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--surface-0);color:var(--ink);
-  font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+  font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif}
 .wrap{max-width:1000px;margin:0 auto;padding:0 24px 120px}
-h1{font-size:2.1rem;line-height:1.25;margin:0 0 8px;letter-spacing:-.02em}
-h2{font-size:1.5rem;margin:64px 0 4px;letter-spacing:-.01em;scroll-margin-top:70px}
+h1{font-size:2.1rem;line-height:1.22;margin:0 0 8px;letter-spacing:-.022em}
+h2{font-size:1.5rem;margin:64px 0 4px;letter-spacing:-.012em;scroll-margin-top:70px}
 h3{font-size:1.08rem;margin:36px 0 8px}
 p{margin:12px 0;color:var(--ink-2)}
 .lede{font-size:1.12rem;color:var(--ink-2);margin:0 0 8px}
@@ -65,7 +65,7 @@ nav.toc a:hover{background:var(--surface-2);color:var(--ink)}
 .fig figcaption{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
   font-size:.85rem;color:var(--ink-3)}
 
-.hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin:26px 0}
+.hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:26px 0}
 .tile{background:var(--surface-1);border:1px solid var(--line);border-radius:12px;padding:18px}
 .tile .k{font:600 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
 .tile .v{font-size:2rem;font-weight:650;letter-spacing:-.02em;margin:8px 0 2px;font-variant-numeric:tabular-nums}
@@ -89,7 +89,7 @@ tr.hl td{background:color-mix(in srgb,var(--s2) 12%,transparent)}
 
 .tip{position:fixed;pointer-events:none;z-index:100;background:var(--surface-1);
   border:1px solid var(--line-strong);border-radius:8px;padding:9px 11px;font-size:.82rem;
-  box-shadow:0 6px 24px rgba(0,0,0,.14);opacity:0;transition:opacity .1s;max-width:270px}
+  box-shadow:0 6px 24px rgba(0,0,0,.14);opacity:0;transition:opacity .1s;max-width:280px}
 .tip.on{opacity:1}
 .tip .t{font-weight:650;margin-bottom:3px}
 .tip .r{color:var(--ink-2);font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:.8rem}
@@ -146,243 +146,260 @@ details.tbl summary{cursor:pointer;font-size:.84rem;color:var(--ink-3)}
 </style>
 </head>
 <body>
-<button class="theme" id="themeBtn">切换深色</button>
+<button class="theme" id="themeBtn">Dark mode</button>
 <div class="tip" id="tip"></div>
 
 <div class="wrap">
 <header>
-  <span class="pill">MetaboNet · DiM-TS · 成员推断</span>
-  <h1>用糖尿病人数据训练生成模型，<br>会把「谁在训练集里」泄漏出去吗？</h1>
-  <p class="lede">我们训练了 123 个生成模型，每个受试者两个——一个见过他，一个没见过——
-  然后测量发布出的合成数据是否朝他偏。结论是：<b>能测到，可重复，但量级可忽略。</b></p>
+  <span class="pill">MetaboNet · DiM-TS · membership inference</span>
+  <h1>If you train a generative model on diabetes data,<br>does it leak who was in the training set?</h1>
+  <p class="lede">We trained 123 generative models — two per subject, one that saw them and one
+  that did not — and measured whether the released synthetic data leans toward that person.
+  The answer: <b>the effect is real and reproducible, but negligible in magnitude.</b></p>
 </header>
 
 <nav class="toc">
-  <a href="#flow">研究脉络</a>
-  <a href="#two">两个问题</a>
-  <a href="#how">怎么测的</a>
-  <a href="#q1">问题一 · 威胁</a>
-  <a href="#q2">问题二 · 效应</a>
-  <a href="#dead">走不通的方向</a>
-  <a href="#concl">结论</a>
+  <a href="#flow">How we got here</a>
+  <a href="#two">Two questions</a>
+  <a href="#how">The measurement</a>
+  <a href="#q1">Q1 · Threat</a>
+  <a href="#q2">Q2 · Effect</a>
+  <a href="#dead">Dead ends</a>
+  <a href="#concl">Conclusion</a>
 </nav>
 
 <div class="hero">
-  <div class="tile"><div class="k">现实攻击者</div><div class="v">+0.014</div>
-    <div class="d">8 种攻击组合里最好的一个，把两组分开的幅度。一半为负。</div></div>
-  <div class="tile"><div class="k">个体风险</div><div class="v">79/80</div>
-    <div class="d">受试者的个人 AUC 落在 0.50–0.52，即无法判定。</div></div>
-  <div class="tile"><div class="k">群体效应</div><div class="v">0.664</div>
-    <div class="d">outlier 组与对照组的 gap 分布确实分开，三次独立重复。</div></div>
-  <div class="tile"><div class="k">效应幅度</div><div class="v">0.27%</div>
-    <div class="d">加入一个人，合成样本朝他靠近的距离占比。对照是 0.11%。</div></div>
+  <div class="tile"><div class="k">Realistic attacker</div><div class="v">+0.014</div>
+    <div class="d">Best of 8 attack configurations, separating the two arms. Half are negative.</div></div>
+  <div class="tile"><div class="k">Individual risk</div><div class="v">79/80</div>
+    <div class="d">Subjects whose personal AUC lands in 0.50–0.52 — indistinguishable.</div></div>
+  <div class="tile"><div class="k">Population effect</div><div class="v">0.664</div>
+    <div class="d">Outlier and control gap distributions do separate. Three independent replicates.</div></div>
+  <div class="tile"><div class="k">Effect size</div><div class="v">0.27%</div>
+    <div class="d">How much closer the synthetic data moves when a subject is added. Control: 0.11%.</div></div>
 </div>
 
 <p class="sec-tag">01</p>
-<h2 id="flow">研究脉络：每一步都是被上一步的结果推着走的</h2>
-<p>点开任意一步，看它当时问了什么、测出什么、以及为什么必须有下一步。</p>
+<h2 id="flow">How we got here: every step was forced by the previous result</h2>
+<p>Open any step to see what it asked, what it measured, and why the next step had to happen.</p>
 
-<div class="flow" id="flow"></div>
+<div class="flow" id="flowSteps"></div>
 
 <p class="sec-tag">02</p>
-<h2 id="two">两个问题，两套度量</h2>
-<p>这项研究回答两个不同的问题。它们的数据、特征、指标都不一样，
-<b>最常见的误读就是拿其中一个的数字去回答另一个</b>。</p>
+<h2 id="two">Two questions, two sets of measurements</h2>
+<p>This study answers two different questions. They use different data, different features and
+different metrics. <b>The most common misreading is to answer one of them with the other's number.</b></p>
 
 <div class="two">
   <div class="qbox">
-    <div class="qt">问题一 · 威胁</div>
-    <h3>现实攻击者能否判定某人在训练集里？</h3>
+    <div class="qt">Question 1 · Threat</div>
+    <h3>Can a realistic attacker tell whether someone was in the training set?</h3>
     <dl>
-      <dt>攻击者有什么</dt>
-      <dd>一份发布出的合成数据集，和某个人的真实记录。<b>没有</b>「没训练他的那个模型」——现实中不存在。</dd>
-      <dt>特征</dt>
-      <dd>每个窗口对合成集算 10 个距离量：欧氏族、k 近邻族、余弦族。</dd>
-      <dt>指标</dt>
-      <dd>逐受试者 AUC，留一受试者交叉验证。0.5 = 判定不了。</dd>
-      <dt>答案</dt>
-      <dd><b>做不到。</b>最强组合 +0.014，79/80 人在 0.50–0.52。</dd>
+      <dt>What the attacker has</dt>
+      <dd>One released synthetic dataset, plus one person's real records. <b>Not</b> a second model
+      trained without them — that does not exist in the real world.</dd>
+      <dt>Features</dt>
+      <dd>Ten distance statistics per window against the synthetic set: Euclidean family,
+      k-nearest-neighbour family, cosine family.</dd>
+      <dt>Metric</dt>
+      <dd>Per-subject AUC, leave-one-subject-out cross-validation. 0.5 = cannot tell.</dd>
+      <dt>Answer</dt>
+      <dd><b>No.</b> Best configuration +0.014; 79 of 80 subjects sit in 0.50–0.52.</dd>
     </dl>
   </div>
   <div class="qbox">
-    <div class="qt">问题二 · 科学</div>
-    <h3>outlier 是否比 normal 更容易被生成器记住？</h3>
+    <div class="qt">Question 2 · Science</div>
+    <h3>Are outliers memorised more readily than typical subjects?</h3>
     <dl>
-      <dt>需要什么</dt>
-      <dd>同一个人的<b>两个模型</b>：见过他的、没见过他的。这是研究工具，不是攻击。</dd>
-      <dt>统计量</dt>
-      <dd>gap = 到「没见过」的距离 − 到「见过」的距离。为正说明信息进入了模型。</dd>
-      <dt>指标</dt>
-      <dd>P(随机一个 outlier 的 gap &gt; 随机一个对照的 gap)。0.5 = 无差别。</dd>
-      <dt>答案</dt>
-      <dd><b>是的，但幅度极小。</b>0.664，三次重复，而距离只变了千分之三。</dd>
+      <dt>What it needs</dt>
+      <dd><b>Two models per subject</b>: one that saw them, one that did not. This is a research
+      instrument, not an attack.</dd>
+      <dt>Statistic</dt>
+      <dd>gap = distance to the model that did not see them − distance to the model that did.
+      Positive means information entered the model.</dd>
+      <dt>Metric</dt>
+      <dd>P(a random outlier's gap &gt; a random control's gap). 0.5 = no difference.</dd>
+      <dt>Answer</dt>
+      <dd><b>Yes, but the magnitude is tiny.</b> 0.664 across three replicates, while the distance
+      itself moves by three parts in a thousand.</dd>
     </dl>
   </div>
 </div>
 
 <p class="sec-tag">03</p>
-<h2 id="how">gap 是怎么算出来的</h2>
-<p>拖动滑块，看「模型记住这个人」的程度如何改变两个距离。
-每个点是一个合成样本，星号是这个人的一个真实窗口。</p>
+<h2 id="how">How the gap is computed</h2>
+<p>Drag the slider to see how the degree of memorisation changes the two distances. Each dot is a
+synthetic sample; the black marker is one real window belonging to this subject.</p>
 
 <div class="fig">
-  <h4>d_IN 与 d_OUT</h4>
-  <p class="sub">gap = d_OUT − d_IN。我们取的是<b>最近的那个合成样本</b>的距离——
-  模型记住一个人，表现为某个样本特别接近他，而不是整个分布朝他平移。</p>
+  <h4>d_IN versus d_OUT</h4>
+  <p class="sub">gap = d_OUT − d_IN. We take the distance to the <b>single nearest synthetic
+  sample</b> — memorising a person shows up as one sample sitting unusually close to them, not as
+  the whole distribution shifting toward them.</p>
   <div class="ctl">
-    <label>记忆程度
+    <label>Memorisation
       <input type="range" id="memSlider" min="0" max="100" value="30" style="width:220px">
     </label>
     <span class="mono" id="memRead" style="color:var(--ink-3);font-size:.85rem"></span>
   </div>
-  <svg id="gapDemo" viewBox="0 0 900 300" role="img" aria-label="d_IN 与 d_OUT 的示意"></svg>
+  <svg id="gapDemo" viewBox="0 0 900 300" role="img" aria-label="Illustration of d_IN and d_OUT"></svg>
   <div class="legend">
-    <span><i style="background:var(--s1)"></i>没见过他的模型（base）</span>
-    <span><i style="background:var(--s2)"></i>见过他的模型（include）</span>
-    <span><i style="background:var(--ink);border-radius:50%"></i>他的真实窗口</span>
+    <span><i style="background:var(--s1)"></i>model that never saw them (base)</span>
+    <span><i style="background:var(--s2)"></i>model that saw them (include)</span>
+    <span><i style="background:var(--ink);border-radius:50%"></i>their real window</span>
   </div>
-  <figcaption>示意图，用于说明统计量的定义；下面的图都是实测数据。</figcaption>
+  <figcaption>Schematic — it defines the statistic. Every chart below is measured data.</figcaption>
 </div>
 
 <p class="sec-tag">04</p>
-<h2 id="q1">问题一：现实攻击者做不到</h2>
+<h2 id="q1">Question 1: a realistic attacker cannot do it</h2>
 
 <div class="fig">
-  <h4>八种攻击组合，两臂均值之差</h4>
-  <p class="sub">每一种都是「分类器 × 特征集」的组合，留一受试者交叉验证。
-  正值 = outlier 组更容易被攻击。</p>
-  <svg id="attackers" viewBox="0 0 900 330" role="img" aria-label="八种攻击组合的两臂差异"></svg>
-  <figcaption>最好的一个 +0.014，一半为负。作为对照，同一套面板在逐字复制的
-  生成器上读到 0.82（算术上限 0.816），在负对照上读到 0.50——
-  <b>所以这是一个测出来的零，不是测不出来。</b></figcaption>
+  <h4>Eight attack configurations, difference between the two arms</h4>
+  <p class="sub">Each is a classifier × feature-set pairing, evaluated leave-one-subject-out.
+  Positive = the outlier arm is easier to attack.</p>
+  <svg id="attackers" viewBox="0 0 900 330" role="img" aria-label="Arm difference for eight attack configurations"></svg>
+  <figcaption>The best one reaches +0.014 and half are negative. For calibration, the same panel
+  reads 0.82 on a generator that copies its training data verbatim (arithmetic ceiling 0.816) and
+  0.50 on a negative control — <b>so this is a measured zero, not a failure to measure.</b></figcaption>
 </div>
 
 <div class="fig">
-  <h4>80 个受试者，每人一个 AUC</h4>
-  <p class="sub">横轴是这个人被判定成员身份的 AUC。0.5 = 攻击对他无效。
-  悬停看是谁，点击图例可只看一组。</p>
+  <h4>Eighty subjects, one AUC each</h4>
+  <p class="sub">The horizontal axis is how well this person's membership can be determined.
+  0.5 means the attack does nothing for them. Hover for identity.</p>
   <div class="ctl">
-    <button class="seg" id="btnAll" aria-pressed="true">全部 80 人</button>
-    <button class="seg" id="btnNo1142" aria-pressed="false">剔除 1142</button>
+    <button class="seg" id="btnAll" aria-pressed="true">All 80 subjects</button>
+    <button class="seg" id="btnNo1142" aria-pressed="false">Exclude 1142</button>
     <span class="spacer"></span>
-    <label><input type="checkbox" id="sizeByN" checked> 点大小 = 窗口数</label>
+    <label><input type="checkbox" id="sizeByN" checked> Dot size = window count</label>
   </div>
-  <svg id="strip" viewBox="0 0 900 250" role="img" aria-label="80 个受试者的逐受试者 AUC"></svg>
+  <svg id="strip" viewBox="0 0 900 250" role="img" aria-label="Per-subject AUC for 80 subjects"></svg>
   <div class="legend">
-    <span><i style="background:var(--s2)"></i>outlier（20 人）</span>
-    <span><i style="background:var(--s1)"></i>normal（60 人）</span>
+    <span><i style="background:var(--s2)"></i>outlier (20)</span>
+    <span><i style="background:var(--s1)"></i>typical (60)</span>
   </div>
   <figcaption id="stripCap"></figcaption>
-  <details class="tbl"><summary>数据表</summary><div id="stripTbl"></div></details>
+  <details class="tbl"><summary>Data table</summary><div id="stripTbl"></div></details>
 </div>
 
 <p class="sec-tag">05</p>
-<h2 id="q2">问题二：效应存在，但小到可忽略</h2>
+<h2 id="q2">Question 2: the effect exists, but it is negligible</h2>
 
 <div class="fig">
-  <h4>三次独立重复，剔除 1142 前后</h4>
-  <p class="sub">1142 是唯一一个个人 AUC 明显偏高的受试者。
-  如果结论只是被他一个人撑起来的，剔除后应该塌到 0.5。</p>
-  <svg id="reps" viewBox="0 0 900 260" role="img" aria-label="三次重复的组间 AUC"></svg>
-  <figcaption>只掉 0.016。<b>秩统计量对极端值不敏感</b>——1142 排名第 1–3，
-  但 AUC 只关心「他排在多少个对照之前」，第 1 名和第 20 名的贡献上限相同。
-  相比之下个体均值差降了 61%，因为均值会被他的绝对数值拉动。</figcaption>
+  <h4>Three independent replicates, with and without subject 1142</h4>
+  <p class="sub">1142 is the only subject whose personal AUC is clearly elevated. If the conclusion
+  rested on him alone, removing him should collapse it to 0.5.</p>
+  <svg id="reps" viewBox="0 0 900 260" role="img" aria-label="Arm AUC across three replicates"></svg>
+  <figcaption>It drops by 0.016. <b>A rank statistic is insensitive to extreme values</b> — 1142
+  ranks 1st to 3rd, but the AUC only asks how many controls he outranks, and ranking 1st contributes
+  no more than ranking 20th. The difference in per-subject means, by contrast, falls by 61%, because
+  a mean is pulled by his absolute value.</figcaption>
 </div>
 
 <div class="fig">
-  <h4>换一种距离定义，结论会变吗</h4>
-  <p class="sub">六个变体全部计算，但<b>哪个算数是事先在正对照上冻结的</b>。
-  分野在横轴（如何从合成集合里选样本），不在纵轴（如何汇总这个人的窗口）。</p>
-  <svg id="variants" viewBox="0 0 900 300" role="img" aria-label="六个距离变体的 AUC"></svg>
-  <figcaption><code>min</code> = 最近的那个合成样本有多近，记忆化的读数；
-  <code>mean</code> = 离整个合成分布多远，分布拟合的读数。
-  成员记忆本就该体现在前者。三组数据一致支持这个分野，
-  <b>方向是可以事先从机理预期的，不是事后挑出来的</b>。</figcaption>
+  <h4>Does a different distance definition change the conclusion?</h4>
+  <p class="sub">All six variants were computed, but <b>which one counts was frozen in advance on
+  the positive control</b>. The split is on the horizontal axis (how a sample is chosen from the
+  synthetic set), not the vertical one (how a subject's windows are pooled).</p>
+  <svg id="variants" viewBox="0 0 900 300" role="img" aria-label="AUC for six distance variants"></svg>
+  <figcaption><code>min</code> = how close the nearest synthetic sample gets — a memorisation
+  readout. <code>mean</code> = how far the subject is from the whole synthetic distribution — a
+  distribution-fit readout. Membership memorisation should show up in the former. All three
+  replicates agree on the split, and <b>the direction was predictable from mechanism in advance,
+  not picked after the fact</b>.</figcaption>
 </div>
 
 <p class="sec-tag">06</p>
-<h2 id="dead">四个走不通的方向</h2>
-<p>每一个都曾经是「也许是因为⋯⋯」的猜想，每一个都被实测否定。
-<b>否定结果同样是结果</b>——它们把可能的解释一个个划掉。</p>
+<h2 id="dead">Four directions that led nowhere</h2>
+<p>Each was once a "maybe it's because…" hypothesis, and each was ruled out by measurement.
+<b>Negative results are results</b> — they cross off the candidate explanations one at a time.</p>
 
 <div class="fig">
-  <h4>窗口太短？——不是</h4>
-  <p class="sub">用逐字复制的生成器作标尺，它的检测上限由抽样比例决定，与拟合能力无关。</p>
-  <svg id="windows" viewBox="0 0 900 250" role="img" aria-label="不同窗口长度下的攻击上限"></svg>
-  <figcaption>从 1 天到 21 天，上限恒定在 0.811–0.824。
-  gap 的绝对幅度涨了 54%（长窗口被记住时更突出），但<b>被记住的比例始终是 63.2%</b>，
-  而秩统计量只看比例。</figcaption>
+  <h4>Windows too short? — No</h4>
+  <p class="sub">Using a verbatim-copying generator as a ruler: its detection ceiling is set by the
+  sampling fraction alone, independent of how well anything fits.</p>
+  <svg id="windows" viewBox="0 0 900 250" role="img" aria-label="Attack ceiling across window lengths"></svg>
+  <figcaption>From 1 day to 21 days the ceiling stays at 0.811–0.824. The absolute gap grows 54%
+  (a longer window that gets memorised stands out more), but <b>the fraction that gets memorised is
+  always 63.2%</b>, and a rank statistic only sees the fraction.</figcaption>
 </div>
 
 <div class="fig">
-  <h4>模型太小？——不是</h4>
-  <p class="sub">纵轴是判别器区分真假合成数据的准确率，0.5 最好（完全分不出）。
-  每个宽度训一个模型，预算相同。</p>
-  <svg id="width" viewBox="0 0 900 250" role="img" aria-label="不同模型宽度下的生成质量"></svg>
-  <figcaption>参数量涨 3.8 倍，准确率从 0.595 到 0.582，无趋势。
-  作为噪声标尺：<b>同一个宽度下三个模型的读数是 0.677 / 0.553 / 0.653</b>，
-  跨度 0.124，是跨五个宽度跨度（0.061）的两倍。</figcaption>
+  <h4>Model too small? — No</h4>
+  <p class="sub">The vertical axis is how accurately a discriminator separates real from synthetic;
+  0.5 is best (indistinguishable). One model per width, identical budget.</p>
+  <svg id="width" viewBox="0 0 900 250" role="img" aria-label="Generation quality across model widths"></svg>
+  <figcaption>Parameters grow 3.8×; accuracy goes from 0.595 to 0.582, with no trend. As a noise
+  ruler: <b>three models at the same width read 0.677 / 0.553 / 0.653</b>, a spread of 0.124 —
+  twice the spread across all five widths (0.061).</figcaption>
 </div>
 
 <div class="fig">
-  <h4>通道太少？——加了反而更差</h4>
-  <p class="sub">同一批模型、同一套攻击，只改保留哪些通道。左：组间 AUC。右：真实数据里的可识别性。</p>
-  <svg id="channels" viewBox="0 0 900 290" role="img" aria-label="按通道拆分的泄漏与可识别性"></svg>
-  <figcaption><b>身份信息最多的通道，泄漏最少。</b>
-  basal 在真实数据里认出本人的能力是 CGM 的 22 倍，对成员泄漏却毫无贡献。
-  基础率是被编程设定的定型量，生成器学会人群里几种模板即可，不需记住个体；
-  CGM 是特异的噪声轨迹，复现某人只能记住他。</figcaption>
+  <h4>Too few channels? — Adding them made it worse</h4>
+  <p class="sub">Same models, same attack; only which channels are kept changes.
+  Left: arm AUC. Right: identifiability in the real data.</p>
+  <svg id="channels" viewBox="0 0 900 290" role="img" aria-label="Leakage and identifiability split by channel"></svg>
+  <figcaption><b>The channel carrying the most identity information leaks the least.</b> Basal rate
+  identifies its owner in real data 22× better than CGM does, yet contributes nothing to membership
+  leakage. Basal rate is a programmed, stereotyped quantity — the generator only needs a handful of
+  population templates and never has to memorise an individual. CGM is an idiosyncratic noisy
+  trajectory, and the only way to reproduce someone's is to remember them.</figcaption>
 </div>
 
-<div class="note warnbox"><b>第四个：训练不够久？</b>——也不是。
-损失在两万步收敛，之后 7 万步只改善 1.6%。七天窗口那一轮我最初按 epoch 对齐只训了
-3,700 步，那是欠拟合 20%，作废重训到收敛后结论不变。</div>
+<div class="note warnbox"><b>The fourth: not trained long enough?</b> — Also no.
+The loss converges by 20,000 steps, and the next 70,000 improve it by 1.6%. In the seven-day round
+I initially matched epochs and trained only 3,700 steps, which was 20% underfit; those models were
+discarded and retrained to convergence, and the conclusion did not change.</div>
 
 <p class="sec-tag">07</p>
-<h2 id="concl">结论</h2>
+<h2 id="concl">Conclusion</h2>
 
 <div class="card">
-  <h3 style="margin-top:0">可发表的表述</h3>
+  <h3 style="margin-top:0">The publishable claim</h3>
   <p style="font-size:1.05rem;color:var(--ink)">
-  <b>有界的安全性结果</b>：在 CGM 生成任务中，成员泄漏是可测量的、有系统性的，
-  但量级上可忽略。</p>
-  <p>不能说成「没有 MIA 问题」——那样无法解释 0.664 是什么；
-  也不能说成「outlier 可被识别」——证据不支持，最强的攻击只把两组分开 +0.014。</p>
+  <b>A bounded safety result</b>: in CGM generation, membership leakage is measurable and
+  systematic, but negligible in magnitude.</p>
+  <p>It cannot be stated as "there is no MIA problem" — that leaves 0.664 unexplained. And it
+  cannot be stated as "outliers are identifiable" — the evidence does not support it; the strongest
+  attack separates the two arms by +0.014.</p>
 </div>
 
-<h3>三件支撑这个结论的事</h3>
+<h3>Three things that hold the conclusion up</h3>
 <table>
-<thead><tr><th>论断</th><th>证据</th><th>为什么可信</th></tr></thead>
+<thead><tr><th>Claim</th><th>Evidence</th><th>Why it is credible</th></tr></thead>
 <tbody>
-<tr><td>效应存在</td><td class="num">0.664</td>
-  <td>三次独立重复（0.663 / 0.674 / 0.655），剔除极端个案后仍成立</td></tr>
-<tr><td>量级可忽略</td><td class="num">0.27% vs 0.11%</td>
-  <td>距离的相对变化；79/80 人的个人 AUC 在 0.50–0.52</td></tr>
-<tr><td>零结果是测出来的</td><td class="num">0.82 / 0.50</td>
-  <td>同一套仪器在会记忆的生成器上读 0.82（上限 0.816），在负对照上读 0.50</td></tr>
+<tr><td>The effect is real</td><td class="num">0.664</td>
+  <td>Three independent replicates (0.663 / 0.674 / 0.655); survives removing the extreme case</td></tr>
+<tr><td>The magnitude is negligible</td><td class="num">0.27% vs 0.11%</td>
+  <td>Relative change in distance; 79 of 80 personal AUCs fall in 0.50–0.52</td></tr>
+<tr><td>The zero was measured</td><td class="num">0.82 / 0.50</td>
+  <td>The same instrument reads 0.82 on a memorising generator (ceiling 0.816) and 0.50 on a negative control</td></tr>
 </tbody>
 </table>
 
-<h3>方法学上可以独立成文的两点</h3>
+<h3>Two methodological findings that stand on their own</h3>
 <div class="two">
   <div class="qbox">
-    <div class="qt">发现 A</div>
-    <h3>可识别性 ≠ 可记忆性</h3>
-    <p style="font-size:.9rem;margin:0">不能用「哪个通道更能认出人」来预测「哪个通道更会泄漏」。
-    basal 的身份信息是 CGM 的 22 倍，泄漏贡献却是零。</p>
+    <div class="qt">Finding A</div>
+    <h3>Identifiability ≠ memorisability</h3>
+    <p style="font-size:.9rem;margin:0">You cannot predict which channel leaks from which channel
+    identifies people. Basal rate carries 22× the identity information of CGM and contributes zero
+    leakage.</p>
   </div>
   <div class="qbox">
-    <div class="qt">发现 B</div>
-    <h3>多通道攻击必须分通道报告</h3>
-    <p style="font-size:.9rem;margin:0">把通道摊平进一个欧氏距离等于假设它们同质。
-    加入不带信息的维度会改变「最近样本」是哪一个，从而稀释真实信号。</p>
+    <div class="qt">Finding B</div>
+    <h3>Multi-channel attacks must report per channel</h3>
+    <p style="font-size:.9rem;margin:0">Flattening channels into one Euclidean distance assumes
+    they are homogeneous. Adding an uninformative dimension changes which sample is "nearest" and
+    dilutes the real signal.</p>
   </div>
 </div>
 
 <p style="margin-top:56px;font-size:.83rem;color:var(--ink-3)">
-数据来源 MetaboNet 公开部分（无 DUA）。生成器 DiM-TS。
-完整设计推导见 <code>docs/DESIGN.md</code>，逐阶段记录见 <code>docs/HISTORY.md</code>，
-成本与未决事项见 <code>docs/MEMO.md</code>。</p>
+Data: the public portion of MetaboNet (no DUA). Generator: DiM-TS.
+Full design derivation in <code>docs/DESIGN.md</code>, stage-by-stage record in
+<code>docs/HISTORY.md</code>, cost and open items in <code>docs/MEMO.md</code>.</p>
 </div>
 
 <script>
@@ -402,51 +419,51 @@ function showTip(ev,title,rows){
 }
 const hideTip=()=>tip.classList.remove('on');
 
-/* ---------- 01 研究脉络 ---------- */
+/* ---------- 01 research flow ---------- */
 const FLOW=[
- {n:'01',h:'群体层面：随机分组做 MIA',q:'生成器整体上会泄漏成员身份吗？',
-  b:'把受试者随机等分成 2/4/6/8/10 个 cluster，用「包含该组的生成器」与「不包含的」构造正负例。多个生成器、多个模型规模。',
-  r:'所有生成器均无明显风险，而且不是因为攻击器太弱。但发现<b>群体平均会稀释个体风险</b>。',
-  v:'no',vt:'无风险，但可能被平均掩盖'},
- {n:'02',h:'转向 outlier',q:'既然平均会稀释，那最可能泄漏的人是谁？',
-  b:'无法对 1,300 个人逐一做 MIA——每人需要两个生成器。直觉是：在某些指标上处于极端的人，泄漏风险更高。于是用 13 个方法投票选出 outlier，四个随机种子取交集。',
-  r:'得到 20 个稳定的 outlier，配 20 个按数据量配平的对照。',
-  v:'part',vt:'研究对象确定'},
- {n:'03',h:'主实验：123 个模型',q:'outlier 的泄漏是否显著高于对照？',
-  b:'每个受试者两个模型：见过他的、没见过他的。三次独立重复，每次 41 个模型。655 GPU·小时。',
-  r:'组间 AUC <b>0.680</b>（剔除极端个案后 0.664），三次重复一致，p ≈ 0.0005。但个体层面 79/80 人在 0.50–0.52。',
-  v:'yes',vt:'效应存在，量级可忽略'},
- {n:'04',h:'是不是攻击器太弱？',q:'换更强的攻击能测出泄漏吗？',
-  b:'八种「分类器 × 特征」组合，留一受试者交叉验证。同时用逐字复制的生成器验证仪器灵敏度。',
-  r:'最强组合只差 <b>+0.014</b>，一半为负。而仪器在会记忆的生成器上读 0.82，在负对照上读 0.50。',
-  v:'no',vt:'不是攻击器的问题'},
- {n:'05',h:'是不是单通道信息太少？',q:'加入胰岛素通道会怎样？',
-  b:'加入 basal 和 bolus 两个通道重跑。bolus 有 95% 是精确的零。',
-  r:'生成质量变差（判别准确率 0.50 → 0.65），而且<b>加通道稀释了信号</b>。质量问题定位到 bolus：单用「bolus 有多安静」一个特征就能以 0.74 分辨真假。',
-  v:'no',vt:'更差，且原因已定位'},
- {n:'06',h:'是不是单天窗口太短？',q:'用一周、两周、三周的数据呢？',
-  b:'先用逐字复制的生成器测攻击上限——它的上限由抽样比例决定，与拟合能力无关。再真训一轮七天窗口的模型。',
-  r:'从 1 天到 21 天上限<b>恒定在 0.81–0.82</b>。而真训的七天模型生成质量崩溃（判别准确率 0.95），因为连续七天的完整数据只有 7,001 个窗口，是单日的 1/27。',
-  v:'no',vt:'窗口长度不是瓶颈'},
- {n:'07',h:'当前：两通道 + 体重归一化',q:'去掉拖后腿的 bolus，把 basal 按体重归一化呢？',
-  b:'CGM + basal/kg 两通道，1,208 人。胰岛素按公斤给药，不归一化的话这个通道携带的是体型。',
-  r:'队列已建、outlier 已重投（22 人，稳定率 85% 为三种配置最高）、21 个模型的试点正在训练。',
-  v:'part',vt:'进行中'}
+ {n:'01',h:'Population level: MIA on random groups',q:'Does the generator leak membership at all?',
+  b:'Subjects were split at random into 2/4/6/8/10 clusters; positives and negatives came from generators that did or did not include a given cluster. Several generators, several model sizes.',
+  r:'No meaningful risk on any generator — and not because the attacker was too weak. But it exposed that <b>averaging over a population dilutes individual risk</b>.',
+  v:'no',vt:'No risk, but averaging may hide it'},
+ {n:'02',h:'Pivot to outliers',q:'If averaging dilutes, who is most likely to leak?',
+  b:'Running MIA on all 1,300 subjects is impossible — each one needs two generators. The intuition: people who are extreme on some measure should be at higher risk. Thirteen methods vote on who is an outlier, intersected across four random seeds.',
+  r:'Twenty stable outliers, matched to twenty controls balanced on data volume.',
+  v:'part',vt:'Study population defined'},
+ {n:'03',h:'Main experiment: 123 models',q:'Do outliers leak significantly more than controls?',
+  b:'Two models per subject — one that saw them, one that did not. Three independent replicates of 41 models each. 655 GPU-hours.',
+  r:'Arm AUC <b>0.680</b> (0.664 after removing the extreme case), consistent across all three replicates, p ≈ 0.0005. But at the individual level, 79 of 80 subjects sit in 0.50–0.52.',
+  v:'yes',vt:'Real effect, negligible magnitude'},
+ {n:'04',h:'Was the attacker too weak?',q:'Can a stronger attack detect the leakage?',
+  b:'Eight classifier × feature-set combinations, leave-one-subject-out. In parallel, a verbatim-copying generator calibrates the instrument’s sensitivity.',
+  r:'The strongest combination separates the arms by only <b>+0.014</b>, and half are negative. Meanwhile the instrument reads 0.82 on a memorising generator and 0.50 on a negative control.',
+  v:'no',vt:'Not an attacker problem'},
+ {n:'05',h:'Was one channel too little information?',q:'What happens if the insulin channels are added?',
+  b:'Rerun with basal and bolus added. Bolus is exactly zero 95% of the time.',
+  r:'Generation quality got worse (discriminator accuracy 0.50 → 0.65) and <b>the extra channels diluted the signal</b>. The quality problem localises to bolus: the single feature "how quiet is bolus" separates real from synthetic at 0.74.',
+  v:'no',vt:'Worse, and the cause is localised'},
+ {n:'06',h:'Was a one-day window too short?',q:'What about one, two or three weeks of data?',
+  b:'First measure the attack ceiling with a verbatim-copying generator — its ceiling is set by the sampling fraction, independent of fitting ability. Then actually train a round of seven-day models.',
+  r:'From 1 to 21 days the ceiling is <b>flat at 0.81–0.82</b>. The real seven-day models collapsed in quality (discriminator accuracy 0.95), because only 7,001 windows have seven complete consecutive days — one twenty-seventh of the single-day count.',
+  v:'no',vt:'Window length is not the bottleneck'},
+ {n:'07',h:'Current: two channels, weight-normalised',q:'Drop the harmful bolus channel and normalise basal by body mass?',
+  b:'CGM + basal/kg, two channels, 1,208 subjects. Insulin is dosed per kilogram, so without normalisation this channel mostly carries body size.',
+  r:'Cohort built, outliers re-voted (22 subjects, 85% stability — the highest of the three configurations), and a 21-model pilot is training.',
+  v:'part',vt:'In progress'}
 ];
-const flow=$('#flow');
+const flow=$('#flowSteps');
 FLOW.forEach((s,i)=>{
   const d=document.createElement('div');
   d.className='step'; d.setAttribute('aria-expanded', i===2?'true':'false'); d.tabIndex=0;
   d.innerHTML='<div class="n">'+s.n+'</div><div><div class="h">'+s.h+'</div>'+
     '<div class="q">'+s.q+'</div><div class="body"><p style="margin:0 0 8px">'+s.b+'</p>'+
-    '<p style="margin:0"><b>结果 · </b>'+s.r+'</p>'+
+    '<p style="margin:0"><b>Result · </b>'+s.r+'</p>'+
     '<span class="verdict v-'+s.v+'">'+s.vt+'</span></div></div>';
   const t=()=>d.setAttribute('aria-expanded', d.getAttribute('aria-expanded')==='true'?'false':'true');
   d.onclick=t; d.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();t()}};
   flow.appendChild(d);
 });
 
-/* ---------- 03 gap 示意 ---------- */
+/* ---------- 03 gap schematic ---------- */
 function drawGap(){
   const svg=$('#gapDemo'); svg.textContent='';
   const mem=+$('#memSlider').value/100;
@@ -461,7 +478,7 @@ function drawGap(){
     g.appendChild(el('rect',{x:x0,y:34,width:half,height:H-90,rx:8,
       fill:'var(--surface-2)',stroke:'var(--line)'}));
     const lab=el('text',{x:x0,y:24,class:'ax',fill:'var(--ink-2)','font-weight':'600'});
-    lab.textContent = k? '见过他的模型 include_t' : '没见过他的模型 base';
+    lab.textContent = k? 'model that saw them  ·  include_t' : 'model that never saw them  ·  base';
     g.appendChild(lab);
     const px=p=>x0+12+p[0]*(half-24), py=p=>44+p[1]*(H-110);
     let best=1e9,bp=null;
@@ -491,13 +508,14 @@ function drawGap(){
   const gap=dist[0]-dist[1];   // d_OUT − d_IN
   const t=el('text',{x:W/2,y:H-16,'text-anchor':'middle',class:'ax',
     fill:'var(--ink)','font-size':'13'});
-  t.textContent='gap = d_OUT − d_IN = '+gap.toFixed(4)+(gap>0.004?'　→　信息进入了模型':'　→　测不出差别');
+  t.textContent='gap = d_OUT − d_IN = '+gap.toFixed(4)+
+    (gap>0.004?'   →   information entered the model':'   →   no detectable difference');
   svg.appendChild(t);
   $('#memRead').textContent='gap '+gap.toFixed(4);
 }
 $('#memSlider').oninput=drawGap;
 
-/* ---------- 04 攻击组合 ---------- */
+/* ---------- 04 attack configurations ---------- */
 const ATTACK=[['C1_logreg × F1_min',0.0137],['C1_logreg × F3_raw10',0.0092],
  ['C2_tree × F3_raw10',0.0037],['C4_hgb × F3_raw10',0.0009],['C5_svm × F3_raw10',-0.0020],
  ['C3_forest × F3_raw10',-0.0053],['C4_hgb × F2_cheap4',-0.0072],['C6_mlp × F3_raw10',-0.0138]];
@@ -521,8 +539,8 @@ function drawAttack(){
       'text-anchor':pos?'start':'end',fill:'var(--ink-2)'});
     vl.textContent=(v>=0?'+':'')+v.toFixed(4); g.appendChild(vl);
     g.style.cursor='pointer';
-    g.onmousemove=e=>showTip(e,n,['两臂均值之差 '+(v>=0?'+':'')+v.toFixed(4),
-      v>0?'outlier 组略易被攻击':'方向相反（对照组反而更易）']);
+    g.onmousemove=e=>showTip(e,n,['arm difference '+(v>=0?'+':'')+v.toFixed(4),
+      v>0?'outlier arm marginally easier':'direction reversed — controls easier']);
     g.onmouseleave=hideTip;
   });
   [[-0.01,'−0.01'],[0,'0'],[0.01,'+0.01']].forEach(([v,s])=>{
@@ -530,16 +548,16 @@ function drawAttack(){
     t.textContent=s; svg.appendChild(t);
   });
   const cap=el('text',{x:L+iw/2,y:T+ih+38,'text-anchor':'middle',class:'ax'});
-  cap.textContent='outlier 组 AUC 均值 − 对照组 AUC 均值'; svg.appendChild(cap);
+  cap.textContent='mean AUC of the outlier arm − mean AUC of the control arm'; svg.appendChild(cap);
 }
 
-/* ---------- 04 逐受试者 strip ---------- */
+/* ---------- 04 per-subject strip ---------- */
 const SUBJ=[["1142","O",0.6427,363],["34","C",0.5182,218],["936","O",0.5173,206],["1049","C",0.5170,33],["549","C",0.5169,124],["1059","C",0.5164,67],["1209","C",0.5157,61],["342","O",0.5152,153],["569","O",0.5151,223],["218","C",0.5150,60],["1183","O",0.5147,60],["790","C",0.5135,69],["755","O",0.5133,219],["960","C",0.5117,110],["902","C",0.5107,32],["136","C",0.5105,64],["806","O",0.5102,149],["167","C",0.5089,83],["54","C",0.5076,224],["712","C",0.5075,136],["414","C",0.5072,272],["186","O",0.5070,84],["973","O",0.5069,67],["329","O",0.5067,123],["208","C",0.5065,206],["592","C",0.5063,220],["80","C",0.5058,363],["668","C",0.5052,276],["135","C",0.5051,222],["880","C",0.5050,216],["788","C",0.5045,84],["764","O",0.5040,62],["481","O",0.5039,110],["263","O",0.5036,273],["1013","C",0.5035,174],["1052","C",0.5034,215],["433","C",0.5024,110],["467","C",0.5022,275],["683","C",0.5022,175],["996","C",0.5019,183],["387","C",0.5016,78],["1184","C",0.5014,134],["680","C",0.5014,150],["133","C",0.5014,370],["253","C",0.5013,110],["727","O",0.5011,311],["419","C",0.5011,310],["503","C",0.5011,149],["633","O",0.5009,185],["1031","C",0.5009,124],["1145","O",0.5001,79],["763","O",0.4999,174],["282","C",0.4999,367],["274","C",0.4999,154],["602","O",0.4999,68],["695","C",0.4997,187],["1177","C",0.4995,78],["83","C",0.4994,206],["844","C",0.4984,135],["363","C",0.4984,173],["805","O",0.4984,135],["984","C",0.4981,124],["831","C",0.4979,206],["1163","O",0.4977,31],["543","C",0.4977,152],["246","C",0.4974,63],["37","C",0.4971,310],["464","C",0.4970,152],["346","C",0.4968,148],["1005","C",0.4931,80],["2304","C",0.4929,68],["653","C",0.4928,310],["621","C",0.4921,59],["1039","C",0.4920,70],["462","C",0.4916,184],["792","C",0.4911,30],["237","C",0.4898,68],["404","C",0.4880,62],["1078","C",0.4878,70],["689","C",0.4807,85]];
 let stripMode='all';
 function drawStrip(){
   const svg=$('#strip'); svg.textContent='';
   const data=stripMode==='no'?SUBJ.filter(d=>d[0]!=='1142'):SUBJ;
-  const W=900,H=250,L=48,R=34,T=26,B=54, iw=W-L-R, ih=H-T-B;
+  const W=900,H=250,L=58,R=34,T=26,B=54, iw=W-L-R, ih=H-T-B;
   const lo=0.478, hi=stripMode==='no'?0.522:0.650;
   const x=v=>L+(v-lo)/(hi-lo)*iw;
   const byN=$('#sizeByN').checked;
@@ -556,7 +574,7 @@ function drawStrip(){
   svg.appendChild(el('line',{x1:x(0.5),y1:T-6,x2:x(0.5),y2:T+ih,
     stroke:'var(--line-strong)','stroke-width':1.5}));
   const rl=el('text',{x:x(0.5),y:T-11,'text-anchor':'middle',class:'reflabel'});
-  rl.textContent='0.5 = 攻击无效'; svg.appendChild(rl);
+  rl.textContent='0.5 = attack does nothing'; svg.appendChild(rl);
   // beeswarm-ish: two rows
   const rows={O:T+ih*0.30, C:T+ih*0.68};
   const used={O:[],C:[]};
@@ -570,30 +588,33 @@ function drawStrip(){
     const c=el('circle',{cx:cx,cy:cy,r:r,fill:g==='O'?cs('--s2'):cs('--s1'),
       opacity:.82,stroke:'var(--surface-1)','stroke-width':1.5});
     c.style.cursor='pointer';
-    c.onmousemove=e=>showTip(e,'受试者 '+id,[
-      (g==='O'?'outlier':'normal'),'AUC '+auc.toFixed(4),n+' 个窗口']);
+    c.onmousemove=e=>showTip(e,'subject '+id,[
+      (g==='O'?'outlier':'typical'),'AUC '+auc.toFixed(4),n+' windows']);
     c.onmouseleave=hideTip;
     svg.appendChild(c);
   });
   ['O','C'].forEach(g=>{
     const t=el('text',{x:L-10,y:rows[g]+4,'text-anchor':'end',class:'ax',
       fill:g==='O'?cs('--s2'):cs('--s1'),'font-weight':'600'});
-    t.textContent=g==='O'?'outlier':'normal'; svg.appendChild(t);
+    t.textContent=g==='O'?'outlier':'typical'; svg.appendChild(t);
   });
   const o=data.filter(d=>d[1]==='O'), c=data.filter(d=>d[1]==='C');
   const mo=o.reduce((a,b)=>a+b[2],0)/o.length, mc=c.reduce((a,b)=>a+b[2],0)/c.length;
   $('#stripCap').innerHTML= stripMode==='no'
-    ? 'outlier 均值 <b>'+mo.toFixed(4)+'</b>（19 人），normal <b>'+mc.toFixed(4)+
-      '</b>（60 人），差 <b>'+(mo-mc).toFixed(4)+'</b>。剔除 1142 之后两组几乎完全重叠。'
-    : 'outlier 均值 <b>'+mo.toFixed(4)+'</b>（20 人），normal <b>'+mc.toFixed(4)+
-      '</b>（60 人），差 <b>'+(mo-mc).toFixed(4)+'</b>。'+
-      '<b>79 个人挤在 0.48–0.52 之间</b>，只有 1142 一个例外——他一个人贡献了 61% 的组间差异。';
+    ? 'Outlier mean <b>'+mo.toFixed(4)+'</b> (19 subjects), typical <b>'+mc.toFixed(4)+
+      '</b> (60), difference <b>'+(mo-mc).toFixed(4)+'</b>. Without 1142 the two groups '+
+      'overlap almost completely.'
+    : 'Outlier mean <b>'+mo.toFixed(4)+'</b> (20 subjects), typical <b>'+mc.toFixed(4)+
+      '</b> (60), difference <b>'+(mo-mc).toFixed(4)+'</b>. '+
+      '<b>Seventy-nine subjects are packed into 0.48–0.52</b>, with 1142 the sole exception — '+
+      'he alone accounts for 61% of the between-arm difference.';
   // table view
-  let h='<table><thead><tr><th>受试者</th><th>组</th><th>AUC</th><th>窗口数</th></tr></thead><tbody>';
+  let h='<table><thead><tr><th>Subject</th><th>Arm</th><th>AUC</th><th>Windows</th></tr></thead><tbody>';
   data.slice(0,12).forEach(([id,g,a,n])=>{h+='<tr'+(id==='1142'?' class="hl"':'')+
-    '><td>'+id+'</td><td>'+(g==='O'?'outlier':'normal')+
+    '><td>'+id+'</td><td>'+(g==='O'?'outlier':'typical')+
     '</td><td class="num">'+a.toFixed(4)+'</td><td class="num">'+n+'</td></tr>'});
-  h+='</tbody></table><p style="font-size:.8rem;color:var(--ink-3);margin:6px 0 0">按 AUC 降序，前 12 行。</p>';
+  h+='</tbody></table><p style="font-size:.8rem;color:var(--ink-3);margin:6px 0 0">'+
+     'Sorted by AUC, top 12 rows.</p>';
   $('#stripTbl').innerHTML=h;
 }
 $('#btnAll').onclick=()=>{stripMode='all';$('#btnAll').setAttribute('aria-pressed','true');
@@ -602,11 +623,11 @@ $('#btnNo1142').onclick=()=>{stripMode='no';$('#btnNo1142').setAttribute('aria-p
   $('#btnAll').setAttribute('aria-pressed','false');drawStrip()};
 $('#sizeByN').onchange=drawStrip;
 
-/* ---------- 05 三次重复 ---------- */
-const REPS=[['rep1',0.6800,0.6632],['rep2',0.6900,0.6737],['rep3',0.6700,0.6553]];
+/* ---------- 05 three replicates ---------- */
+const REPS=[['rep 1',0.6800,0.6632],['rep 2',0.6900,0.6737],['rep 3',0.6700,0.6553]];
 function drawReps(){
   const svg=$('#reps'); svg.textContent='';
-  const W=900,H=260,L=64,R=150,T=26,B=46, iw=W-L-R, ih=H-T-B;
+  const W=900,H=260,L=64,R=176,T=26,B=46, iw=W-L-R, ih=H-T-B;
   const lo=0.5,hi=0.72, y=v=>T+ih-(v-lo)/(hi-lo)*ih;
   [0.5,0.55,0.6,0.65,0.7].forEach(v=>{
     svg.appendChild(el('line',{x1:L,y1:y(v),x2:L+iw,y2:y(v),class:'gridline'}));
@@ -616,11 +637,11 @@ function drawReps(){
   svg.appendChild(el('line',{x1:L,y1:y(0.5),x2:L+iw,y2:y(0.5),
     stroke:'var(--line-strong)','stroke-width':1.5}));
   const rl=el('text',{x:L+iw+8,y:y(0.5)+4,class:'reflabel'});
-  rl.textContent='0.5 = 两组无差别'; svg.appendChild(rl);
+  rl.textContent='0.5 = no difference'; svg.appendChild(rl);
   const bw=iw/REPS.length, gw=44;
   REPS.forEach(([n,a,b],i)=>{
     const cx=L+bw*i+bw/2;
-    [[a,cs('--s2'),'全部 20 人',-1],[b,cs('--s1'),'剔除 1142',1]].forEach(([v,c,lab,side])=>{
+    [[a,cs('--s2'),'all 20',-1],[b,cs('--s1'),'excl. 1142',1]].forEach(([v,c,lab,side])=>{
       // 2px surface gap between adjacent bars, centred on the replicate tick
       const bx = side<0 ? cx-2-gw : cx+2;
       const g=el('g'); svg.appendChild(g);
@@ -629,30 +650,30 @@ function drawReps(){
         fill:'var(--ink)','font-weight':'600'});
       t.textContent=v.toFixed(3); g.appendChild(t);
       g.style.cursor='pointer';
-      g.onmousemove=e=>showTip(e,n+' · '+lab,['组间 AUC '+v.toFixed(4)]);
+      g.onmousemove=e=>showTip(e,n+' · '+lab,['arm AUC '+v.toFixed(4)]);
       g.onmouseleave=hideTip;
     });
     const t=el('text',{x:cx,y:T+ih+22,'text-anchor':'middle',class:'ax'});
     t.textContent=n; svg.appendChild(t);
   });
   const ly=T+8;
-  [['全部 20 人',cs('--s2'),0],['剔除 1142（19 人）',cs('--s1'),22]].forEach(([s,c,dy])=>{
+  [['all 20 outliers',cs('--s2'),0],['excl. 1142 (n=19)',cs('--s1'),22]].forEach(([s,c,dy])=>{
     svg.appendChild(el('rect',{x:L+iw+12,y:ly+dy-9,width:11,height:11,rx:3,fill:c}));
     const t=el('text',{x:L+iw+28,y:ly+dy,class:'ax',fill:'var(--ink-2)'});
     t.textContent=s; svg.appendChild(t);
   });
   const m=el('text',{x:L+iw+12,y:ly+58,class:'ax',fill:'var(--ink-2)','font-weight':'600'});
-  m.textContent='均值 0.680 → 0.664'; svg.appendChild(m);
+  m.textContent='mean 0.680 → 0.664'; svg.appendChild(m);
   const m2=el('text',{x:L+iw+12,y:ly+76,class:'ax'});
-  m2.textContent='只掉 0.016'; svg.appendChild(m2);
+  m2.textContent='a drop of just 0.016'; svg.appendChild(m2);
 }
 
-/* ---------- 05 六个变体 ---------- */
+/* ---------- 05 six variants ---------- */
 const VAR={'min':{'mean':[0.6800,0.6900,0.6700],'q10':[0.6125,0.7825,0.6200],'min':[0.5350,0.4700,0.4475]},
            'mean':{'mean':[0.5150,0.4700,0.4950],'q10':[0.4900,0.4475,0.4550],'min':[0.4750,0.4300,0.5875]}};
 function drawVariants(){
   const svg=$('#variants'); svg.textContent='';
-  const W=900,H=300,L=110,R=170,T=30,B=54, iw=W-L-R, ih=H-T-B;
+  const W=900,H=300,L=118,R=178,T=30,B=54, iw=W-L-R, ih=H-T-B;
   const lo=0.40,hi=0.80, x=v=>L+(v-lo)/(hi-lo)*iw;
   [0.4,0.5,0.6,0.7,0.8].forEach(v=>{
     svg.appendChild(el('line',{x1:x(v),y1:T,x2:x(v),y2:T+ih,class:'gridline'}));
@@ -677,24 +698,26 @@ function drawVariants(){
     lb.textContent=sr+' × '+br; svg.appendChild(lb);
     if(frozen){
       const f=el('text',{x:L+iw+14,y:cy+4,class:'ax',fill:cs('--s2'),'font-weight':'600'});
-      f.textContent='← 预先冻结的那个'; svg.appendChild(f);
+      f.textContent='← frozen in advance'; svg.appendChild(f);
     }
     g.style.cursor='pointer';
-    g.onmousemove=e=>showTip(e,sr+' × '+br,['三次重复 '+vals.map(v=>v.toFixed(3)).join(' / '),
-      sr==='min'?'取最近的合成样本 · 记忆化读数':'取到整个分布的平均 · 拟合读数']);
+    g.onmousemove=e=>showTip(e,sr+' × '+br,['replicates '+vals.map(v=>v.toFixed(3)).join(' / '),
+      sr==='min'?'nearest synthetic sample · memorisation readout'
+                :'mean over the whole distribution · fit readout']);
     g.onmouseleave=hideTip;
   });
   const t1=el('text',{x:L-14,y:T-10,'text-anchor':'end',class:'ax',fill:'var(--ink-3)'});
-  t1.textContent='选样本 × 汇总窗口'; svg.appendChild(t1);
+  t1.textContent='sample choice × window pooling'; svg.appendChild(t1);
   const t2=el('text',{x:L+iw/2,y:T+ih+40,'text-anchor':'middle',class:'ax'});
-  t2.textContent='组间 AUC（三次独立重复）'; svg.appendChild(t2);
+  t2.textContent='arm AUC (three independent replicates)'; svg.appendChild(t2);
 }
 
-/* ---------- 06 窗口长度 ---------- */
-const WIN=[['1 天',0.8187,0.0680],['7 天',0.8147,0.0917],['14 天',0.8229,0.0951],['21 天',0.8236,0.1047]];
+/* ---------- 06 window length ---------- */
+const WIN=[['1 day',0.8187,0.0680],['7 days',0.8147,0.0917],
+           ['14 days',0.8229,0.0951],['21 days',0.8236,0.1047]];
 function drawWindows(){
   const svg=$('#windows'); svg.textContent='';
-  const W=900,H=250,L=64,R=190,T=28,B=48, iw=W-L-R, ih=H-T-B;
+  const W=900,H=250,L=64,R=196,T=28,B=48, iw=W-L-R, ih=H-T-B;
   const lo=0.75,hi=0.87, y=v=>T+ih-(v-lo)/(hi-lo)*ih;
   [0.76,0.80,0.84].forEach(v=>{
     svg.appendChild(el('line',{x1:L,y1:y(v),x2:L+iw,y2:y(v),class:'gridline'}));
@@ -705,7 +728,7 @@ function drawWindows(){
   svg.appendChild(el('line',{x1:L,y1:y(0.816),x2:L+iw,y2:y(0.816),
     stroke:cs('--s3'),'stroke-width':2,'stroke-dasharray':'5 4'}));
   const cl=el('text',{x:L+iw+8,y:y(0.816)+4,class:'reflabel',fill:cs('--s3'),'font-weight':'600'});
-  cl.textContent='算术上限 0.816'; svg.appendChild(cl);
+  cl.textContent='arithmetic ceiling 0.816'; svg.appendChild(cl);
   const bw=iw/WIN.length;
   WIN.forEach(([n,a,g],i)=>{
     const cx=L+bw*i+bw/2;
@@ -718,23 +741,23 @@ function drawWindows(){
     const l=el('text',{x:cx,y:T+ih+22,'text-anchor':'middle',class:'ax'});
     l.textContent=n; svg.appendChild(l);
     grp.style.cursor='pointer';
-    grp.onmousemove=e=>showTip(e,n+'窗口',['逐受试者 AUC '+a.toFixed(4),
-      '中位 gap '+g.toFixed(4),'窗口越长 gap 越大，但检出比例不变']);
+    grp.onmousemove=e=>showTip(e,n+' window',['per-subject AUC '+a.toFixed(4),
+      'median gap '+g.toFixed(4),'longer windows widen the gap, not the detected fraction']);
     grp.onmouseleave=hideTip;
   });
   const yl=el('text',{x:L+iw+8,y:T+18,class:'ax',fill:'var(--ink-2)','font-weight':'600'});
-  yl.textContent='逐字复制生成器'; svg.appendChild(yl);
-  const yl2=el('text',{x:L+iw+8,y:T+36,class:'ax'});
-  yl2.textContent='的检测上限'; svg.appendChild(yl2);
+  yl.textContent='detection ceiling of the'; svg.appendChild(yl);
+  const yl2=el('text',{x:L+iw+8,y:T+36,class:'ax',fill:'var(--ink-2)','font-weight':'600'});
+  yl2.textContent='verbatim-copying generator'; svg.appendChild(yl2);
   const yl3=el('text',{x:L+iw+8,y:T+62,class:'ax'});
-  yl3.textContent='跨度仅 0.013'; svg.appendChild(yl3);
+  yl3.textContent='total spread: 0.013'; svg.appendChild(yl3);
 }
 
-/* ---------- 06 宽度 ---------- */
+/* ---------- 06 model width ---------- */
 const WID=[[128,2.76,0.595],[160,4.23,0.621],[192,6.01,0.617],[224,7.9,0.643],[256,10.51,0.582]];
 function drawWidth(){
   const svg=$('#width'); svg.textContent='';
-  const W=900,H=250,L=64,R=200,T=30,B=48, iw=W-L-R, ih=H-T-B;
+  const W=900,H=250,L=64,R=206,T=30,B=48, iw=W-L-R, ih=H-T-B;
   const lo=0.48,hi=0.70, y=v=>T+ih-(v-lo)/(hi-lo)*ih;
   const x=i=>L+iw*(i/(WID.length-1));
   [0.5,0.55,0.6,0.65].forEach(v=>{
@@ -746,13 +769,13 @@ function drawWidth(){
   svg.appendChild(el('rect',{x:L,y:y(0.677),width:iw,height:y(0.553)-y(0.677),
     fill:cs('--s2'),opacity:.13}));
   const nb=el('text',{x:L+iw+8,y:y(0.615)+4,class:'reflabel',fill:cs('--s2'),'font-weight':'600'});
-  nb.textContent='同一宽度的噪声带'; svg.appendChild(nb);
+  nb.textContent='same-width noise band'; svg.appendChild(nb);
   const nb2=el('text',{x:L+iw+8,y:y(0.615)+20,class:'reflabel'});
   nb2.textContent='0.553 – 0.677'; svg.appendChild(nb2);
   svg.appendChild(el('line',{x1:L,y1:y(0.5),x2:L+iw,y2:y(0.5),
     stroke:cs('--s3'),'stroke-width':2,'stroke-dasharray':'5 4'}));
   const gl=el('text',{x:L+iw+8,y:y(0.5)+4,class:'reflabel',fill:cs('--s3'),'font-weight':'600'});
-  gl.textContent='0.50 = 完全分不出'; svg.appendChild(gl);
+  gl.textContent='0.50 = indistinguishable'; svg.appendChild(gl);
   let d='';
   WID.forEach(([w,p,v],i)=>{d+=(i?'L':'M')+x(i)+','+y(v)});
   svg.appendChild(el('path',{d:d,fill:'none',stroke:cs('--s1'),'stroke-width':2}));
@@ -760,28 +783,28 @@ function drawWidth(){
     const c=el('circle',{cx:x(i),cy:y(v),r:6,fill:cs('--s1'),
       stroke:'var(--surface-1)','stroke-width':2});
     c.style.cursor='pointer';
-    c.onmousemove=e=>showTip(e,'hidden_size = '+w,[p+' M 参数','判别准确率 '+v.toFixed(3),
-      '0.5 表示生成得完美']);
+    c.onmousemove=e=>showTip(e,'hidden_size = '+w,[p+' M parameters',
+      'discriminator accuracy '+v.toFixed(3),'0.5 would mean perfect generation']);
     c.onmouseleave=hideTip;
     svg.appendChild(c);
     const t=el('text',{x:x(i),y:T+ih+22,'text-anchor':'middle',class:'ax'});
     t.textContent=w; svg.appendChild(t);
   });
   const xl=el('text',{x:L+iw/2,y:T+ih+40,'text-anchor':'middle',class:'ax'});
-  xl.textContent='模型宽度 hidden_size'; svg.appendChild(xl);
+  xl.textContent='model width (hidden_size)'; svg.appendChild(xl);
 }
 
-/* ---------- 06 通道 ---------- */
-const CH=[['CGM',0.735,1.6],['CGM+basal',0.731,null],['bolus',0.632,null],
-          ['三通道',0.581,null],['basal',0.393,34.2]];
+/* ---------- 06 channels ---------- */
+const CH=[['CGM',0.735,1.6],['CGM + basal',0.731,null],['bolus',0.632,null],
+          ['all three',0.581,null],['basal',0.393,34.2]];
 function drawChannels(){
   const svg=$('#channels'); svg.textContent='';
   const W=900,H=290,T=34,B=52, half=(W-70)/2, ih=H-T-B;
   // left: leakage
-  const L1=78, iw1=half-78;
+  const L1=90, iw1=half-90;
   const lo=0.35,hi=0.80, x1=v=>L1+(v-lo)/(hi-lo)*iw1;
-  const t0=el('text',{x:L1,y:16,class:'ax',fill:'var(--ink)','font-weight':'600'});
-  t0.textContent='成员泄漏（组间 AUC）'; svg.appendChild(t0);
+  const t0=el('text',{x:L1-70,y:16,class:'ax',fill:'var(--ink)','font-weight':'600'});
+  t0.textContent='membership leakage (arm AUC)'; svg.appendChild(t0);
   svg.appendChild(el('line',{x1:x1(0.5),y1:T,x2:x1(0.5),y2:T+ih,
     stroke:'var(--line-strong)','stroke-width':1.5}));
   const rh=ih/CH.length;
@@ -797,8 +820,8 @@ function drawChannels(){
       'text-anchor':pos?'start':'end',fill:'var(--ink-2)'});
     vl.textContent=auc.toFixed(3); svg.appendChild(vl);
     g.style.cursor='pointer';
-    g.onmousemove=e=>showTip(e,n,['组间 AUC '+auc.toFixed(3),
-      auc>0.5?'有泄漏信号':'无信号（低于 0.5）']);
+    g.onmousemove=e=>showTip(e,n,['arm AUC '+auc.toFixed(3),
+      auc>0.5?'leakage signal present':'no signal (below 0.5)']);
     g.onmouseleave=hideTip;
   });
   [[0.4,'0.4'],[0.5,'0.5'],[0.6,'0.6'],[0.7,'0.7']].forEach(([v,s])=>{
@@ -806,10 +829,10 @@ function drawChannels(){
     t.textContent=s; svg.appendChild(t);
   });
   // right: identifiability
-  const L2=half+108, iw2=W-L2-46;
-  const t1=el('text',{x:L2-40,y:16,class:'ax',fill:'var(--ink)','font-weight':'600'});
-  t1.textContent='真实数据里的可识别性（top-1 命中率）'; svg.appendChild(t1);
-  const mx=36, x2=v=>L2+v/mx*iw2;
+  const L2=half+116, iw2=W-L2-64;
+  const t1=el('text',{x:L2-48,y:16,class:'ax',fill:'var(--ink)','font-weight':'600'});
+  t1.textContent='identifiability in real data (top-1 hit rate)'; svg.appendChild(t1);
+  const mx=40, x2=v=>L2+v/mx*iw2;
   [['CGM',1.6],['basal/kg',34.2]].forEach(([n,v],i)=>{
     const cy=T+ih*(i?0.66:0.30);
     const g=el('g'); svg.appendChild(g);
@@ -820,24 +843,24 @@ function drawChannels(){
     const vl=el('text',{x:x2(v)+8,y:cy+4,class:'ax',fill:'var(--ink)','font-weight':'600'});
     vl.textContent=v.toFixed(1)+'%'; svg.appendChild(vl);
     g.style.cursor='pointer';
-    g.onmousemove=e=>showTip(e,n,['一天的数据认出本人 '+v.toFixed(1)+'%',
-      i?'59 倍于随机':'2.7 倍于随机','同 study 内比对']);
+    g.onmousemove=e=>showTip(e,n,['one day identifies its owner '+v.toFixed(1)+'% of the time',
+      i?'59× chance':'2.7× chance','compared within the same study']);
     g.onmouseleave=hideTip;
   });
-  const ar=el('text',{x:L2,y:T+ih+20,class:'ax',fill:'var(--ink-3)'});
-  ar.textContent='身份信息 22 倍，泄漏贡献为零'; svg.appendChild(ar);
+  const ar=el('text',{x:L2-48,y:T+ih+20,class:'ax',fill:'var(--ink-3)'});
+  ar.textContent='22× the identity information, zero leakage'; svg.appendChild(ar);
 }
 
 /* ---------- theme ---------- */
 const btn=$('#themeBtn');
 function setTheme(t){
   document.documentElement.setAttribute('data-theme',t);
-  btn.textContent = t==='dark'?'切换浅色':'切换深色';
+  btn.textContent = t==='dark'?'Light mode':'Dark mode';
   drawAll();
 }
 btn.onclick=()=>setTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
 if(matchMedia('(prefers-color-scheme: dark)').matches)
-  document.documentElement.setAttribute('data-theme','dark'),btn.textContent='切换浅色';
+  document.documentElement.setAttribute('data-theme','dark'),btn.textContent='Light mode';
 
 function drawAll(){drawGap();drawAttack();drawStrip();drawReps();
   drawVariants();drawWindows();drawWidth();drawChannels()}

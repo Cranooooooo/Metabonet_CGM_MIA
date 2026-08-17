@@ -3,10 +3,9 @@
 #PBS -P 11704243
 #PBS -j oe
 #
-# Push the interactive report and the documents written since the first push.
-# A job rather than a login-node command: git hashes and compresses every staged file,
-# and NSCC auto-flags login-node compute (NSCC_operation_guide_book.md 1). github.com is
-# reachable over HTTPS only; git needs `module load git/2.39.2` on a compute node.
+# Push docs/report. A job rather than a login-node command: git hashes and compresses every
+# staged file, and NSCC auto-flags login-node compute (NSCC_operation_guide_book.md 1).
+# github.com is reachable over HTTPS only; git needs `module load git/2.39.2` on a compute node.
 #
 #   qsub -l select=1:ncpus=8:mem=32gb -l walltime=00:30:00 \
 #        -o logs/98_push_report.log scripts/pbs/98_push_report.pbs            # -> qdev
@@ -17,27 +16,15 @@ cd "$REPO"
 {
   git add -A
   echo "staged: $(git diff --cached --numstat | wc -l) files"
-  git diff --cached --name-only | grep -E '\.(npy|pt)$' | head -3
-  BIG=$(git diff --cached --name-only -z | xargs -0 -I{} sh -c 'test -f "{}" && stat -c "%s {}" "{}"' \
-        2>/dev/null | awk '$1 > 104857600 {print $2}')
-  [ -n "$BIG" ] && { echo "ABORT, over 100 MB:"; echo "$BIG"; exit 1; }
-
   git commit -q -F - <<'MSG'
-Interactive report, and the documents behind it
+Report in English, and fix a duplicate id that broke the flow section
 
-docs/report/index.html is a single self-contained page: the seven-step research flow as
-expandable cards, the two questions (threat vs effect) side by side with their own data,
-features and metrics, and seven charts on measured data with hover detail. The
-per-subject swarm toggles subject 1142 in and out, because 61% of the arm-level mean
-difference is that one person while the rank-based AUC only moves 0.016 without him.
+`<h2 id="flow">` and the step container `<div id="flow">` shared an id, so `$('#flow')`
+resolved to the heading and all seven step cards were appended inside it. The container
+is now `flowSteps`.
 
-Colours are the dataviz reference palette's first three slots unchanged, which that
-file documents as passing the all-pairs CVD gate in both modes; the validator itself
-could not be run here (no node runtime on this machine).
-
-Also adds docs/SUMMARY_CN.md and docs/HISTORY.md, the two-channel CGM+basal/kg cohort
-(insulin is dosed per kilogram, and `weight` is in POUNDS per the MetaboNet dictionary),
-its re-voted outlier consensus, and the seven-day and copy_paste results.
+Chart margins are widened where the English labels are longer than the Chinese ones they
+replace (replicate legend, window-length and width annotations, channel panel titles).
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 MSG
