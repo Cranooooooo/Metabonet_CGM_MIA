@@ -2,11 +2,6 @@
 #PBS -N cgm_push
 #PBS -P 11704243
 #PBS -j oe
-#
-# Push docs/report. A job rather than a login-node command: git hashes and compresses every
-# staged file, and NSCC auto-flags login-node compute (NSCC_operation_guide_book.md 1).
-# github.com is reachable over HTTPS only; git needs `module load git/2.39.2` on a compute node.
-#
 #   qsub -l select=1:ncpus=8:mem=32gb -l walltime=00:30:00 \
 #        -o logs/98_push_report.log scripts/pbs/98_push_report.pbs            # -> qdev
 source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
@@ -17,14 +12,44 @@ cd "$REPO"
   git add -A
   echo "staged: $(git diff --cached --numstat | wc -l) files"
   git commit -q -F - <<'MSG'
-Report in English, and fix a duplicate id that broke the flow section
+Rebuild the report as an experiment record, and check its numbers against the artefacts
 
-`<h2 id="flow">` and the step container `<div id="flow">` shared an id, so `$('#flow')`
-resolved to the heading and all seven step cards were appended inside it. The container
-is now `flowSteps`.
+The page was a results summary. It is now the decision chain: each section states the
+question, the design, the observation, what it rules out and why the next experiment
+followed, and carries its own status.
 
-Chart margins are widened where the English labels are longer than the Chinese ones they
-replace (replicate legend, window-length and width annotations, channel panel titles).
+Corrections the rebuild forced, all from the artefacts rather than the write-ups:
+
+- The 80-subject swarm was under Question 1. It is a Question 2 artefact — it needs
+  both models — and its own summary.json calls itself exploratory. Moved, relabelled.
+- 0.664 was the headline. It is the excluding-1142 sensitivity analysis; the primary
+  result is 0.680 and the page now says which is which everywhere both appear.
+- "79 of 80 within 0.50-0.52" understates the lower tail. The array runs 0.4807-0.5182.
+- The relative gap is not reproducible as 0.27% vs 0.11%. Recomputed per replicate
+  against each arm's own median distance it is 0.250% and 0.122%; the discrepancy is
+  stated on the page rather than resolved silently.
+- Three-channel results now carry PARTIAL, 44 of 123, and the note that replicate 1's
+  arms are 13 against 18 and no longer day-matched.
+- Seven-day h256 is BLOCKED, not training: 11 checkpoints, then sampling died with CUDA
+  OOM at h256 x T=2016, and nothing is in the queue.
+- The two-channel outlier vote is COMPLETE: all four seeds landed at 14:01 today,
+  22 subjects survive all four, 84.6% against 66.7% for the single-channel run.
+- The width sweep no longer implies anything about seven days. It rules out capacity
+  for the one-day three-channel configuration and says so.
+
+New interactions all answer a question rather than decorate one: the broken-vs-correct
+attack construction (both measured, the broken one reaching +0.14 that is entirely
+release identity), the copy_paste ceiling simulator, the min-vs-mean reduction, the
+rank-vs-magnitude switch, the quality gate in front of the seven-day leakage numbers,
+and the nearest-neighbour dilution geometry.
+
+Every number lives in one DATA object. validateDataConsistency() checks the page against
+itself on load; scripts/check_report_data.py re-derives 110 of them from the artefacts
+and reports the 2 that have no artefact rather than skipping them.
+
+Not done: no browser or node on this machine, so the page was never rendered and the
+palette validator was never run. Verification was static — a JS tokenizer pass, a
+selector/id reference check, and the two data checks above.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 MSG

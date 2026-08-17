@@ -1,0 +1,10 @@
+#!/bin/bash
+#PBS -N cgm_chkrep
+#PBS -P 11704243
+#PBS -j oe
+# Re-derive every headline number in docs/report/index.html from the artefacts.
+#   qsub -l select=1:ncpus=4:mem=16gb -l walltime=00:15:00 \
+#        -o logs/99_check_report.log scripts/pbs/99_check_report.pbs        # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+cd "$REPO"
+python scripts/check_report_data.py 2>&1 | tee logs/99_check_report.live.log
