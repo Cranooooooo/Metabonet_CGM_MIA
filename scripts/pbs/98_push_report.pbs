@@ -12,50 +12,34 @@ cd "$REPO"
   git add -A
   echo "staged: $(git diff --cached --numstat | wc -l) files"
   git commit -q -F - <<'MSG'
-Seven-day: the question was asked of a model that could not answer it
+Add the lab notebook: one tab per working day
 
-The h96 seven-day pilot was written off behind a quality gate reading 0.9475. That
-number was one draw of an unseeded classifier: quality.discriminative_score seeded the
-subsample and the batch draw but not the GRU's weight initialisation, so a score
-depended on how many models had been evaluated earlier in the same process. The same
-byte-identical samples.npy reads 0.9475, 0.5908 and 0.6483.
+docs/report/index.html is the argument, and an argument hides its own history --
+which of these numbers arrived first, what they replaced, and which days were spent
+discovering that a measurement was wrong. docs/report/notebook.html is that record.
 
-Fixed, and redone as a distribution -- eight restarts, fixed subsample, only the
-initialisation moving:
+Thirteen days, 2026-08-06 to 2026-08-18, one gap on 08-11 when nothing ran.
+Reconstructed from artefact mtimes rather than from memory: each day carries what was
+run, what came back with the numbers, what it decided, what bit us, and the artefact
+paths. Days are tagged built / measured / result / defect found / redirected / cost,
+and the timeline bar takes the colour of the day's most consequential tag.
 
-                             min    median    max    spread
-  copy_paste, 7 days       0.4950   0.5067  0.5100   0.0150
-  h256, 7 days, 22k        0.4875   0.5242  0.5508   0.0633
-  h96,  7 days, 34k        0.4792   0.6383  0.8442   0.3650
-  h96,  7 days, 22k        0.4967   0.5538  0.9883   0.4917
+The days that went wrong are in it, because they are most of the story: the attack
+design that was measuring which training run it was looking at (08-12), the three
+defects in the raw file (08-14), the campaign killed by a walltime budgeted from the
+wrong per-model cost (08-16), and the discriminator whose weights were never seeded
+(08-18).
 
-h96 kept every checkpoint, so its own checkpoint-11 is the same 22,000 steps h256 was
-read at. At matched steps the narrow model is separable at 0.988 and the wide one is
-not. Width is the whole story, and over-training is excluded because h96 is MORE
-separable at 22k than at 34k.
+Interaction is the same system as the report -- day tabs, arrow keys, a timeline you
+can click, a show-every-day-at-once mode that is also what prints, dark mode, and
+per-day URL hashes. Nothing is claimed as finished that is not: the two pilots still
+running get their own dashed panel after the last day.
 
-So "longer windows" was not a dead end -- it was untested. The copy_paste ceiling
-result stands separately; that measurement never involved DiM-TS. The 21-model pilot is
-re-running at hidden_size 256, 22,000 steps, 139 GPU.h, ETA 2026-08-19.
-
-The instability has structure worth keeping: where a generator is genuinely
-indistinguishable the classifier lands at chance every time (spread 0.015-0.06); where
-a separable feature exists the draws are bimodal (spread 0.37-0.49). Report the maximum
-over restarts, not one draw. That caveat is now attached to the three-channel quality
-figures and the width sweep, whose direction holds but whose size was measured the old
-way.
-
-Also in this commit: the two-channel pilot relaunched at 40,000 steps after its own
-loss trace showed convergence by 20k; the walltime arithmetic that killed the
-three-channel campaign and was about to cost the two-channel pilot five models is now
-an executable assertion inside the job; docs/PITFALLS.md 16; HISTORY stage 14;
-SUMMARY_CN revised to 2026-08-18.
-
-check_report_data.py re-derives 125 of the page's numbers from the artefacts, 0
-mismatches, and reports the 2 that have no artefact rather than skipping them.
-
-Still not done: no browser or node here, so the page has never been rendered and the
-palette validator has never run. Verification remains static.
+check_report_data.py now also verifies the notebook, by recomputing every day's file
+count from the mtimes under results/, logs/, docs/, scripts/, src/ and data/cohort/ and
+comparing it against the page. It also fails if a day with activity on disk has no
+notebook entry. 137 checks, 0 mismatches; the current day is skipped because its count
+moves while the check runs.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 MSG

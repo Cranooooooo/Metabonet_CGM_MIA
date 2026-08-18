@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en" data-palette="#2a78d6,#eb6834,#1baf7a">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab notebook — CGM membership-inference study</title>
+<meta name="description" content="One tab per working day: what was run, what came back, what it decided. 2026-08-06 to 2026-08-18.">
+<style>
+:root{
+  color-scheme: light;
+  --surface-0:#f6f5f2; --surface-1:#fcfcfb; --surface-2:#efeeea; --surface-3:#e7e5e0;
+  --line:#dedcd6; --line-strong:#c4c2ba;
+  --ink:#0b0b0b; --ink-2:#52514e; --ink-3:#84837c;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; --warn-ink:#8a6100;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --maxw:1060px;
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface-0:#131312; --surface-1:#1a1a19; --surface-2:#232322; --surface-3:#2c2c2a;
+  --line:#333331; --line-strong:#4a4a46;
+  --ink:#ffffff; --ink-2:#c3c2b7; --ink-3:#8d8c84;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+  --good:#35c035; --warn:#fab219; --crit:#e86a6a; --warn-ink:#fab219;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --surface-0:#131312; --surface-1:#1a1a19; --surface-2:#232322; --surface-3:#2c2c2a;
+    --line:#333331; --line-strong:#4a4a46;
+    --ink:#ffffff; --ink-2:#c3c2b7; --ink-3:#8d8c84;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+    --good:#35c035; --warn:#fab219; --crit:#e86a6a; --warn-ink:#fab219;
+  }
+}
+*{box-sizing:border-box}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{
+  animation-duration:.001ms!important;transition-duration:.001ms!important}}
+body{margin:0;background:var(--surface-0);color:var(--ink);
+  font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px 120px}
+h1{font-size:1.95rem;line-height:1.2;margin:0 0 8px;letter-spacing:-.022em}
+h2{font-size:1.35rem;margin:0 0 6px;letter-spacing:-.012em}
+h3{font-size:.99rem;margin:26px 0 8px}
+p{margin:10px 0;color:var(--ink-2)}
+code,.mono{font-family:var(--mono);font-size:.89em}
+a{color:var(--s1)}
+a:focus-visible,button:focus-visible,summary:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid var(--s1);outline-offset:2px;border-radius:4px}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:8px;top:8px;z-index:200;background:var(--surface-1);padding:8px 14px;
+  border:1px solid var(--line-strong);border-radius:8px}
+
+header{padding:60px 0 6px}
+.lede{font-size:1.06rem;color:var(--ink-2);margin:0 0 10px}
+
+/* ---------- timeline strip ---------- */
+.tl{margin:26px 0 6px}
+.tl svg{display:block;width:100%;height:auto;overflow:visible}
+.tl .seg{cursor:pointer}
+.tl .seg:focus-visible rect{stroke:var(--ink);stroke-width:2}
+
+/* ---------- tabs ---------- */
+nav.tabs{position:sticky;top:0;z-index:40;background:var(--surface-0);
+  border-bottom:1px solid var(--line);padding:8px 0;margin:6px 0 0}
+nav.tabs .row{display:flex;gap:3px;flex-wrap:wrap;align-items:center;
+  max-width:var(--maxw);margin:0 auto;padding:0 24px}
+button.tab{background:transparent;border:1px solid transparent;color:var(--ink-2);
+  border-radius:7px;padding:6px 10px;font:inherit;font-size:.83rem;cursor:pointer;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+button.tab:hover{background:var(--surface-2);color:var(--ink)}
+button.tab[aria-selected="true"]{background:var(--s1);border-color:var(--s1);color:#fff}
+:root[data-theme="dark"] button.tab[aria-selected="true"]{color:#08131f}
+button.tab .dot{display:inline-block;width:6px;height:6px;border-radius:50%;
+  margin-right:6px;vertical-align:1px}
+nav.tabs .sp{flex:1 1 auto}
+
+/* ---------- day panel ---------- */
+.day{background:var(--surface-1);border:1px solid var(--line);border-radius:14px;
+  padding:26px 26px 22px;margin:22px 0}
+.day-head{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px}
+.day-date{font:650 13px/1 var(--mono);letter-spacing:.1em;color:var(--ink-3)}
+.day-weekday{font:400 12px/1 var(--mono);color:var(--ink-3)}
+.headline{font-size:1.02rem;color:var(--ink);margin:6px 0 0}
+.badges{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:12px 0 0}
+.badge{display:inline-flex;align-items:center;gap:5px;font:650 10px/1 var(--mono);
+  letter-spacing:.07em;text-transform:uppercase;padding:5px 8px;border-radius:5px;
+  border:1px solid transparent;white-space:nowrap}
+.b-build{background:var(--surface-2);color:var(--ink-2);border-color:var(--line)}
+.b-measure{background:color-mix(in srgb,var(--s1) 14%,transparent);color:var(--s1);
+  border-color:color-mix(in srgb,var(--s1) 38%,transparent)}
+.b-result{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good);
+  border-color:color-mix(in srgb,var(--good) 38%,transparent)}
+.b-defect{background:color-mix(in srgb,var(--crit) 14%,transparent);color:var(--crit);
+  border-color:color-mix(in srgb,var(--crit) 36%,transparent)}
+.b-redirect{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn-ink);
+  border-color:color-mix(in srgb,var(--warn) 42%,transparent)}
+.b-cost{background:color-mix(in srgb,var(--s3) 13%,transparent);color:var(--s3);
+  border-color:color-mix(in srgb,var(--s3) 38%,transparent)}
+
+.sec{margin-top:22px}
+.sec>h4{margin:0 0 8px;font:650 10px/1 var(--mono);letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink-3)}
+ul.items{margin:0;padding-left:0;list-style:none}
+ul.items li{position:relative;padding-left:18px;margin:7px 0;color:var(--ink-2);font-size:.92rem}
+ul.items li::before{content:"";position:absolute;left:2px;top:9px;width:6px;height:6px;
+  border-radius:50%;background:var(--line-strong)}
+ul.items li.hit::before{background:var(--s2)}
+ul.items li.hit{color:var(--ink)}
+ul.items li b{color:var(--ink)}
+
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:10px 0 0}
+.num{background:var(--surface-2);border-radius:9px;padding:11px 13px}
+.num .k{font:650 9px/1.3 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.num .v{font-size:1.3rem;font-weight:650;margin:5px 0 1px;font-variant-numeric:tabular-nums;
+  letter-spacing:-.01em}
+.num .d{font-size:.77rem;color:var(--ink-3);line-height:1.4}
+
+.decision{border-left:3px solid var(--s2);background:var(--surface-2);
+  border-radius:0 9px 9px 0;padding:11px 14px;margin:12px 0 0;font-size:.92rem;color:var(--ink)}
+.decision b{color:var(--ink)}
+.gotcha{border-left:3px solid var(--crit);background:color-mix(in srgb,var(--crit) 7%,transparent);
+  border-radius:0 9px 9px 0;padding:11px 14px;margin:12px 0 0;font-size:.9rem;color:var(--ink-2)}
+.gotcha b{color:var(--ink)}
+
+details.art{margin-top:16px}
+details.art>summary{cursor:pointer;font:650 10px/1 var(--mono);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);list-style:none}
+details.art>summary::-webkit-details-marker{display:none}
+details.art>summary::before{content:"▸ ";font-family:var(--mono)}
+details.art[open]>summary::before{content:"▾ "}
+details.art .body{margin-top:9px;padding:11px 13px;background:var(--surface-2);border-radius:9px;
+  font-family:var(--mono);font-size:.78rem;color:var(--ink-3);line-height:1.65;
+  word-break:break-word}
+.xref{margin-top:14px;font-size:.85rem}
+.xref a{margin-right:14px;white-space:nowrap}
+
+.ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0 0}
+button.btn{background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);
+  border-radius:8px;padding:7px 13px;font:inherit;font-size:.83rem;cursor:pointer}
+button.btn:hover{border-color:var(--line-strong);color:var(--ink)}
+button.btn[aria-pressed="true"]{background:var(--s1);border-color:var(--s1);color:#fff}
+:root[data-theme="dark"] button.btn[aria-pressed="true"]{color:#08131f}
+.hint{font-size:.8rem;color:var(--ink-3)}
+
+.floaters{position:fixed;right:14px;bottom:14px;z-index:50;display:flex;gap:7px}
+.floaters button{background:var(--surface-1);border:1px solid var(--line-strong);
+  color:var(--ink-2);border-radius:999px;padding:8px 14px;font:inherit;font-size:.8rem;cursor:pointer}
+.daynav{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
+.daynav button{flex:1 1 auto;text-align:left}
+.daynav button:last-child{text-align:right}
+
+table{border-collapse:collapse;width:100%;font-size:.85rem;margin:8px 0 0}
+th,td{padding:6px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+th{font-weight:650;color:var(--ink-3);font-size:.72rem;letter-spacing:.05em;
+  text-transform:uppercase;border-bottom-color:var(--line-strong)}
+td.num2{font-variant-numeric:tabular-nums;font-family:var(--mono)}
+.tblscroll{overflow-x:auto}
+
+@media print{
+  nav.tabs,.floaters,.ctl,.daynav,.tl,.skip{display:none!important}
+  body{background:#fff;font-size:10pt}
+  :root{--surface-0:#fff;--surface-1:#fff;--surface-2:#f4f4f2;--ink:#000;--ink-2:#333;
+        --ink-3:#555;--line:#ccc;--line-strong:#999}
+  .day{display:block!important;break-inside:avoid;page-break-inside:avoid;border:1px solid #ccc}
+  details{display:block!important} details>summary{display:none}
+  details .body{display:block!important}
+  a{color:#000;text-decoration:underline}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#panel">Skip to the current day</a>
+<div class="wrap">
+<header>
+  <p style="margin:0 0 12px"><a href="index.html">← the report</a></p>
+  <h1>Lab notebook</h1>
+  <p class="lede">One tab per working day. What was run, what came back, and what it decided —
+  reconstructed from the artefacts on disk and their timestamps, not from memory.</p>
+  <p class="hint" id="span"></p>
+</header>
+<div class="tl"><svg id="tlFig" role="img" aria-label="Timeline of working days, bar height is
+  the number of files written that day"></svg></div>
+</div>
+
+<nav class="tabs" aria-label="Days"><div class="row" id="tabRow"></div></nav>
+
+<div class="wrap">
+  <div class="ctl">
+    <button class="btn" id="allBtn" aria-pressed="false">Show every day at once</button>
+    <span class="hint">or use ← → to move between days</span>
+  </div>
+  <main id="panel"></main>
+</div>
+
+<div class="floaters">
+  <button id="themeBtn">Dark</button>
+</div>
+
+<script>
+/* ============================================================================
+ * The record. Every number here appears in an artefact under results/ or in one
+ * of the docs that cites one; the file counts are from the mtimes of everything
+ * under results/, logs/, docs/, scripts/, src/ and data/cohort/.
+ *
+ * tags: build | measure | result | defect | redirect | cost
+ * ==========================================================================*/
+const DAYS = [
+{
+ date:"2026-08-06", files:133, tags:["build"],
+ headline:"The cohort and the first outlier consensus exist.",
+ ran:[
+  "Built <code>metabonet875</code> from the MetaboNet public release: keep a (subject, day) only when all 288 five-minute cells carry a reading, keep subjects with at least 30 such days.",
+  "Ran the fourteen outlier methods for the first time and wrote the first consensus.",
+  "Drew a first design — 24 outliers against 24 day-matched controls, 49 jobs."],
+ nums:[["cohort","875","subjects"],["windows","182,597","one-day CGM"],
+       ["raw","154.8 M","rows, 1,291 ids, 14 studies"]],
+ decided:"A cohort and a target definition are in place, so the campaign can be costed.",
+ art:"data/cohort/metabonet875/manifest.json · results/design/design.json · results/outliers/ (16 files)"
+},
+{
+ date:"2026-08-07", files:312, tags:["build","measure","cost"],
+ headline:"Symmetric pairing, seed stability, and the cost probe that made the campaign schedulable.",
+ ran:[
+  "Re-drew the design <b>symmetrically</b>: controls are taken OUT of the background first, then each gets its own include model, so all 40 pairs have the identical form and a per-run offset cancels in the comparison.",
+  "Re-ran the whole outlier stack under four base seeds and kept only subjects flagged under all four.",
+  "Measured per-model cost at three widths on an A100 (<code>results/probe/capacity.json</code>).",
+  "Ran the <code>copy_paste</code> generator end to end as a first positive control."],
+ nums:[["seeds","24 / 24 / 22 / 28","subjects flagged"],["stable","20","survive all four"],
+       ["per replicate","41","1 base + 20 + 20"],["h128 cost","5.16 h","per model, probe"]],
+ decided:"Three replicates with disjoint control draws, 123 models. Within one replicate all 40 targets share a base, so the independent unit is the replicate.",
+ art:"results/design_sym/rep{1,2,3}/design.json · results/seed_stability/stability.json · results/probe/capacity.json · results/attack/copy_paste/summary.json"
+},
+{
+ date:"2026-08-08", files:22, tags:["result"],
+ headline:"Replicate 1 lands: outliers leak more than matched controls.",
+ ran:["Finished replicate 1 (41 models) and ran the frozen <code>min × mean</code> statistic over it."],
+ nums:[["arm AUC","0.680","replicate 1"],["p","0.027","between arms"]],
+ decided:"One replicate is not a result. Run the other two before believing it.",
+ art:"results/attack/dimts_h128_rep1/summary.json"
+},
+{
+ date:"2026-08-09", files:27, tags:["result"],
+ headline:"Replicate 2 agrees.",
+ ran:["Finished replicate 2 on a non-overlapping control draw."],
+ nums:[["arm AUC","0.690","replicate 2"],["p","0.021","between arms"]],
+ decided:"Two for two. The third replicate becomes a genuine test rather than a formality.",
+ art:"results/attack/dimts_h128_rep2/summary.json"
+},
+{
+ date:"2026-08-10", files:40, tags:["result","measure"],
+ headline:"Three replicates, and the first look at what 0.680 is worth per person.",
+ ran:[
+  "Finished replicate 3 — 123 models, 655 GPU·h, 63.8 h wall clock, zero failures.",
+  "Scored each base model's generation quality.",
+  "Computed a <b>per-subject</b> AUC for all 80 targets, and the effect of dropping the most extreme ones one at a time."],
+ nums:[["arm AUC","0.680","mean of 0.680 / 0.690 / 0.670"],["95% CI","[0.655, 0.705]",""],
+       ["one-sided p","≈ 0.0005",""],["quality","≈ 0.50","discriminator, all three bases"]],
+ extra:{title:"The per-subject picture is the opposite of the arm-level one",
+  rows:[["outlier mean","0.5129"],["control mean","0.5018"],
+        ["outliers excluding 1142","0.5061"],["subject 1142","0.6427"],
+        ["79 of 80 fall inside","0.4807 – 0.5182"]]},
+ decided:"An effect that replicates is not an effect that matters. The next question is whether a realistic attacker could use it.",
+ gotcha:"The within-arm p-values swing four orders of magnitude across the replicates (1.8e−05, 9.5e−07, 0.053) while the between-arm AUC moves by 0.02. A single run's offset dominates a within-arm reading and cancels in the comparison — which is what the symmetric pairing was built for.",
+ art:"results/attack/dimts_h128_rep3/summary.json · results/attack/dimts_h128_subject_auc/ · results/attack/dimts_h128_subject_risk/summary.json · results/quality/dimts_h128_rep{1,2,3}__base.json"
+},
+{
+ date:"2026-08-12", files:101, tags:["defect","measure"],
+ headline:"The obvious attack design turns out to be measuring which training run it is looking at.",
+ ran:[
+  "Built a supervised attack panel and ran it <b>per subject</b>: train a classifier on one subject's rows, positives from <code>include_t</code>, negatives from <code>base</code>.",
+  "Ran its negative control — a condition where the subject is not a member of the positive release either.",
+  "Swept generation quality across seeds and widths (41 quality files)."],
+ nums:[["looked like","+0.14","outliers 0.78 vs controls 0.64"],
+       ["negative control","0.78","within 0.007 of the main cell"],
+       ["after pooling","+0.014","the best of eight"]],
+ decided:"Pool the negatives across several releases so neither release nor subject carries label information. Everything downstream uses the pooled protocol.",
+ gotcha:"Within one subject and one replicate there is exactly ONE release containing them, so “is this that release” predicts the label perfectly. Splitting train/test by window cannot help: held-out windows face the same two releases. A confound that is constant within a training set cannot be found by any split of it. Recorded as PITFALLS §12.",
+ art:"results/attack_panel/table.json (per-subject, broken) · results/attack_panel/table_pooled.json (correct) · results/quality/seedcheck_*/"
+},
+{
+ date:"2026-08-13", files:45, tags:["measure","result"],
+ headline:"The instrument is calibrated: 0.82 on a generator that memorises, 0.50 on a negative control.",
+ ran:[
+  "Ran the pooled panel on <code>copy_paste</code>, which bootstraps its training rows and therefore memorises by construction.",
+  "Scored four alternative generators for comparison."],
+ nums:[["positive control","0.82","copy_paste"],["arithmetic ceiling","0.816","0.632×1.0 + 0.368×0.5"],
+       ["negative control","0.50",""],["the real attack","+0.014","best of eight"]],
+ decided:"The null is a measurement, not a failure to measure. The publishable claim becomes a bounded safety result.",
+ gotcha:"Without both controls, “no leakage” and “cannot measure leakage” are the same picture. The ceiling is arithmetic: bootstrapping K rows with replacement returns 1 − e⁻¹ = 63.2% of a target's windows verbatim, and the rest are chance.",
+ art:"results/attack_panel/table_pooled_copypaste.json · results/quality/{diffusion_ts,diffwave,fourier_diff,timevae}_base__base.json"
+},
+{
+ date:"2026-08-14", files:452, tags:["defect","measure","redirect"],
+ headline:"Back to the raw file. Three defects, a false premise, and a cohort that grows by half.",
+ ran:[
+  "Inspected all 37 columns of the released parquet rather than the three we had been using.",
+  "Counted source studies per subject id.",
+  "Measured leave-one-day-out subject retrieval on <b>real</b> windows, ranked within each subject's own study.",
+  "Measured how many complete days are actually consecutive.",
+  "Rebuilt the cohorts on the corrected key and wrote <code>docs/MEMO.md</code>."],
+ nums:[["insulin","= basal + bolus","verified row by row"],["bolus","93%","exactly zero"],
+       ["composite ids","241 / 1,291","18.7%"],["cohort after re-key","1,329","from 875"]],
+ extra:{title:"Identifiability on real data, within study, quantile space",
+  rows:[["a day of basal","29.3% top-1, 61× chance"],["a day of CGM","1.5% top-1, 3.1× chance"],
+        ["all three channels","17.3%, 36×"],["a day of bolus","1.2%, 2.6×"]]},
+ decided:"Move to three channels. The real data holds a large outlier-versus-normal gap that the membership pipeline converts into 0.50–0.52, and basal is where identity lives.",
+ gotcha:"Three separate defects. (1) <code>id</code> is unique only WITHIN a source study — 238 of the 875 cohort subjects are composites of 2–9 people. Checked before panicking: the consensus outliers are depleted of composites and 1142 is single-study, so the published findings survive. (2) A float32 reduction along axis 0 silently wrote CGM mean 96.05 where the truth is 145.29. (3) Subject ids containing “/” broke every path built from them. PITFALLS §13, §14.",
+ art:"data/cohort/metabonet_sid_c1/ · data/cohort/metabonet_sid_c3/ · results/channel_coverage_studyid/ · results/identifiability_within/ · docs/MEMO.md"
+},
+{
+ date:"2026-08-15", files:28, tags:["build","cost"],
+ headline:"Three-channel outlier consensus, and the campaign goes out.",
+ ran:[
+  "Extended the outlier stage to multichannel — group A stays CGM-only because a basal rate has no time in range, which is what keeps the two lists comparable.",
+  "Ran the consensus under four seeds on the three-channel cohort.",
+  "Measured three-channel cost at four widths and launched the campaign at h128."],
+ nums:[["stable outliers","20","three-channel"],["single-channel comparator","37",""],
+       ["in both","15","Jaccard 0.357"],["per method","76–97%","of each top-5% set replaced"]],
+ decided:"Report the overlap as a result in its own right rather than picking one list.",
+ gotcha:"The vote-count trough that justified “≥7 of 13” does not exist on the rebuilt cohort — single-channel troughs at 5, three-channel at 4, with no second mode. The threshold is now a convention held fixed for comparability, and the paper has to say so.",
+ art:"results/outliers_sid_c3/ (146 files) · results/probe_c3/capacity_c3.json · results/quality_c3/"
+},
+{
+ date:"2026-08-16", files:380, tags:["result","redirect","cost"],
+ headline:"The three-channel campaign is stopped, and window length is ruled out without training anything.",
+ ran:[
+  "Restricted the same attack on the same models to one channel subset at a time — nothing retrained.",
+  "Built 7-, 14- and 21-day cohorts and ran <code>copy_paste</code> at each length to measure the attack's ceiling.",
+  "Swept model width at three channels.",
+  "Stopped the campaign at 44 of 123 models."],
+ nums:[["CGM","0.735","arm AUC"],["CGM + basal","0.731",""],["all three","0.581",""],
+       ["basal","0.393","below chance"]],
+ extra:{title:"The copy_paste ceiling is flat from one day to three weeks",
+  rows:[["1 day","0.8187, median gap 0.0680"],["7 days, consecutive","0.8147, 0.0917"],
+        ["14 days, stitched","0.8229, 0.0951"],["21 days, stitched","0.8236, 0.1047"],
+        ["arithmetic ceiling","0.816"]]},
+ decided:"Two dead ends at once. Adding channels dilutes rather than adds, and one day is not too short for a membership signal to exist. Drop bolus and normalise basal by body mass.",
+ gotcha:"Cost, and it was structural. Three channels take 8.71 h/model against the single-channel 5.35 — 1.63×, entirely in training. The launcher budgeted walltime from 5.35 and all twelve jobs were killed. The earlier “channel count is nearly free” claim came from the PARAMETER count, where C=1 and C=3 differ by 514 parameters. Parameter count is not compute.",
+ art:"results/attack_c3_bychannel/ · results/subject_auc_multiday/ · results/quality_c3_width/ · results/channel_coverage_studyid/consecutive_multiday.csv"
+},
+{
+ date:"2026-08-17", files:206, tags:["build","result","defect"],
+ headline:"Two-channel cohort and consensus finished; the seven-day pilot returns numbers that cannot be read.",
+ ran:[
+  "Tested three unit hypotheses for <code>weight</code> by BMI — all returned NONE PLAUSIBLE for every study, so we went to the official data dictionary instead of guessing a fourth time. Weight is in POUNDS, height in FEET.",
+  "Built CGM + basal/kg, re-ran the outlier consensus under four seeds, and measured identifiability with and without the normalisation.",
+  "Finished the seven-day h96 pilot (21 models) and scored it.",
+  "Recomputed the arm AUC without subject 1142.",
+  "Built the interactive report and pushed it."],
+ nums:[["cohort","1,208","subjects, 167,726 windows"],["dropped","54","no weight recorded"],
+       ["stable outliers","22","of a 26-subject union — 84.6%"],
+       ["excl. 1142","0.664","against a primary of 0.680"]],
+ extra:{title:"Weight normalisation is an internal control, and it goes the other way",
+  rows:[["basal, un-normalised","29.89% top-1, 19× CGM"],["basal/kg","34.23% top-1, 22× CGM"],
+        ["CGM, undivided (the control)","1.574% → 1.584%, unmoved"]]},
+ decided:"Body size is not what makes a basal profile identifying — dividing it out makes the channel MORE identifying, not less.",
+ gotcha:"Three things went wrong and all were recoverable. The seven-day h96 models scored a discriminator accuracy of 0.9475, which was read as “the generator did not fit” — correct instinct, unreproducible number. The h256 follow-up was SIGTERMed at step 23,899 of 59,200 for reasons the artefacts do not record. And its rescue sampling pass hit CUDA OOM at <code>sample_batch</code> 1000, which is the one-day value at a sequence seven times longer.",
+ art:"data/cohort/metabonet_sid_c2_perkg/ · results/outliers_c2_perkg/stability/stability.json · results/attack_d7/ · results/identifiability_within/metabonet_sid_c2_{perkg,raw}.csv · docs/report/index.html"
+},
+{
+ date:"2026-08-18", files:32, tags:["defect","result","redirect"],
+ headline:"The metric was broken. Fixing it turned a dead end back into an open question.",
+ ran:[
+  "Traced why the same <code>samples.npy</code> scored 0.9475 and then 0.5908: <code>discriminative_score</code> seeded the subsample and the batch draw but not the GRU's weight initialisation, so a score depended on how many models had been evaluated earlier in the same process.",
+  "Fixed it, added an <code>init_seed</code> argument, and rewrote the reading as a distribution — eight restarts per model, one fixed subsample, only the initialisation moving.",
+  "Resampled h96's own checkpoint-11 so the width comparison could be made at matched steps.",
+  "Relaunched the two-channel pilot at 40,000 steps and launched the seven-day pilot at h256."],
+ nums:[["h96 @ 22k","0.988","max over 8 restarts"],["h256 @ 22k","0.551","max over 8 restarts"],
+       ["copy_paste","0.510","the anchor"],["answer","capacity","not data volume"]],
+ extra:{title:"Eight restarts each — read the max, and the spread is the error bar",
+  rows:[["copy_paste, 7 days","0.4950 / 0.5067 / 0.5100 — spread 0.015"],
+        ["h256, 7 days, 22k steps","0.4875 / 0.5242 / 0.5508 — spread 0.063"],
+        ["h96, 7 days, 34k steps","0.4792 / 0.6383 / 0.8442 — spread 0.365"],
+        ["h96, 7 days, 22k steps","0.4967 / 0.5538 / 0.9883 — spread 0.492"],
+        ["one-day single channel, 16 scorings","0.4817 / 0.5025 / 0.5433 — spread 0.062"]]},
+ decided:"“Longer windows” was written off on the strength of a generator too narrow to represent the data. It is not a dead end — it is untested. The 21-model pilot is re-running at hidden_size 256.",
+ gotcha:"The instability has structure, and the structure is the useful part. Where a generator is genuinely indistinguishable the classifier lands at chance every time, spread 0.015–0.06. Where a separable feature exists the draws are BIMODAL — the classifier either finds it or the optimisation fails — spread 0.37–0.49. So the reading is a lower bound sampled once: report the maximum over restarts, never a single draw and never a mean. PITFALLS §16.",
+ art:"results/quality_d7_h256/disc_stability{,_matched}.json · src/cgmoutlier/quality.py · scripts/disc_stability.py · docs/PITFALLS.md §16 · docs/HISTORY.md stage 14"
+}
+];
+
+/* running work, shown after the last day rather than pretended to be finished */
+const RUNNING = [
+ {name:"Two-channel pilot — CGM + basal/kg", state:"12 of 21 complete, base done",
+  detail:"h128, 40,000 steps. ETA 2026-08-18 around 21:00.",
+  why:"40,000 rather than the published 100,000 because this cohort's loss converges by 20k and the next 80k buys 2.6%. The arm AUC will therefore be comparable internally, not against the published 0.680."},
+ {name:"Seven-day pilot — h256", state:"0 of 21 complete",
+  detail:"22,000 steps, 6.60 h/model, 139 GPU·h, launched 2026-08-18 10:50. ETA 2026-08-19 around 07:00.",
+  why:"The membership question asked of a generator that actually fits, for the first time."}
+];
+
+const OPEN = [
+ "Subject 1142's AUC of 1.000 under a failed generator: memorisation, or distribution shift?",
+ "Whether a generator really does memorise more from a seven-day window — the h256 pilot answers this.",
+ "How much of the three-channel quality gap and the width sweep is the metric rather than the models.",
+ "Whether to run the two-channel full design: 123 models, about 812 GPU·h."
+];
+
+/* ---------------------------------------------------------------- helpers */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a)=>{const e=document.createElementNS(NS,t);
+  if(a)for(const k in a)if(a[k]!=null)e.setAttribute(k,a[k]);return e};
+const cs=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const weekday=d=>WD[new Date(d+'T12:00:00Z').getUTCDay()];
+const TAGTXT={build:'built',measure:'measured',result:'result',defect:'defect found',
+  redirect:'redirected',cost:'cost'};
+const TAGCOL={build:'--ink-3',measure:'--s1',result:'--good',defect:'--crit',
+  redirect:'--warn',cost:'--s3'};
+/* a day's dot takes the colour of its most consequential tag */
+const PRI=['defect','result','redirect','cost','measure','build'];
+const mainTag=d=>PRI.find(t=>d.tags.includes(t))||'build';
+
+let cur=DAYS.length-1, showAll=false;
+
+/* ---------------------------------------------------------------- timeline */
+function drawTimeline(){
+  const W=900,H=86,L=8,R=8,T=14,B=26,iw=W-L-R,ih=H-T-B;
+  const svg=$('#tlFig'); svg.textContent='';
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  const max=Math.max(...DAYS.map(d=>d.files));
+  const bw=iw/DAYS.length;
+  DAYS.forEach((d,i)=>{
+    const h=Math.max(4,(d.files/max)*ih), on=!showAll&&i===cur;
+    const g=el('g',{class:'seg',tabindex:'0',role:'button',
+      'aria-label':d.date+', '+d.files+' files written, '+d.headline});
+    svg.appendChild(g);
+    g.appendChild(el('rect',{x:L+i*bw+2,y:T+ih-h,width:bw-4,height:h,rx:3,
+      fill:cs(TAGCOL[mainTag(d)]),opacity:on?1:.45}));
+    const t=el('text',{x:L+i*bw+bw/2,y:T+ih+16,'text-anchor':'middle',
+      'font-size':'10',fill:on?cs('--ink'):cs('--ink-3'),
+      'font-weight':on?'650':'400','font-family':'var(--mono)'});
+    t.textContent=d.date.slice(5); svg.appendChild(t);
+    const go=()=>{showAll=false;select(i,true)};
+    g.addEventListener('click',go);
+    g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}});
+  });
+  const lab=el('text',{x:L,y:10,'font-size':'10',fill:cs('--ink-3'),
+    'font-family':'var(--mono)'});
+  lab.textContent='bar height = files written that day (max '+max+')';
+  svg.appendChild(lab);
+}
+
+/* ---------------------------------------------------------------- render */
+function dayHTML(d,i){
+  const badges=d.tags.map(t=>'<span class="badge b-'+t+'">'+esc(TAGTXT[t])+'</span>').join('');
+  let h='<article class="day" id="d'+d.date+'" data-i="'+i+'">'+
+   '<div class="day-head"><span class="day-date">'+d.date+'</span>'+
+   '<span class="day-weekday">'+weekday(d.date)+'</span>'+
+   '<span class="day-weekday">· '+d.files+' files written</span></div>'+
+   '<h2>'+esc(d.headline)+'</h2>'+
+   '<div class="badges">'+badges+'</div>';
+  h+='<div class="sec"><h4>What was run</h4><ul class="items">'+
+     d.ran.map(x=>'<li>'+x+'</li>').join('')+'</ul></div>';
+  if(d.nums)h+='<div class="sec"><h4>What came back</h4><div class="nums">'+
+     d.nums.map(n=>'<div class="num"><div class="k">'+esc(n[0])+'</div>'+
+       '<div class="v">'+esc(n[1])+'</div><div class="d">'+esc(n[2])+'</div></div>').join('')+
+     '</div></div>';
+  if(d.extra)h+='<div class="sec"><h4>'+esc(d.extra.title)+'</h4><div class="tblscroll"><table>'+
+     '<tbody>'+d.extra.rows.map(r=>'<tr><th scope="row" style="font-weight:400">'+esc(r[0])+
+       '</th><td class="num2">'+esc(r[1])+'</td></tr>').join('')+'</tbody></table></div></div>';
+  if(d.decided)h+='<div class="decision"><b>Decision.</b> '+esc(d.decided)+'</div>';
+  if(d.gotcha)h+='<div class="gotcha"><b>What bit us.</b> '+d.gotcha+'</div>';
+  if(d.art)h+='<details class="art"><summary>Artefacts</summary><div class="body">'+
+     esc(d.art)+'</div></details>';
+  return h+'</article>';
+}
+function tailHTML(){
+  return '<article class="day" style="border-style:dashed">'+
+   '<div class="day-head"><span class="day-date">STILL RUNNING</span></div>'+
+   '<h2>Not finished, and not written up as if it were</h2>'+
+   '<div class="sec"><h4>In flight</h4><ul class="items">'+
+   RUNNING.map(r=>'<li class="hit"><b>'+esc(r.name)+'</b> — '+esc(r.state)+'.<br>'+
+     esc(r.detail)+'<br><span style="color:var(--ink-3)">'+esc(r.why)+'</span></li>').join('')+
+   '</ul></div>'+
+   '<div class="sec"><h4>Open questions</h4><ul class="items">'+
+   OPEN.map(o=>'<li>'+esc(o)+'</li>').join('')+'</ul></div>'+
+   '<div class="xref"><a href="index.html">The full report →</a>'+
+   '<a href="index.html#s12">Current status →</a></div></article>';
+}
+function render(){
+  const p=$('#panel');
+  if(showAll){
+    p.innerHTML=DAYS.map(dayHTML).join('')+tailHTML();
+  }else{
+    const d=DAYS[cur];
+    p.innerHTML=dayHTML(d,cur)+
+      '<div class="daynav">'+
+      '<button class="btn" id="prevBtn"'+(cur===0?' disabled':'')+'>'+
+        (cur===0?'—':'← '+DAYS[cur-1].date)+'</button>'+
+      '<button class="btn" id="nextBtn"'+(cur===DAYS.length-1?' disabled':'')+'>'+
+        (cur===DAYS.length-1?'—':DAYS[cur+1].date+' →')+'</button></div>'+
+      (cur===DAYS.length-1?tailHTML():'');
+    const pb=$('#prevBtn'), nb=$('#nextBtn');
+    if(pb&&!pb.disabled)pb.onclick=()=>select(cur-1,true);
+    if(nb&&!nb.disabled)nb.onclick=()=>select(cur+1,true);
+  }
+  $$('#tabRow button.tab').forEach((b,i)=>
+    b.setAttribute('aria-selected',String(!showAll&&i===cur)));
+  $('#allBtn').setAttribute('aria-pressed',String(showAll));
+  $('#allBtn').textContent=showAll?'Back to one day at a time':'Show every day at once';
+  drawTimeline();
+}
+function select(i,scroll){
+  cur=Math.max(0,Math.min(DAYS.length-1,i));
+  showAll=false; render();
+  history.replaceState(null,'','#d'+DAYS[cur].date);
+  if(scroll)$('#panel').scrollIntoView({behavior:
+    matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+}
+
+/* ---------------------------------------------------------------- init */
+$('#tabRow').innerHTML=DAYS.map((d,i)=>
+  '<button class="tab" role="tab" aria-selected="false" data-i="'+i+'">'+
+  '<span class="dot" style="background:var('+TAGCOL[mainTag(d)]+')"></span>'+
+  d.date.slice(5)+'</button>').join('')+
+  '<span class="sp"></span>'+
+  '<button class="tab" id="jumpLatest">latest →</button>';
+$$('#tabRow button.tab[data-i]').forEach(b=>
+  b.onclick=()=>select(+b.getAttribute('data-i'),true));
+$('#jumpLatest').onclick=()=>select(DAYS.length-1,true);
+$('#allBtn').onclick=()=>{showAll=!showAll;render();
+  if(showAll)history.replaceState(null,'','#all')};
+
+$('#span').textContent=DAYS.length+' working days, '+DAYS[0].date+' to '+
+  DAYS[DAYS.length-1].date+' · '+DAYS.reduce((a,b)=>a+b.files,0).toLocaleString('en-US')+
+  ' files written · one gap, 2026-08-11, when nothing ran';
+
+addEventListener('keydown',e=>{
+  if(e.target.matches('input,textarea,select'))return;
+  if(e.key==='ArrowLeft'&&cur>0)select(cur-1,false);
+  if(e.key==='ArrowRight'&&cur<DAYS.length-1)select(cur+1,false);
+});
+
+const themeBtn=$('#themeBtn');
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  themeBtn.textContent=t==='dark'?'Light':'Dark';
+  drawTimeline();                 /* re-read the CSS variables; state is untouched */
+}
+themeBtn.onclick=()=>applyTheme(
+  document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
+if(matchMedia('(prefers-color-scheme: dark)').matches){
+  document.documentElement.setAttribute('data-theme','dark');
+  themeBtn.textContent='Light';
+}
+
+if(location.hash==='#all'){showAll=true}
+else{
+  const i=DAYS.findIndex(d=>'#d'+d.date===location.hash);
+  if(i>=0)cur=i;
+}
+render();
+addEventListener('resize',()=>{clearTimeout(window._t);window._t=setTimeout(drawTimeline,150)});
+</script>
+</body>
+</html>

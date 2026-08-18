@@ -373,6 +373,42 @@ def main():
         check("background size", "design_sym/rep1", d["n_background"], page, "background:{},")
         check("models per replicate", "design_sym/rep1", d["n_jobs"], page, "models:{}")
 
+    # ---- the notebook's per-day file counts ------------------------------------
+    nb = ROOT / "docs" / "report" / "notebook.html"
+    if not nb.exists():
+        MISSING.append(("lab notebook", "docs/report/notebook.html"))
+    else:
+        import datetime
+        nb_text = nb.read_text(encoding="utf-8")
+        actual = {}
+        for top in ("results", "logs", "docs", "scripts", "src", "data/cohort"):
+            for f in (ROOT / top).rglob("*"):
+                if not f.is_file():
+                    continue
+                try:
+                    d = datetime.date.fromtimestamp(f.stat().st_mtime).isoformat()
+                except OSError:
+                    continue
+                actual[d] = actual.get(d, 0) + 1
+        claimed = dict(re.findall(r'date:"(\d{4}-\d\d-\d\d)", files:(\d+)', nb_text))
+        if not claimed:
+            BAD.append(("notebook day entries", "notebook.html", "no day entries parsed"))
+        for day, n in claimed.items():
+            # docs/ and logs/ keep changing as this very run writes to them, so the count
+            # is asserted only for days that are closed
+            if day == max(claimed):
+                OK.append((f"notebook {day} (today, count moves)", "mtimes", "skipped"))
+                continue
+            if actual.get(day) != int(n):
+                BAD.append((f"notebook file count {day}", "mtimes",
+                            f"page says {n}, disk says {actual.get(day)}"))
+            else:
+                OK.append((f"notebook file count {day} = {n}", "mtimes", "ok"))
+        gaps = sorted(set(actual) - set(claimed))
+        if gaps:
+            BAD.append(("notebook missing days", "mtimes",
+                        f"disk has activity on {gaps} with no notebook entry"))
+
     # ---- report ---------------------------------------------------------------
     print(f"\n{'=' * 74}\nreport data check — docs/report/index.html\n{'=' * 74}")
     print(f"  verified against artefacts : {len(OK)}")
