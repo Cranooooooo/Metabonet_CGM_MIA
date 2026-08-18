@@ -1,0 +1,26 @@
+#!/bin/bash
+#PBS -N cgm_dsmoke
+#PBS -P 11704243
+#PBS -j oe
+# import 与数据形状自检,不训练判别器。qdev,2 分钟。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+python - <<'PY' 2>&1 | tee logs/87b_disc_smoke.live.log
+import json, numpy as np
+from pathlib import Path
+from cgmoutlier._env import check as c; c()
+from cgmoutlier.data.cohort import load as load_cohort
+from cgmoutlier.loo.train import training_set
+from cgmoutlier.quality import discriminative_score
+import inspect
+print("imports OK")
+print("  init_seed in signature:", "init_seed" in inspect.signature(discriminative_score).parameters)
+X, sids, man = load_cohort("data/cohort/metabonet_sid_c1_d7_contiguous")
+job = json.loads(Path("results/design_d7_pilot/rep1/jobs/base.json").read_text())
+real, _ = training_set(X, sids, job["subjects"])
+print("  real", real.shape)
+for r in ("dimts_d7_conv_rep1","dimts_d7_h256_rep1","cp_d7_contiguous_rep1"):
+    p = Path(f"results/runs/{r}/base/samples.npy")
+    print(f"  {r:24}", np.load(p, mmap_mode='r').shape if p.exists() else "MISSING")
+PY

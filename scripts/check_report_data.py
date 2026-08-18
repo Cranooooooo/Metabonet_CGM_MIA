@@ -276,10 +276,34 @@ def main():
             check(f"L={r['length']} subjects", "consecutive_multiday.csv",
                   int(r["subjects"]), page, "subjects:{}")
 
-    j = load_json("results/quality_d7/dimts_d7_conv_rep1__base.json")
-    if j:
-        check("seven-day discriminator", "quality_d7",
-              round(acc(j), 4), page, "discriminator:{}")
+    # the seven-day gate is now the MAX over restarts, not one draw
+    st = load_json("results/quality_d7_h256/disc_stability_matched.json")
+    if st is None:
+        MISSING.append(("restart scan", "results/quality_d7_h256/disc_stability_matched.json"))
+    else:
+        want = {"dimts_d7_conv_m11": "h96, 7 days, 22k steps — MATCHED",
+                "dimts_d7_h256_rep1": "h256, 7 days, 22k steps",
+                "dimts_d7_conv_rep1": "h96, 7 days, 34k steps"}
+        for run, d in st.items():
+            key = Path(run).parent.name
+            for stat in ("min", "median", "max"):
+                check(f"restart {key} {stat}", "disc_stability_matched.json",
+                      round(d[stat], 4), page, f"{stat}:{{}}")
+            check(f"restart {key} spread", "disc_stability_matched.json",
+                  round(d["spread"], 4), page, "spread:{}")
+            if d["n_restarts"] != 8:
+                BAD.append((f"restart {key}", "disc_stability_matched.json",
+                            f"{d['n_restarts']} restarts, page says eight"))
+        cp = load_json("results/quality_d7_h256/disc_stability.json") or {}
+        for run, d in cp.items():
+            if "cp_d7" in run:
+                for stat in ("min", "median", "max"):
+                    check(f"restart copy_paste {stat}", "disc_stability.json",
+                          round(d[stat], 4), page, f"{stat}:{{}}")
+    # the single-draw reading the page now disowns must NOT appear as a live figure
+    if "0.9475" in page and "not reproducible" not in page:
+        BAD.append(("stale 0.9475", "docs/report/index.html",
+                    "the unreproducible single draw appears without its retraction"))
     s = load_json("results/attack_d7/summary.json")
     row = frozen(s) if s else None
     if row:
@@ -291,19 +315,31 @@ def main():
         check("seven-day 1142", "subject_auc_d7",
               round(j["by_group"]["outlier"]["max"], 4), page, "s1142:{}")
 
-    # h256 -- the page claims it is blocked with no samples; verify that
+    # h256 -- the diagnostic base must have samples (it is what the restart scan scored),
+    # and the re-run campaign's progress must match what the page claims
     h256 = ROOT / "results/runs/dimts_d7_h256_rep1/base"
-    if h256.exists():
-        n_samples = len(list(h256.glob("samples.npy")))
-        n_ckpt = len(list((h256 / "ckpt_2016").glob("*.pt"))) if (h256 / "ckpt_2016").exists() else 0
-        check("h256 checkpoints", "results/runs/dimts_d7_h256_rep1", n_ckpt,
-              page, "checkpoints:{}")
-        if n_samples:
-            BAD.append(("h256 status", "results/runs/dimts_d7_h256_rep1",
-                        "page says blocked with no samples, but samples.npy exists"))
-        else:
-            OK.append(("h256 has no samples -- 'blocked' is correct",
-                       "results/runs/dimts_d7_h256_rep1", "verified"))
+    if not (h256 / "samples.npy").exists():
+        BAD.append(("h256 diagnostic base", "results/runs/dimts_d7_h256_rep1",
+                    "page reports a quality reading, but there is no samples.npy"))
+    else:
+        OK.append(("h256 diagnostic base has samples", "results/runs/dimts_d7_h256_rep1", "ok"))
+    camp = ROOT / "results/runs/dimts_d7_h256_full_rep1"
+    done = len(list(camp.glob("*/samples.npy"))) if camp.exists() else 0
+    check("seven-day h256 campaign completed", "results/runs/dimts_d7_h256_full_rep1",
+          done, page, "done:{}")
+    # the matched-budget claim is the load-bearing one; re-derive its direction
+    st = load_json("results/quality_d7_h256/disc_stability_matched.json")
+    if st:
+        by = {Path(k).parent.name: v for k, v in st.items()}
+        if "dimts_d7_conv_m11" in by and "dimts_d7_h256_rep1" in by:
+            narrow, wide = by["dimts_d7_conv_m11"]["max"], by["dimts_d7_h256_rep1"]["max"]
+            if narrow <= wide:
+                BAD.append(("capacity conclusion", "disc_stability_matched.json",
+                            f"page says the narrow model is more separable, but "
+                            f"h96 max {narrow:.4f} <= h256 max {wide:.4f}"))
+            else:
+                OK.append((f"capacity conclusion holds (h96 {narrow:.4f} > h256 {wide:.4f})",
+                           "disc_stability_matched.json", "ok"))
 
     # ---- identifiability ------------------------------------------------------
     for tag, key in (("metabonet_sid_c2_perkg", "perKg"), ("metabonet_sid_c2_raw", "raw")):

@@ -136,14 +136,31 @@ def _gru(inp, hidden, out):
 
 
 def discriminative_score(real, synth, *, n=3000, seed=2026, device="cuda",
-                         hidden=32, iters=2000, batch=128, lr=1e-3):
+                         hidden=32, iters=2000, batch=128, lr=1e-3, init_seed=None):
     """|classification accuracy - 0.5| for a post-hoc GRU telling real from synthetic.
 
     0 means indistinguishable (the best a generator can do); 0.5 means trivially
     separable. `hidden` is named rather than derived as dim/2, which is 0 at C=1.
+
+    ⚠ THIS IS A LOWER BOUND ON SEPARABILITY, AND ONE DRAW OF IT.
+    Until 2026-08-17 the GRU's weights were initialised from torch's GLOBAL rng, which
+    nothing here seeded, so the result depended on how many models had been scored
+    earlier in the same process. Measured cost of that: the seven-day h96 base scored
+    0.9475 when it was the first run in its process and 0.5908 when it was the second,
+    on a byte-identical samples.npy. `init_seed` now controls it and defaults to `seed`,
+    so the default path is reproducible.
+
+    The instability is not uniform, and the shape of it is the useful part. Sixteen
+    scorings of the one-day single-channel base span 0.482-0.543: where the generator is
+    genuinely indistinguishable the classifier converges to chance every time. Where
+    there IS a separable feature the classifier either finds it or does not, and the
+    draws are bimodal. So a single low reading is weak evidence of quality, while a
+    single high reading is strong evidence of separability -- sweep `init_seed` and
+    report the MAXIMUM, not one draw.
     """
     import torch
 
+    torch.manual_seed(seed if init_seed is None else init_seed)
     rng = np.random.default_rng(seed)
     r, s = _sub(real, n, rng), _sub(synth, n, rng)
     k = min(len(r), len(s))

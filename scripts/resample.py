@@ -27,6 +27,7 @@ honest way to answer `sampling_timesteps` 500 -> 50, since retraining for it wou
 the weights as well as the steps.
 """
 import argparse
+import json
 import sys
 
 from cgmoutlier._env import check as _envcheck                     # noqa: E402
@@ -58,9 +59,16 @@ def main():
     ap.add_argument("--seed", type=int, default=2026)
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--overwrite", action="store_true")
+    ap.add_argument("--params", default=None,
+                    help='JSON merged OVER the run\'s recorded params. The one knob that '
+                         'matters here is sample_batch: the checkpoint fixes the '
+                         'architecture, but how many windows are denoised at once is a '
+                         'memory choice, and at T=2016 with hidden_size 256 the recorded '
+                         '1000 needs 40 GB it does not have.')
     a = ap.parse_args()
 
     resample(a.from_run, a.job_file, a.cohort, out=a.out, generator=a.generator,
+             params=json.loads(a.params) if a.params else None,
              K=a.K, sampling_timesteps=a.sampling_timesteps, milestone=a.milestone,
              seed=a.seed, device=a.device, overwrite=a.overwrite)
     return 0

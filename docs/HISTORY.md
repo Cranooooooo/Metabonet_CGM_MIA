@@ -281,6 +281,61 @@ training examples means more memorisation per example. A difference found here i
 
 ---
 
+## Stage 14 · The seven-day question was asked of a model that could not answer it (2026-08-17 → 08-18)
+
+Stage 13's pilot finished all 21 models and returned membership numbers — arm AUC 0.72
+(p = 0.052), subject 1142 at 1.000 — behind a quality gate that read **discriminative
+accuracy 0.9475**, i.e. the generator had not fitted. The gate was the right instinct.
+The number behind it was one draw of an unseeded classifier.
+
+**The defect.** `quality.discriminative_score` seeded the subsample and the batch draw
+but not the GRU's weight initialisation, which came from torch's global rng. The same
+`samples.npy` therefore scored 0.9475 when it was the first model in its process and
+0.5908 when it was the second. `docs/PITFALLS.md` §16 has the full account.
+
+**The fix, and what it revealed.** Eight restarts per model, one fixed subsample, only
+the initialisation moving (`scripts/disc_stability.py`):
+
+| run | min | median | max | spread |
+|---|---|---|---|---|
+| copy_paste, 7 days | 0.4950 | 0.5067 | 0.5100 | 0.0150 |
+| h256, 7 days, 22k steps | 0.4875 | 0.5242 | **0.5508** | 0.0633 |
+| h96, 7 days, 34k steps | 0.4792 | 0.6383 | **0.8442** | 0.3650 |
+| h96, 7 days, **22k steps** | 0.4967 | 0.5538 | **0.9883** | 0.4917 |
+
+Where a generator is genuinely indistinguishable the classifier lands at chance every
+time; where a separable feature exists the draws are bimodal. So the statistic to report
+is the **maximum over restarts**, and the spread is the error bar.
+
+**Capacity, not data volume.** The last row is the one that settles it. h96's own
+checkpoint-11 is 22,000 steps, the same milestone h256 was read at, so resampling it
+removes the budget difference and leaves width alone: **0.988 against 0.551**. The
+over-training reading is excluded in passing — h96 is *more* separable at 22k than at
+34k, so 311 epochs over 7,001 windows is not what broke it.
+
+**What this does to the conclusion.** "One day is too short" stays ruled out: the
+copy_paste ceiling is flat at 0.811–0.824 from 1 to 21 days and that measurement never
+involved DiM-TS. But "longer windows" was written off as a dead end on the strength of
+a generator that could not represent the data. It is not a dead end; it is **untested**.
+The h96 membership numbers remain unreadable and are not evidence in either direction.
+
+**Relaunched.** The same 21-model pilot at `hidden_size=256`, 22,000 steps (the loss is
+flat from 16k: 0.01325 at 4k, 0.01261 at 10k, 0.01240 at 16k, 0.01241 at 20k),
+`sample_batch=100` because 1000 OOMs at T = 2016. 6.60 h/model measured, 139 GPU·h,
+nine shards over three lanes, launched 2026-08-18 10:50.
+
+`base` is retrained rather than reused: the existing h256 base is a checkpoint rescued
+from a killed run and sampled by `resample`, and every one of the 20 gaps divides by
+that base.
+
+**Two things carried into the tooling.** The walltime arithmetic that killed the
+three-channel campaign and was about to cost the two-channel pilot five models is now an
+executable assertion inside the job rather than a comment: it computes the busiest
+shard's load from measured per-model cost and refuses to start below a 15% margin. And
+the two-channel pilot was itself re-launched at 40,000 steps after its own loss trace
+showed convergence by 20k — 2.5x less compute for 2.6% of loss.
+
+
 ## The through-line, in five sentences
 
 1. Outliers leak more than matched controls, AUC 0.680, replicated three times — but
@@ -289,6 +344,8 @@ training examples means more memorisation per example. A difference found here i
    memorises and 0.50 on every negative control.
 3. The data is not the limitation — real days carry a large outlier-vs-normal
    identifiability gap, and window length does not move the attack's ceiling.
-4. Nor is the generator's size or training length; three channels made generation worse
-   for a reason specific to one sparse channel.
+4. Nor is the generator's size or training length at one day; three channels made
+   generation worse for a reason specific to one sparse channel. At seven days size IS
+   the limit, and the experiment that appeared to close that direction was measuring a
+   model too narrow to represent the data.
 5. What survives every change of cohort, key, channel and statistic is **one subject**.

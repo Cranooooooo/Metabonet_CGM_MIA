@@ -17,8 +17,33 @@
 # indistinguishable), the published one-day single-channel models 0.50, the one-day
 # three-channel models 0.65-0.68.
 #
-#   qsub -l select=1:ncpus=16:ngpus=1 -l walltime=03:00:00 \
-#        -o logs/96_h256_quality.log scripts/pbs/96_h256_quality.pbs           # -> g1
+# ─── why this failed the first time, and what changed ────────────────────────
+# 2026-08-17 15:37, exit 1 after 37 s: CUDA OOM inside SMamba's conv2d, trying to
+# allocate 1.93 GiB with 906 MiB free on a 40 GB card. sample_batch is inherited from
+# the run's config at 1000, which is the one-day value: at T = 2016 and hidden_size 256
+# that is 7x the sequence and 2.4x the width of what 1000 was chosen for. Dropped to
+# 100. The checkpoint fixes the architecture; how many windows are denoised at once is
+# a memory choice and nothing downstream can tell the difference.
+#
+# ─── and why milestone 11 is enough ──────────────────────────────────────────
+# Training was SIGTERMed at step 23,899 of 59,200 (5 h 08 of a 12 h walltime, exit 143 —
+# not a walltime kill, and the artefacts do not record the reason). That does not matter,
+# because the loss had already flattened:
+#
+#     4k 0.01325 · 10k 0.01261 · 16k 0.01240 · 20k 0.01241
+#     16k -> 20k is +0.1%, i.e. noise.
+#
+# checkpoint-11 is step 22,000, past the knee. ⚠ The h96 comparison ran the full 59,200,
+# so the two differ in budget as well as width. Both are past their own knee, but this
+# reading is PROVISIONAL for that reason and must be labelled so.
+#
+# ~2.1 h of sampling (h96 took 2,443 s for the same 7,001 windows; h256 is 3.05x that
+# per sample on the capacity probe) plus the scoring pass. g1/g2/g3 are all held by the
+# two-channel pilot, so this goes to glong, whose band starts above 24 h — the job exits
+# when it is done.
+#
+#   qsub -l select=1:ncpus=16:ngpus=1 -l walltime=25:00:00 \
+#        -o logs/96_h256_quality.log scripts/pbs/96_h256_quality.pbs        # -> glong
 source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
 conda activate "$ENV_PREFIX"
 module load cuda/11.8.0
@@ -30,7 +55,8 @@ export THREADS=${NCPUS:-16}
     --from-run results/runs/dimts_d7_h256_rep1/base \
     --job-file results/design_d7_pilot/rep1/jobs/base.json \
     --cohort data/cohort/metabonet_sid_c1_d7_contiguous \
-    --milestone 11
+    --milestone 11 \
+    --params '{"sample_batch": 100}'
   echo "########## quality ##########"
   python -u scripts/eval_quality.py \
     --runs results/runs/dimts_d7_h256_rep1/base results/runs/dimts_d7_conv_rep1/base \

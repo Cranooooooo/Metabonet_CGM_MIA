@@ -359,6 +359,73 @@ The general form: **a cached intermediate makes a result reproducible only as fa
 as the cache.** The fingerprint guards against reusing the wrong encoder; nothing
 guards against the same encoder having been run through different hardware.
 
+## 16. ⚠️ Silent: the discriminator's weights were never seeded, so the score depends on run ORDER
+
+`quality.discriminative_score` seeded two of the three random things it uses. `seed`
+controlled the subsample (`np.random.default_rng`) and the batch draw
+(`torch.Generator`). It did not control the GRU's weight initialisation, which came from
+torch's **global** rng — never seeded here, and advanced by whatever ran earlier in the
+same process.
+
+Measured on 2026-08-17, on a byte-identical `samples.npy` (mtime 2026-08-16 19:43,
+unchanged between the two reads) with the same `seed=2026`:
+
+```
+seven-day h96 base, scored FIRST in its process    0.9475      05:36
+seven-day h96 base, scored SECOND (after h256)     0.5908      21:34
+seven-day h96 base, a third process                0.6483      23:0x
+```
+
+**The published "the seven-day generator did not fit, discriminative accuracy 0.9475"
+rested on one draw of that.** So did every other discriminative accuracy in the project.
+
+### The instability is structured, and the structure is the useful part
+
+Eight restarts per model, one fixed subsample, only the initialisation moving
+(`scripts/disc_stability.py`):
+
+```
+                             min    median     max    spread
+copy_paste, 7 days         0.4950   0.5067   0.5100   0.0150
+one-day single channel*    0.4817   0.5025   0.5433   0.0617
+h256, 7 days, 22k steps    0.4875   0.5242   0.5508   0.0633
+h96,  7 days, 34k steps    0.4792   0.6383   0.8442   0.3650
+h96,  7 days, 22k steps    0.4967   0.5538   0.9883   0.4917
+                                          *16 scorings across seedcheck_* dirs
+```
+
+Where the generator is genuinely indistinguishable the classifier lands at chance every
+time and the spread is 0.015–0.06. Where a separable feature exists the draws are
+**bimodal** — the classifier either finds the feature or it does not — and the spread is
+0.37–0.49.
+
+So the metric is a **lower bound on separability, sampled once**. A single low reading
+is weak evidence of quality; a single high reading is strong evidence of separability.
+
+**Report the maximum over restarts, with the spread beside it.** A mean would average a
+successful classifier with a failed optimisation and mean nothing.
+
+### What it changed, and what it did not
+
+It did not change the direction of the seven-day finding: h96 reaches 0.844 and 0.988,
+so those samples really are separable. It changed what that rests on, and it made the
+h96-versus-h256 comparison possible at all — 0.4808 against 0.9475 looked like a
+0.47 difference and is not, because 0.4808 was one draw from a distribution whose max
+is 0.5508.
+
+It also puts a caveat on numbers that are still quoted elsewhere: the three-channel
+quality figures (0.553 / 0.653 / 0.677), the width sweep (0.582–0.643), and the
+"spread of 0.124 across three models at one width" that was read as run-to-run model
+variation. An unknown part of that 0.124 is the metric, not the models.
+
+Fixed: `torch.manual_seed(seed if init_seed is None else init_seed)` before the network
+is built, plus an `init_seed` argument so restarts can be requested deliberately.
+
+The general form: **count the sources of randomness, then count the seeds.** Two out of
+three looks seeded from every angle except the one that matters, and the symptom — a
+number that moves when you score a different set of models together — looks like a data
+problem rather than an RNG problem.
+
 ## Shared machines
 
 Measure before scaling up. On this hardware the per-worker cost was **not** the

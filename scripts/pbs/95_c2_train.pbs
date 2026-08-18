@@ -3,19 +3,33 @@
 #PBS -P 11704243
 #PBS -j oe
 #
-# The two-channel pilot: 21 DiM-TS models on CGM + basal/kg at hidden_size=128,
-# 100,000 steps -- the published campaign's configuration, so this cohort's result is
-# comparable to the single-channel one on everything except the channels.
+# The two-channel pilot: 21 DiM-TS models on CGM + basal/kg at hidden_size=128.
 #
-# 100,000 steps is right HERE and was wrong for the seven-day cohort. The budget is a
-# statement about the dataset (docs/PITFALLS.md 11): this cohort holds 167,726 windows,
-# within a few percent of the 197,970 the 100,000 steps were set for, so the epochs come
-# out the same. The seven-day cohort held 7,001 and needed its own number.
+# ─── 40,000 steps, not 100,000 ────────────────────────────────────────────────
+# Measured on this cohort, from the abandoned 100k run's own tqdm traces
+# (logs/95_1517837*_shard*.log, four models, ~173k (loss, step) points each):
 #
-# ~6.6 h/model projected from the measured C=1 (5.35 h) and C=3 (8.71 h); the increase
-# is entirely in training, sampling is flat in C. Twenty models over eight cards is
-# three on the busiest shard, ~20 h. 24 h is requested -- the three-channel campaign
-# died because its walltimes had no margin.
+#       20k      40k      80k     40k->80k   20k->80k
+#     0.01490  0.01474  0.01449    -1.7%      -2.8%     shard 0
+#     0.01487  0.01474  0.01449    -1.7%      -2.6%     shard 1
+#     0.01487  0.01473  0.01449    -1.7%      -2.6%     shard 2
+#     0.01489  0.01475  0.01450    -1.7%      -2.6%     shard 3
+#
+# Converged by 20k; the remaining 80k buys 2.6%. The same thing was true of the
+# three-channel campaign (docs/HISTORY.md Stage 10). 40k keeps a 2x margin over the
+# knee and costs 2.5x less.
+#
+# ⚠ THE BUDGET IS PART OF THE COMPARISON, NOT AN IMPLEMENTATION DETAIL. base and every
+# include_t must share it, or the gap statistic reads the training budget instead of
+# membership. So this is all 21 models or none -- never a top-up at a different number.
+# It also means this pilot's arm AUC is NOT directly comparable to the published
+# single-channel 0.680, which was trained at 100k. Internal (outlier vs control) only.
+#
+# ─── save_cycle 10,000, not 20,000 ────────────────────────────────────────────
+# Four checkpoints per model at 44 MB = 176 MB/model, 3.7 GB for the pilot. Finer than
+# the last run because a checkpoint is what `loo.train.resample()` needs to rescue a
+# model whose training finished and whose sampling pass was killed -- which is exactly
+# how the 100k attempt was going to die.
 #
 #   qsub -l select=1:ncpus=64:ngpus=4 -l walltime=24:00:00 -v SHARD_BASE=0,N_SHARDS=8 ... -> g3
 #   qsub -l select=1:ncpus=48:ngpus=3 -l walltime=24:00:00 -v SHARD_BASE=4,N_SHARDS=8 ... -> g2
@@ -25,22 +39,85 @@ conda activate "$ENV_PREFIX"
 module load cuda/11.8.0
 export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
 export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
-: "${SHARD_BASE:?}"; : "${N_SHARDS:?}"
+: "${SHARD_BASE:?pass -v SHARD_BASE=0,N_SHARDS=8}"
+: "${N_SHARDS:?pass -v SHARD_BASE=0,N_SHARDS=8}"
+
 DSN=results/design_c2_perkg/rep1
-OUT=results/runs/dimts_c2_perkg_rep1
+OUT=results/runs/dimts_c2_perkg_s40k_rep1
 COH=data/cohort/metabonet_sid_c2_perkg
+STEPS=40000
+SAVE_CYCLE=10000
 LOGTAG=${PBS_JOBID%%.*}
+
+# ─── walltime assertion ───────────────────────────────────────────────────────
+# This campaign shape has now been under-budgeted twice. The three-channel run was
+# costed at the single-channel 5.35 h/model and every one of its twelve jobs was killed;
+# the 100k two-channel run was costed at 6.6 h/model against a real 8.55 and five of its
+# eight shards were going to lose their last model. Both times the arithmetic was in a
+# comment that nothing executed. It executes now, and the job refuses to start rather
+# than burning cards on work it cannot finish.
+#
+# Constants are MEASURED on this cohort and this width, not projected:
+#   training  69.6 min per 20,000 steps   (four models, abandoned 100k run)
+#   sampling  59.9 ms per released sample (results/probe/capacity.json, h128; the
+#             three-channel run measured 60.3, so sampling is flat in C)
+MIN_PER_20K_STEPS=69.6
+MS_PER_SAMPLE=59.9
+python - "$DSN" "$N_SHARDS" "$STEPS" "$COH" "$MIN_PER_20K_STEPS" "$MS_PER_SAMPLE" <<'PY' || exit 1
+import json, os, subprocess, sys
+
+dsn, n_shards, steps, coh, min20k, ms = sys.argv[1:]
+n_shards, steps, min20k, ms = int(n_shards), int(steps), float(min20k), float(ms)
+
+n_jobs = json.load(open(f"{dsn}/design.json"))["n_jobs"]
+# run_loo.py takes jobs[shard::n_shards], so the busiest shard holds the ceiling
+per_shard = max(len(list(range(n_jobs))[s::n_shards]) for s in range(n_shards))
+
+# the base trains on, and releases, one sample per cohort window
+k = json.load(open(f"{coh}/manifest.json"))["n_windows"]
+train_h = steps / 20000 * min20k / 60
+sample_h = k * ms / 1000 / 3600
+per_model = train_h + sample_h
+need = per_shard * per_model
+
+wall = os.environ.get("PBS_WALLTIME")                       # seconds, when PBS sets it
+if not wall:
+    jid = os.environ.get("PBS_JOBID", "")
+    out = subprocess.run(["qstat", "-f", jid], capture_output=True, text=True).stdout
+    for line in out.splitlines():
+        if "Resource_List.walltime" in line:
+            h, m, s = line.split("=")[1].strip().split(":")
+            wall = int(h) * 3600 + int(m) * 60 + int(s)
+wall_h = float(wall) / 3600 if wall else None
+
+print(f"[budget] {n_jobs} jobs over {n_shards} shards -> {per_shard} on the busiest")
+print(f"[budget] {steps:,} steps = {train_h:.2f} h train + {sample_h:.2f} h sample "
+      f"= {per_model:.2f} h/model  ({k:,} windows)")
+print(f"[budget] busiest shard needs {need:.1f} h, walltime is "
+      f"{wall_h:.1f} h" if wall_h else f"[budget] busiest shard needs {need:.1f} h")
+
+if wall_h is None:
+    print("[budget] WARNING: could not read the walltime; proceeding unchecked")
+elif need > wall_h * 0.85:
+    print(f"[budget] REFUSING TO START: {need:.1f} h of work against a {wall_h:.1f} h "
+          f"walltime leaves under the 15% margin. Raise the walltime, raise N_SHARDS, "
+          f"or lower STEPS.")
+    sys.exit(1)
+else:
+    print(f"[budget] OK — {need / wall_h * 100:.0f}% of the walltime, "
+          f"{wall_h - need:.1f} h spare")
+PY
 
 IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
 export THREADS=$(( ${NCPUS:-16} / ${#ALLOC[@]} ))
-echo "shards ${SHARD_BASE}..$(( SHARD_BASE + ${#ALLOC[@]} - 1 )) of $N_SHARDS"
+echo "shards ${SHARD_BASE}..$(( SHARD_BASE + ${#ALLOC[@]} - 1 )) of $N_SHARDS -> $OUT"
 pids=(); rc=0
 for i in "${!ALLOC[@]}"; do
     s=$(( SHARD_BASE + i ))
     ( export CUDA_VISIBLE_DEVICES="${ALLOC[$i]}"
       python scripts/run_loo.py --design "$DSN" --out "$OUT" --cohort "$COH" \
         --shard "$s" --n-shards "$N_SHARDS" \
-        --params '{"hidden_size": 128, "steps": 100000, "save_cycle": 20000}'
+        --params "{\"hidden_size\": 128, \"steps\": $STEPS, \"save_cycle\": $SAVE_CYCLE}"
     ) > "logs/95_${LOGTAG}_shard${s}.log" 2>&1 &
     pids+=($!)
 done
@@ -48,5 +125,5 @@ for i in "${!pids[@]}"; do
     if wait "${pids[$i]}"; then echo "shard $(( SHARD_BASE + i )) OK"
     else echo "shard $(( SHARD_BASE + i )) FAILED"; rc=1; fi
 done
-echo "$(find "$OUT" -name samples.npy | wc -l) / 21"
+echo "$(find "$OUT" -name samples.npy | wc -l) / 21 models complete"
 exit $rc

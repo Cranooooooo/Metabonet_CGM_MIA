@@ -1,0 +1,53 @@
+#!/bin/bash
+#PBS -N cgm_d7match
+#PBS -P 11704243
+#PBS -j oe
+#
+# Width at MATCHED training steps -- removing the one confound left in the h96/h256
+# comparison.
+#
+# The restart scan said h96 is separable (max 0.844 over 8 restarts) and h256 is not
+# (max 0.551, the same tight profile as the one-day models). But the two were read at
+# different budgets: h96's samples come from the end of its 34,000 steps, h256's from
+# checkpoint-11 at 22,000. So "wider" and "trained less" are still tangled, and the
+# tangle matters -- 34,000 steps over 7,001 windows is 311 epochs, and a model that has
+# gone round its training set 311 times can be detectable for reasons that have nothing
+# to do with capacity.
+#
+# h96 kept every checkpoint, so its OWN checkpoint-11 is 22,000 steps -- the same
+# milestone h256 was read at. Resample it and the comparison is width alone.
+#
+#   h96  @ 22,000  <- this job
+#   h256 @ 22,000  <- already on disk, max 0.551
+#
+# If h96 @ 22k is still separable, capacity is the answer. If it is NOT, then h96's
+# failure was over-training on a small set and the width story is wrong.
+#
+#   qsub -l select=1:ncpus=16:ngpus=1 -l walltime=25:00:00 \
+#        -o logs/88_d7_matched.log scripts/pbs/88_d7_matched.pbs             # -> glong
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+export THREADS=${NCPUS:-16}
+{
+  # a NEW directory: the published h96 samples are the 34,000-step release and must not
+  # be overwritten by a 22,000-step one
+  python -u scripts/resample.py \
+    --from-run results/runs/dimts_d7_conv_rep1/base \
+    --out results/runs/dimts_d7_conv_m11/base \
+    --job-file results/design_d7_pilot/rep1/jobs/base.json \
+    --cohort data/cohort/metabonet_sid_c1_d7_contiguous \
+    --milestone 11 \
+    --params '{"sample_batch": 250}'
+  echo "########## restart scan, matched at 22,000 steps ##########"
+  python -u scripts/disc_stability.py \
+    --runs results/runs/dimts_d7_conv_m11/base \
+           results/runs/dimts_d7_h256_rep1/base \
+           results/runs/dimts_d7_conv_rep1/base \
+    --cohort data/cohort/metabonet_sid_c1_d7_contiguous \
+    --job-file results/design_d7_pilot/rep1/jobs/base.json \
+    --restarts 8 \
+    --out results/quality_d7_h256/disc_stability_matched.json
+} 2>&1 | tee logs/88_d7_matched.live.log

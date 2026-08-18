@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Membership inference on CGM generative models — interactive experiment record</title>
-<meta name="description" content="Two questions, kept apart: what a realistic attacker can do, and how a generator responds to one added subject. Revision 2026-08-17.">
+<meta name="description" content="Two questions, kept apart: what a realistic attacker can do, and how a generator responds to one added subject. Revision 2026-08-18.">
 <style>
 :root{
   color-scheme: light;
@@ -396,7 +396,7 @@ body.guided section.sec.active{opacity:1}
 const DATA = {
 
 metadata: {
-  revision: "2026-08-17",
+  revision: "2026-08-18",
   generator: "DiM-TS (Mamba diffusion)",
   dataset: "MetaboNet public release (no DUA)"
 },
@@ -796,15 +796,21 @@ multichannel: {
     three:[0.5525,0.6525,0.6767], threeMean:0.6272,
     single:[0.4958,0.5292,0.5083], singleMean:0.5111,
     note:"Three campaign models at h128. The docs say “0.65–0.68”; the artefacts read " +
-      "0.553 / 0.653 / 0.677, so the honest range is 0.55–0.68 with a mean of 0.63." },
+      "0.553 / 0.653 / 0.677, so the honest range is 0.55–0.68 with a mean of 0.63.",
+    metricCaveat:"⚠ Each of these is ONE draw of the discriminator, taken before the unseeded " +
+      "initialisation was found (Section 11, finding 3). An unknown part of the spread is the " +
+      "metric rather than the models. The direction — three channels worse than one — is not in " +
+      "doubt, but the size of the gap has not been re-measured with restarts." },
   widthSweep:{ prov:"results/quality_c3_width/*.json", kind:"measured", role:"sensitivity",
     rows:[{hidden:128,paramsM:2.76,fid:0.1044,acc:0.5950},{hidden:160,paramsM:4.23,fid:0.0839,acc:0.6208},
           {hidden:192,paramsM:6.01,fid:0.1139,acc:0.6167},{hidden:224,paramsM:7.90,fid:0.0628,acc:0.6433},
           {hidden:256,paramsM:10.51,fid:0.0904,acc:0.5817}],
     noiseBand:[0.5525,0.6767], noiseSpread:0.124, widthSpread:0.061,
-    scopeLimit:"This rules out capacity FOR THE ONE-DAY THREE-CHANNEL CONFIGURATION ONLY. It says " +
-      "nothing about the seven-day question, which is a different data regime with 25× fewer " +
-      "training examples, and which is still open." },
+    scopeLimit:"This rules out capacity FOR THE ONE-DAY THREE-CHANNEL CONFIGURATION ONLY. At " +
+      "seven days capacity turned out to BE the limit (Section 10), which is what a scope limit " +
+      "is for.",
+    metricCaveat:"⚠ Single draws, same caveat as above. The “spread of 0.124 across three models " +
+      "at one width” was read as run-to-run model variation; part of it is the metric." },
   trainingLength:{ prov:"docs/HISTORY.md Stage 10; docs/MEMO.md", kind:"measured", role:"sensitivity",
     loss30_40k:0.01218, loss80_90k:0.01198, loss90_100k:0.01198,
     convergedBy:20000, gainedOverNext70k:0.016,
@@ -877,23 +883,58 @@ multiDay: {
       "is “longer windows AND a much smaller training set”, never window length alone." },
   sevenDay:{ prov:"results/quality_d7/dimts_d7_conv_rep1__base.json; results/attack_d7/summary.json; " +
       "results/subject_auc_d7/summary.json", kind:"measured", status:"confounded",
-    hidden:96, steps:59200, models:21, planned:21,
-    discriminator:0.9475, copyPasteDiscriminator:0.5325,
-    gate:"A discriminator separates real from synthetic at 0.95. copy_paste, which memorises " +
-      "verbatim, reads 0.53 — so 0.95 CANNOT be memorisation. It means the model did not fit the " +
-      "distribution at all. Every leakage number below was taken on a generator that failed.",
+    hidden:96, steps:34000, models:21, planned:21,
+    discriminator:0.8442, copyPasteDiscriminator:0.5100,
+    discriminatorNote:"maximum over eight discriminator restarts, not one reading — see the " +
+      "methodological finding in Section 11. The 0.9475 quoted in earlier drafts was a single " +
+      "draw of an unseeded classifier and is not reproducible.",
+    gate:"Over eight restarts a discriminator reaches 0.844 on these samples, with a spread of " +
+      "0.365 — the bimodal signature of a set that IS separable. copy_paste, which memorises " +
+      "verbatim, reaches 0.510 with a spread of 0.015. So this is not memorisation; the model " +
+      "did not fit the distribution. Every leakage number below was taken on a generator that " +
+      "failed, and none of it is evidence in either direction.",
     armAuc:0.72, armP:0.0521, nOut:10, nCtl:10,
     per:{outlier:0.5943, control:0.4881, excl1142:0.5493, s1142:1.0000, outOver055:6, ctlOver055:1},
     verdict:"This cannot be read as “seven days leaks more”. Sample size is the leading " +
       "candidate and the capacity question is unresolved." },
-  h256:{ prov:"results/runs/dimts_d7_h256_rep1/ (11 checkpoints, no samples.npy); " +
-      "logs/96_h256_quality.live.log", kind:"measured", status:"blocked",
+  restartScan:{ prov:"results/quality_d7_h256/disc_stability.json and " +
+      "disc_stability_matched.json; scripts/disc_stability.py",
+    kind:"measured", role:"primary",
+    method:"Eight discriminator restarts per model. The subsample is held fixed and only the " +
+      "classifier's initialisation moves, so the spread is a property of the optimisation, not " +
+      "of the data.",
+    rows:[
+      {label:"copy_paste, 7 days — anchor", min:0.4950, median:0.5067, max:0.5100, spread:0.0150,
+       verdict:"indistinguishable"},
+      {label:"h256, 7 days, 22k steps", min:0.4875, median:0.5242, max:0.5508, spread:0.0633,
+       verdict:"indistinguishable"},
+      {label:"h96, 7 days, 34k steps", min:0.4792, median:0.6383, max:0.8442, spread:0.3650,
+       verdict:"separable"},
+      {label:"h96, 7 days, 22k steps — MATCHED", min:0.4967, median:0.5538, max:0.9883,
+       spread:0.4917, verdict:"separable"}],
+    oneDayReference:{ min:0.4817, median:0.5025, max:0.5433, spread:0.0617, n:16,
+      note:"the one-day single-channel base, scored 16 times across the seedcheck runs — the " +
+           "profile of a generator that really does fit" },
+    conclusion:"At MATCHED steps the narrow model is separable at 0.988 and the wide one is not " +
+      "(0.551). Width is the whole story. Over-training is excluded in passing: h96 is MORE " +
+      "separable at 22k than at 34k, so 311 epochs over 7,001 windows is not what broke it." },
+  h256:{ prov:"results/quality_d7_h256/disc_stability_matched.json; " +
+      "results/runs/dimts_d7_h256_full_rep1/", kind:"measured", status:"in-progress",
     hidden:256, paramsM:12.28, trainWindows:7001, paramsPerSample:1753,
-    checkpoints:11, lastCheckpoint:"2026-08-17 15:05",
-    blocker:"Sampling failed with CUDA out-of-memory at hidden_size 256 and T = 2016 — tried to " +
-      "allocate 1.93 GiB with 906 MiB free on a 40 GiB card. No samples were written, so there is " +
-      "no quality number, and nothing for this run is in the queue.",
-    question:"Is the seven-day quality collapse capacity or data volume? STILL OPEN." }
+    answer:"CAPACITY. The seven-day quality collapse was a model too narrow to represent " +
+      "T = 2016, not a training set too small.",
+    firstBlocker:"The first attempt to read this died twice: training was SIGTERMed at step " +
+      "23,899 of 59,200 (exit 143, five hours into a twelve-hour walltime — not a walltime kill, " +
+      "and the artefacts do not record why), and the rescue sampling pass hit CUDA OOM at " +
+      "sample_batch 1000, which is the one-day value. Dropped to 100 and it ran.",
+    campaign:{ status:"in-progress", models:21, done:0, steps:22000, gpuHours:139,
+      perModelH:6.60, launched:"2026-08-18 10:50", eta:"2026-08-19 ≈ 07:00",
+      note:"The same 21-model pilot at hidden_size 256. base is retrained rather than reused: " +
+        "the diagnostic base is a checkpoint rescued from a killed run and sampled by resample, " +
+        "and every one of the 20 gaps divides by that base." },
+    reopens:"“Longer windows” was written off as a dead end on the strength of a generator that " +
+      "could not represent the data. It is not a dead end — it is UNTESTED. The copy_paste " +
+      "ceiling result stands separately: that measurement never involved DiM-TS." }
 },
 
 findings: {
@@ -941,7 +982,7 @@ findings: {
 },
 
 currentStatus: {
-  asOf:"2026-08-17",
+  asOf:"2026-08-18",
   items:[
    {name:"CGM + basal/kg cohort", state:"complete",
     detail:"1,208 subjects, 167,726 windows. Manifest verified, 0 duplicate (subject, day).",
@@ -958,15 +999,27 @@ currentStatus: {
       "the internal control for body size.",
     prov:"results/identifiability_within/metabonet_sid_c2_{perkg,raw}.csv"},
    {name:"Two-channel 21-model pilot", state:"in-progress",
-    detail:"10 outliers + 10 day-matched controls + 1 shared base, h128, 100,000 steps. Three jobs " +
-      "running since about 14:00; 8 of 21 model directories opened, 0 finished.",
-    prov:"results/runs/dimts_c2_perkg_rep1/; results/design_c2_perkg/rep1/design.json; qstat"},
-   {name:"Seven-day h256 capacity test", state:"blocked",
-    detail:"Base trained to 11 checkpoints, then sampling failed with CUDA OOM at h256 × T=2016. " +
-      "No samples, no quality metric, nothing in the queue. Needs a smaller sample batch or a " +
-      "larger card before it can answer capacity versus data volume.",
-    prov:"results/runs/dimts_d7_h256_rep1/; logs/96_h256_quality.live.log",
-    correction:"docs/SUMMARY_CN.md lists this as training. It is not running."},
+    detail:"10 outliers + 10 day-matched controls + 1 shared base, h128, 40,000 steps — not the " +
+      "published 100,000, because this cohort's loss converges by 20k and the next 80k buys 2.6%. " +
+      "12 of 21 complete including base. ETA 2026-08-18 around 21:00.",
+    prov:"results/runs/dimts_c2_perkg_s40k_rep1/; results/design_c2_perkg/rep1/design.json",
+    correction:"An earlier attempt at 100,000 steps was abandoned: five of its eight shards would " +
+      "have lost their last model to the walltime. The budget check is now executable."},
+   {name:"Seven-day h256 capacity test", state:"complete",
+    detail:"ANSWERED — capacity. At matched 22,000 steps a discriminator reaches 0.988 on h96 and " +
+      "0.551 on h256 over eight restarts. Over-training is excluded: h96 is more separable at 22k " +
+      "than at 34k.",
+    prov:"results/quality_d7_h256/disc_stability_matched.json"},
+   {name:"Seven-day h256 21-model pilot", state:"in-progress",
+    detail:"The membership question re-asked of a generator that fits. 22,000 steps, 6.60 h/model, " +
+      "139 GPU·h, nine shards over three lanes. Launched 2026-08-18 10:50, ETA 2026-08-19 around " +
+      "07:00. 0 of 21 complete.",
+    prov:"results/runs/dimts_d7_h256_full_rep1/; scripts/pbs/89_d7_h256_campaign.pbs"},
+   {name:"Discriminator metric defect", state:"complete",
+    detail:"The GRU's weight initialisation was never seeded, so a score depended on how many " +
+      "models had been evaluated earlier in the same process. Fixed, documented as " +
+      "docs/PITFALLS.md section 16, and the affected figures are flagged where they appear.",
+    prov:"src/cgmoutlier/quality.py; scripts/disc_stability.py"},
    {name:"Three-channel campaign", state:"stopped",
     detail:"44 of 123 models. Stopped for cost — 8.71 h/model against a walltime budgeted from " +
       "5.35 — and because replicate 1 had already answered the question.",
@@ -974,6 +1027,10 @@ currentStatus: {
    {name:"Two-channel full design, 123 models", state:"pending",
     detail:"About 812 GPU·h. Not launched; the decision waits on the pilot.",
     prov:"docs/SUMMARY_CN.md §11"},
+   {name:"Re-measure the three-channel quality gap with restarts", state:"pending",
+    detail:"0.553 / 0.653 / 0.677 and the width sweep are single draws taken before the seeding " +
+      "defect was found. The direction holds; the size has not been re-measured.",
+    prov:"results/quality_c3/; results/quality_c3_width/"},
    {name:"1142 — memorisation or distribution shift", state:"pending",
     detail:"No experiment designed yet. This is the caveat attached to the publishable claim.",
     prov:"docs/SUMMARY_CN.md §11"}
@@ -1320,14 +1377,14 @@ const SECTIONS=[
   ev:'CGM + basal + bolus, per-channel attack, width sweep, cost.',
   v:'Worse, and stopped at 44 of 123',next:'Try longer windows instead.',tag:null},
  {id:'s10',n:'10',t:'Direction B — longer windows',q:'Would a longer window expose more?',
-  ev:'copy_paste ceiling at 1 / 7 / 14 / 21 days; a real seven-day run.',
-  v:'Ruled out for the ceiling; the real run is confounded',
-  next:'Separate capacity from data volume — currently blocked.',tag:null},
+  ev:'copy_paste ceiling at 1 / 7 / 14 / 21 days; a real seven-day run at two widths.',
+  v:'Ceiling ruled out · the h96 run was confounded · capacity was the cause',
+  next:'Re-ask the membership question at h256 — running.',tag:null},
  {id:'s11',n:'11',t:'Methodological findings',q:'What generalises beyond this dataset?',
-  ev:'Identifiability vs memorisability; per-channel reporting; one subject.',
-  v:'Two findings supported, one open',next:'Read the current state of the work.',tag:null},
+  ev:'Identifiability vs memorisability; per-channel reporting; a metric defect; one subject.',
+  v:'Three findings supported, one open',next:'Read the current state of the work.',tag:null},
  {id:'s12',n:'12',t:'Current status',q:'What is finished, running, blocked or pending?',
-  ev:'Eight work items as of 2026-08-17.',v:'3 complete · 1 running · 1 blocked · 1 stopped · 2 pending',
+  ev:'Eleven work items as of 2026-08-18.',v:'5 complete · 2 running · 1 stopped · 3 pending',
   next:'—',tag:null}
 ];
 
@@ -2944,7 +3001,7 @@ DRAW.s09=()=>{
 B.s10=()=>{
   const s=SECTIONS[10],D=DATA.multiDay;
   return secHead(s,badges([badge('complete','ceiling: ruled out'),
-    badge('confounded','real run: confounded'),badge('blocked','h256: blocked')]))+
+    badge('confounded','h96 run: confounded'),badge('in-progress','h256 pilot: running')]))+
   chainHTML({
     q:'Was a one-day window too short for a membership signal to exist?',
     why:'The clinical literature talks about a fortnight pinning an individual down, and one day of ' +
@@ -2954,15 +3011,17 @@ B.s10=()=>{
       'Second, actually train DiM-TS on seven-day windows.',
     obs:'The ceiling is <b>flat at '+F.auc(D.spread[0])+'–'+F.auc(D.spread[1])+
       '</b> from one day to three weeks, while the absolute gap grows '+D.gapGrowthPct+'%. The real ' +
-      'seven-day models reached a discriminator accuracy of <b>'+F.auc(D.sevenDay.discriminator)+
-      '</b> — they did not fit.',
-    interp:'“One day is too short” is not the explanation. The real seven-day run cannot settle ' +
-      'anything, because it changed two things at once: window length and a 25× smaller training set.',
-    rules:'Rules out window length as the reason the attack finds nothing. Does <b>not</b> tell us ' +
-      'whether a real generator memorises more from longer windows.',
-    nextWhy:'Separating capacity from data volume needs the same window length at a larger width — ' +
-      'which is the run that is currently blocked.',
-    status:badge('blocked')+' &nbsp;'+esc(D.h256.question)
+      'seven-day models at h96 are <b>separable</b> — a discriminator reaches '+
+      F.auc(D.sevenDay.discriminator)+' over eight restarts — so they did not fit.',
+    interp:'“One day is too short” is not the explanation, and it never depended on DiM-TS. The h96 ' +
+      'seven-day run settles nothing on its own: it was a model too narrow for T = 2016.',
+    rules:'Rules out window length as the reason the attack finds nothing. Rules out data volume as ' +
+      'the reason the seven-day generator failed. Does <b>not</b> tell us whether a real generator ' +
+      'memorises more from longer windows — that is now running.',
+    nextWhy:'At matched steps the width comparison is unambiguous, so the pilot is being re-run at ' +
+      'hidden_size 256 to ask the membership question of a generator that actually fits.',
+    status:badge('complete')+' '+badge('in-progress')+' &nbsp;'+esc(D.h256.answer)+
+      ' The 21-model pilot is being re-run at hidden_size 256.'
   })+
   '<div class="fig"><div class="fighead"><div><h4>The attack ceiling, by window length</h4>'+
   '<p class="sub">Select a length. The two readings disagree, and which one answers the question ' +
@@ -2987,19 +3046,31 @@ B.s10=()=>{
   '<p class="sub">A quality gate stands in front of these numbers on purpose.</p></div>'+
   '<span id="d7Badges"></span></div>'+
   '<div id="d7Gate"></div></div>'+
-  '<div class="fig"><div class="fighead"><div><h4>Capacity or data volume? — currently blocked</h4>'+
-  '<p class="sub">The run that would separate them.</p></div>'+badges([badge('blocked')])+'</div>'+
+  '<div class="fig"><div class="fighead"><div><h4>Capacity or data volume? — capacity</h4>'+
+  '<p class="sub">Eight discriminator restarts per model, one fixed subsample, only the ' +
+  'classifier’s initialisation moving. Read the MAX column and the spread.</p></div>'+
+  badges([badge('measured'),badge('primary')])+'</div>'+
+  '<svg class="chart" id="restartFig"></svg>'+
+  '<div class="legend"><span><i style="background:var(--s3)"></i>indistinguishable — tight, ' +
+  'every restart lands at chance</span><span><i style="background:var(--s2)"></i>separable — ' +
+  'bimodal, the classifier either finds the feature or does not</span></div>'+
+  '<figcaption id="restartCap"></figcaption>'+
+  '<div id="restartTbl"></div>'+
+  prov(DATA.multiDay.restartScan,[['Method',DATA.multiDay.restartScan.method]])+'</div>'+
+  '<div class="card"><h4 style="margin:0 0 8px">What this reopens</h4>'+
+  '<p style="margin:0 0 10px">'+esc(DATA.multiDay.h256.reopens)+'</p>'+
   '<dl class="kv">'+
-  '<dt>Configuration</dt><dd>hidden_size '+DATA.multiDay.h256.hidden+', '+DATA.multiDay.h256.paramsM+
-    ' M parameters against '+F.int(DATA.multiDay.h256.trainWindows)+' training windows — '+
-    F.int(DATA.multiDay.h256.paramsPerSample)+' parameters per training example</dd>'+
-  '<dt>Progress</dt><dd>'+DATA.multiDay.h256.checkpoints+' checkpoints written, last at '+
-    esc(DATA.multiDay.h256.lastCheckpoint)+'</dd>'+
-  '<dt>Blocker</dt><dd style="color:var(--crit)">'+esc(DATA.multiDay.h256.blocker)+'</dd>'+
-  '<dt>Question it would answer</dt><dd>'+esc(DATA.multiDay.h256.question)+'</dd></dl>'+
-  '<figcaption>No result is reported here, and none is implied. The width sweep in Section 09 ' +
-  'ruled out capacity <b>for the one-day three-channel configuration only</b>; it cannot be ' +
-  'extended to this one.</figcaption>'+prov(DATA.multiDay.h256)+'</div>'+
+  '<dt>Answer</dt><dd><b style="color:var(--ink)">'+esc(DATA.multiDay.h256.answer)+'</b></dd>'+
+  '<dt>Configuration</dt><dd>hidden_size '+DATA.multiDay.h256.hidden+', '+
+    DATA.multiDay.h256.paramsM+' M parameters against '+F.int(DATA.multiDay.h256.trainWindows)+
+    ' training windows — '+F.int(DATA.multiDay.h256.paramsPerSample)+
+    ' parameters per training example</dd>'+
+  '<dt>Re-run</dt><dd>'+badge('in-progress')+' '+DATA.multiDay.h256.campaign.models+
+    ' models at '+F.int(DATA.multiDay.h256.campaign.steps)+' steps, '+
+    DATA.multiDay.h256.campaign.perModelH+' h/model, '+DATA.multiDay.h256.campaign.gpuHours+
+    ' GPU·h. Launched '+esc(DATA.multiDay.h256.campaign.launched)+', ETA '+
+    esc(DATA.multiDay.h256.campaign.eta)+'.<br>'+esc(DATA.multiDay.h256.campaign.note)+'</dd>'+
+  '<dt>How it failed first</dt><dd>'+esc(DATA.multiDay.h256.firstBlocker)+'</dd></dl></div>'+
   '<div class="note"><b>What the copy_paste ceiling cannot answer.</b> '+esc(D.cannotAnswer)+'</div>'+
   '<div class="note"><b>On the stitched construction.</b> '+esc(D.seamNote)+'</div>';
 };
@@ -3144,12 +3215,59 @@ DRAW.s10=()=>{
   }
 };
 
+/* 10b -- the restart distributions that settled capacity vs data volume */
+DRAW.s10b=()=>{
+  const R=DATA.multiDay.restartScan, rows=R.rows;
+  const W=900,H=250,L=232,RR=120,T=30,B=48,iw=W-L-RR,ih=H-T-B;
+  const svg=chart('restartFig',W,H,'Discriminator accuracy over eight restarts, four conditions');
+  const x=v=>L+(v-0.45)/(1.02-0.45)*iw;
+  gridX(svg,[0.5,0.6,0.7,0.8,0.9,1.0],x,T,ih,v=>v.toFixed(1));
+  svg.appendChild(el('line',{x1:x(0.5),y1:T,x2:x(0.5),y2:T+ih,class:'zeroline'}));
+  const rl=el('text',{x:x(0.5),y:T-9,'text-anchor':'middle',class:'reflabel'});
+  rl.textContent='0.50 = indistinguishable'; svg.appendChild(rl);
+  const rh=ih/rows.length;
+  rows.forEach((r,i)=>{
+    const cy=T+i*rh+rh/2, sep=r.verdict==='separable', col=sep?C.outlier():C.calib();
+    const g=el('g'); svg.appendChild(g);
+    g.appendChild(el('line',{x1:x(r.min),y1:cy,x2:x(r.max),y2:cy,stroke:col,'stroke-width':8,
+      opacity:.3,'stroke-linecap':'round'}));
+    [['min',r.min,4],['median',r.median,5.5],['max',r.max,7]].forEach(([nm,v,rad])=>{
+      g.appendChild(el('circle',{cx:x(v),cy:cy,r:rad,fill:col,
+        stroke:C.surf1(),'stroke-width':nm==='max'?2:1.5}));
+    });
+    const lb=el('text',{x:L-12,y:cy+4,'text-anchor':'end',class:'ax',
+      fill:sep?C.ink():C.ink2(),'font-weight':sep?'650':'400'});
+    lb.textContent=r.label; svg.appendChild(lb);
+    const vl=el('text',{x:L+iw+12,y:cy+4,class:'ax',fill:C.ink2()});
+    vl.textContent='spread '+r.spread.toFixed(3); svg.appendChild(vl);
+    bindMark(g,r.label,['eight restarts, one fixed subsample',
+      'min '+F.auc4(r.min)+' · median '+F.auc4(r.median)+' · max '+F.auc4(r.max),
+      'spread '+r.spread.toFixed(4),
+      sep?'BIMODAL — the classifier sometimes finds a separating feature'
+         :'TIGHT — every restart lands at chance'],r.label);
+  });
+  axisTitle(svg,L+iw/2,T+ih+36,'discriminator accuracy — the dot sizes are min, median and max');
+  $('#restartCap').innerHTML='<b>'+esc(R.conclusion)+'</b> For scale, the one-day single-channel ' +
+    'base scored '+R.oneDayReference.n+' times spans '+F.auc4(R.oneDayReference.min)+'–'+
+    F.auc4(R.oneDayReference.max)+' (spread '+R.oneDayReference.spread.toFixed(3)+') — '+
+    esc(R.oneDayReference.note)+'. h256 sits in exactly that band.';
+  $('#restartTbl').innerHTML=tableBlock(['Condition','min','median','max','spread','reading'],
+    rows.map(r=>({__cls:r.verdict==='separable'?'hl':'',
+      __cells:[r.label,F.auc4(r.min),F.auc4(r.median),F.auc4(r.max),r.spread.toFixed(4),
+               r.verdict]}))
+      .concat([{__cls:'dim',__cells:['one-day single channel ('+R.oneDayReference.n+' scorings)',
+        F.auc4(R.oneDayReference.min),F.auc4(R.oneDayReference.median),
+        F.auc4(R.oneDayReference.max),R.oneDayReference.spread.toFixed(4),'indistinguishable']}]),
+    {caption:'Eight restarts each unless noted. Report the max; the spread is the error bar.',
+     n:rows.length+1});
+};
+
 /* ---------------- 11 methodological findings ---------------- */
 B.s11=()=>{
   const s=SECTIONS[11],FD=DATA.findings;
   return secHead(s)+
-  '<p>Three things came out of this work that are not about MetaboNet. Two are supported; the ' +
-  'third is an open question that is stated as one.</p>'+
+  '<p>Four things came out of this work that are not about MetaboNet. Three are supported; the ' +
+  'fourth is an open question that is stated as one.</p>'+
   '<div class="fig"><div class="fighead"><div><h4>Finding 1 — identifiability is not memorisability</h4>'+
   '<p class="sub">Two measurements of the same channels: how well a day identifies its owner in ' +
   'the REAL data, and how much that channel leaks membership from the GENERATOR.</p></div>'+
@@ -3176,7 +3294,30 @@ B.s11=()=>{
   '<figcaption id="nnCap"></figcaption>'+
   prov({prov:'geometric schematic; the measured consequence is in results/subject_auc_c3/',
         kind:'schematic',role:'descriptive'})+'</div>'+
-  '<div class="fig"><div class="fighead"><div><h4>Finding 3 — one subject, three generators</h4>'+
+  '<div class="fig"><div class="fighead"><div><h4>Finding 3 — a single discriminator reading is a ' +
+  'lower bound, and one draw of it</h4>'+
+  '<p class="sub">The metric this project uses to decide whether a generator fits was seeded in ' +
+  'two of the three places it needed to be.</p></div>'+
+  badges([badge('measured'),badge('primary')])+'</div>'+
+  '<p><code>discriminative_score</code> seeded the subsample and the batch draw, but not the GRU’s ' +
+  'weight initialisation, which came from torch’s global RNG. The same <code>samples.npy</code> ' +
+  'therefore read <b>0.9475</b> when it was the first model scored in its process and <b>0.5908</b> ' +
+  'when it was the second — and <b>0.6483</b> in a third. Fixed in ' +
+  '<code>src/cgmoutlier/quality.py</code>; the restart sweep is ' +
+  '<code>scripts/disc_stability.py</code>.</p>'+
+  '<p>The shape of the instability turned out to be more useful than the bug. Where a generator is ' +
+  'genuinely indistinguishable the classifier converges to chance every time and the spread is ' +
+  '0.015–0.06. Where a separable feature exists the draws are <b>bimodal</b> — the classifier ' +
+  'either finds it or the optimisation fails — and the spread is 0.37–0.49. So a single low ' +
+  'reading is weak evidence of quality, a single high reading is strong evidence of separability, ' +
+  'and <b>the statistic to report is the maximum over restarts with the spread beside it</b>. ' +
+  'A mean would average a successful classifier with a failed optimisation.</p>'+
+  '<div class="note warn" style="margin-bottom:0"><b>What still carries the caveat.</b> The ' +
+  'three-channel quality figures (0.553 / 0.653 / 0.677), the width sweep (0.582–0.643) and the ' +
+  '“spread of 0.124 across three models at one width” are all single draws taken before this was ' +
+  'found. The direction of those results is not in doubt; the size of the gaps has not been ' +
+  're-measured with restarts.</div></div>'+
+  '<div class="fig"><div class="fighead"><div><h4>Finding 4 — one subject, three generators</h4>'+
   '<p class="sub">As the generator gets worse, this subject’s AUC rises. Three points, and the ' +
   'three conditions differ in more than one way.</p></div>'+
   badges([badge('measured'),badge('exploratory'),badge('pending','unresolved')])+'</div>'+

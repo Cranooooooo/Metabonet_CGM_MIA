@@ -1,0 +1,111 @@
+#!/bin/bash
+#PBS -N cgm_d7h256c
+#PBS -P 11704243
+#PBS -j oe
+#
+# The seven-day membership pilot, re-run at hidden_size 256.
+#
+# ─── why it is being run again ────────────────────────────────────────────────
+# The h96 run finished all 21 models and produced membership numbers (arm AUC 0.72,
+# subject 1142 at 1.000) that could not be read, because the generator had not fitted:
+# a post-hoc classifier separated its samples from real ones. That reading was itself
+# unstable, so it was redone properly -- eight discriminator restarts per model, one
+# fixed subsample, only the classifier's initialisation moving:
+#
+#                            min    median    max    spread
+#   h96  @ 22,000 steps    0.4967   0.5538  0.9883   0.4917   <- separable
+#   h96  @ 34,000 steps    0.4792   0.6383  0.8442   0.3650   <- separable
+#   h256 @ 22,000 steps    0.4875   0.5242  0.5508   0.0633   <- indistinguishable
+#   copy_paste, 7 days     0.4950   0.5067  0.5100   0.0150   <- the anchor
+#
+# At MATCHED steps the narrow model is separable at 0.988 and the wide one is not.
+# Width was the whole story, and the over-training reading is excluded because h96 is
+# MORE separable at 22k than at 34k. So the seven-day question was never actually
+# tested -- it was asked of a model that could not represent the data.
+#
+# ─── 22,000 steps ─────────────────────────────────────────────────────────────
+# The h256 loss trace on this cohort: 4k 0.01325 · 10k 0.01261 · 16k 0.01240 ·
+# 20k 0.01241. Flat from 16k. 22,000 is past the knee and is the budget the quality
+# reading above was taken at, so the campaign matches its own diagnostic.
+#
+# ⚠ base is trained here rather than reused. The existing h256 base is a checkpoint
+# rescued from a killed run and sampled by `resample`, which advances the RNG
+# differently; every one of the 20 gaps divides by that base, so it is worth 6.6 GPU·h
+# to have it produced the same way as the models it is compared against.
+#
+# ─── lanes ────────────────────────────────────────────────────────────────────
+# 21 models over 9 shards -> 3 on the busiest, 3 x 6.60 h = 19.8 h.
+#   glong 4 cards  shards 0-3   walltime 40 h   (the band starts above 24 h anyway)
+#   g3    4 cards  shards 4-7   walltime 24 h
+#   g1    1 card   shard  8     walltime 24 h
+# g2 and one glong slot are held by the two-channel pilot and are not touched.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+: "${SHARD_BASE:?pass -v SHARD_BASE=0,N_SHARDS=9}"
+: "${N_SHARDS:?pass -v SHARD_BASE=0,N_SHARDS=9}"
+
+DSN=results/design_d7_pilot/rep1
+OUT=results/runs/dimts_d7_h256_full_rep1
+COH=data/cohort/metabonet_sid_c1_d7_contiguous
+STEPS=22000
+SAVE_CYCLE=2000
+SAMPLE_BATCH=100     # 1000 OOMs at T=2016 x h256; 100 is the value that ran
+LOGTAG=${PBS_JOBID%%.*}
+
+# measured, not projected: 1.30 it/s training (logs/86_d7_h256_base.log) and 6,832 s to
+# release 7,001 windows at sample_batch 100 (that run's meta.json)
+python - "$DSN" "$N_SHARDS" "$STEPS" <<'PY' || exit 1
+import json, os, subprocess, sys
+dsn, n_shards, steps = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+n_jobs = json.load(open(f"{dsn}/design.json"))["n_jobs"]
+per_shard = max(len(list(range(n_jobs))[s::n_shards]) for s in range(n_shards))
+train_h = steps / 1.30 / 3600
+sample_h = 6832 / 3600
+per_model = train_h + sample_h
+need = per_shard * per_model
+wall = os.environ.get("PBS_WALLTIME")
+if not wall:
+    out = subprocess.run(["qstat", "-f", os.environ.get("PBS_JOBID", "")],
+                         capture_output=True, text=True).stdout
+    for line in out.splitlines():
+        if "Resource_List.walltime" in line:
+            h, m, s = line.split("=")[1].strip().split(":")
+            wall = int(h) * 3600 + int(m) * 60 + int(s)
+wall_h = float(wall) / 3600 if wall else None
+print(f"[budget] {n_jobs} jobs / {n_shards} shards -> {per_shard} on the busiest")
+print(f"[budget] {steps:,} steps = {train_h:.2f} h train + {sample_h:.2f} h sample "
+      f"= {per_model:.2f} h/model")
+print(f"[budget] busiest shard {need:.1f} h vs walltime {wall_h if wall_h else '?'} h")
+if wall_h is None:
+    print("[budget] WARNING: walltime unreadable; proceeding unchecked")
+elif need > wall_h * 0.85:
+    print(f"[budget] REFUSING TO START: {need:.1f} h against {wall_h:.1f} h leaves "
+          f"under the 15% margin.")
+    sys.exit(1)
+else:
+    print(f"[budget] OK — {need / wall_h * 100:.0f}% of the walltime, "
+          f"{wall_h - need:.1f} h spare")
+PY
+
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
+export THREADS=$(( ${NCPUS:-16} / ${#ALLOC[@]} ))
+echo "shards ${SHARD_BASE}..$(( SHARD_BASE + ${#ALLOC[@]} - 1 )) of $N_SHARDS -> $OUT"
+pids=(); rc=0
+for i in "${!ALLOC[@]}"; do
+    s=$(( SHARD_BASE + i ))
+    ( export CUDA_VISIBLE_DEVICES="${ALLOC[$i]}"
+      python scripts/run_loo.py --design "$DSN" --out "$OUT" --cohort "$COH" \
+        --shard "$s" --n-shards "$N_SHARDS" \
+        --params "{\"hidden_size\": 256, \"steps\": $STEPS, \"save_cycle\": $SAVE_CYCLE, \"sample_batch\": $SAMPLE_BATCH}"
+    ) > "logs/89_${LOGTAG}_shard${s}.log" 2>&1 &
+    pids+=($!)
+done
+for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then echo "shard $(( SHARD_BASE + i )) OK"
+    else echo "shard $(( SHARD_BASE + i )) FAILED"; rc=1; fi
+done
+echo "$(find "$OUT" -name samples.npy | wc -l) / 21 models complete"
+exit $rc
