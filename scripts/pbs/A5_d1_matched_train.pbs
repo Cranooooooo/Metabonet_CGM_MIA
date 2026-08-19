@@ -1,0 +1,104 @@
+#!/bin/bash
+#PBS -N cgm_d1m
+#PBS -P 11704243
+#PBS -j oe
+#
+# The control for the seven-day result: one-day windows under the SEVEN-DAY training
+# regime.
+#
+# WHAT IT IS FOR. The seven-day h256 pilot returned arm AUC 0.950 where the published
+# one-day run gives 0.680. Two things differ:
+#
+#     window length     T = 288  ->  2016        <- the hypothesis
+#     epochs per window      36  ->   201        <- a confound
+#
+# 22,000 steps at batch 64 over 7,001 windows is 201 epochs. The published run was
+# 100,000 steps over 176,445 windows, which is 36. A generator that has seen each
+# training window 5.5x more often memorises more whatever T is.
+#
+# This run holds everything but T fixed: the same 573 subjects, the same 10 outliers and
+# 10 day-matched controls, the same design file, 6,996 one-day windows against the
+# seven-day 7,001, the same hidden_size 256 and the same 22,000 steps.
+#
+#     one-day matched   T=288   6,996 windows  22,000 steps  -> 201 epochs   <- this job
+#     seven-day h256    T=2016  7,001 windows  22,000 steps  -> 201 epochs   -> AUC 0.950
+#
+# HOW TO READ IT. If this lands near 0.9 as well, the seven-day number is the training
+# regime and not the window length, and a 1,449 GPU.h full design would be measuring the
+# wrong thing. If it stays near the published 0.680, window length is real and it is the
+# most important result in the study.
+#
+# 8 GPU.h against the 1,449 the full design would cost. This is why it runs first.
+#
+#   qsub -l select=1:ncpus=64:ngpus=4 -l walltime=12:00:00 -v SHARD_BASE=0,N_SHARDS=7 ... -> g3
+#   qsub -l select=1:ncpus=48:ngpus=3 -l walltime=12:00:00 -v SHARD_BASE=4,N_SHARDS=7 ... -> g2
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+: "${SHARD_BASE:?}"; : "${N_SHARDS:?}"
+
+DSN=results/design_d7_pilot/rep1
+OUT=results/runs/dimts_d1_matched_rep1
+COH=data/cohort/metabonet_sid_d1_matched
+STEPS=22000
+SAVE_CYCLE=2000
+SAMPLE_BATCH=500
+LOGTAG=${PBS_JOBID%%.*}
+
+# T=288 has no h256 measurement of its own, so the assertion uses the SLOWEST rate this
+# project has measured at T=288 (210 ms/step, the two-channel h128 pilot) scaled by the
+# 1.36x the capacity probe measured from h128 to h256. Over-estimating is the safe
+# direction for a walltime check.
+python - "$DSN" "$N_SHARDS" "$STEPS" "$COH" <<'PY' || exit 1
+import json, os, subprocess, sys
+dsn, n_shards, steps, coh = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+n_jobs = json.load(open(f"{dsn}/design.json"))["n_jobs"]
+per_shard = max(len(list(range(n_jobs))[s::n_shards]) for s in range(n_shards))
+k = json.load(open(f"{coh}/manifest.json"))["n_windows"]
+train_h = steps * (0.210 * 1.36) / 3600
+sample_h = k * (0.0599 * 2.37) / 3600
+per_model = train_h + sample_h
+need = per_shard * per_model
+wall = os.environ.get("PBS_WALLTIME")
+if not wall:
+    out = subprocess.run(["qstat", "-f", os.environ.get("PBS_JOBID", "")],
+                         capture_output=True, text=True).stdout
+    for line in out.splitlines():
+        if "Resource_List.walltime" in line:
+            h, m, s = line.split("=")[1].strip().split(":")
+            wall = int(h) * 3600 + int(m) * 60 + int(s)
+wall_h = float(wall) / 3600 if wall else None
+print(f"[budget] {n_jobs} jobs / {n_shards} shards -> {per_shard} on the busiest")
+print(f"[budget] {steps:,} steps = {train_h:.2f} h train + {sample_h:.2f} h sample "
+      f"= {per_model:.2f} h/model ({k:,} windows)")
+print(f"[budget] busiest shard {need:.1f} h vs walltime {wall_h} h")
+if wall_h is None:
+    print("[budget] WARNING: walltime unreadable")
+elif need > wall_h * 0.85:
+    print(f"[budget] REFUSING TO START: {need:.1f} h against {wall_h:.1f} h")
+    sys.exit(1)
+else:
+    print(f"[budget] OK — {need/wall_h*100:.0f}% of walltime, {wall_h-need:.1f} h spare")
+PY
+
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
+export THREADS=$(( ${NCPUS:-16} / ${#ALLOC[@]} ))
+echo "shards ${SHARD_BASE}..$(( SHARD_BASE + ${#ALLOC[@]} - 1 )) of $N_SHARDS -> $OUT"
+pids=(); rc=0
+for i in "${!ALLOC[@]}"; do
+    s=$(( SHARD_BASE + i ))
+    ( export CUDA_VISIBLE_DEVICES="${ALLOC[$i]}"
+      python scripts/run_loo.py --design "$DSN" --out "$OUT" --cohort "$COH" \
+        --shard "$s" --n-shards "$N_SHARDS" \
+        --params "{\"hidden_size\": 256, \"steps\": $STEPS, \"save_cycle\": $SAVE_CYCLE, \"sample_batch\": $SAMPLE_BATCH}"
+    ) > "logs/A5_${LOGTAG}_shard${s}.log" 2>&1 &
+    pids+=($!)
+done
+for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then echo "shard $(( SHARD_BASE + i )) OK"
+    else echo "shard $(( SHARD_BASE + i )) FAILED"; rc=1; fi
+done
+echo "$(find "$OUT" -name samples.npy | wc -l) / 21 models complete"
+exit $rc

@@ -1,0 +1,54 @@
+#!/bin/bash
+#PBS -N cgm_atk2
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=384gb
+#PBS -l walltime=06:00:00
+#PBS -j oe
+#
+# The membership analysis for BOTH finished pilots. CPU work — the frozen statistic is a
+# nearest-neighbour distance over flattened windows, no model is touched.
+#
+# THE TWO PILOTS ANSWER DIFFERENT QUESTIONS AND NEITHER IS COMPARABLE TO THE PUBLISHED
+# 0.680, because both were trained to their own convergence point rather than the
+# published 100,000 steps (two-channel 40,000; seven-day 22,000). Read each internally:
+# outlier arm against its own day-matched control arm.
+#
+# PER CHANNEL FOR THE TWO-CHANNEL PILOT. Flattening channels into one Euclidean distance
+# assumes they are homogeneous, and the three-channel run showed they are not: `min`
+# picks the nearest released sample in the JOINT space, so an uninformative dimension
+# changes which sample is nearest and dilutes the signal. 1142 fell from 0.636 on CGM
+# alone to 0.508 on CGM+basal. So: all, CGM only, basal only.
+#
+#   qsub -o logs/A2_attack_both.log scripts/pbs/A2_attack_both.pbs               # -> q2
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+export THREADS=${NCPUS:-64}
+C2_COH=data/cohort/metabonet_sid_c2_perkg
+C2_DSN=results/design_c2_perkg/rep1
+C2_OUT=results/runs/dimts_c2_perkg_s40k_rep1
+D7_COH=data/cohort/metabonet_sid_c1_d7_contiguous
+D7_DSN=results/design_d7_pilot/rep1
+D7_OUT=results/runs/dimts_d7_h256_full_rep1
+{
+  echo "########## 1. two-channel — frozen min x mean, all channels ##########"
+  python -u scripts/run_attack.py --design "$C2_DSN" --runs "$C2_OUT" --cohort "$C2_COH" \
+    --out results/attack_c2_perkg
+
+  for CH in CGM basal; do
+    echo "########## 2. two-channel — same models, $CH only ##########"
+    python -u scripts/run_attack.py --design "$C2_DSN" --runs "$C2_OUT" --cohort "$C2_COH" \
+      --channels "$CH" --out "results/attack_c2_bychannel/$CH"
+  done
+
+  echo "########## 3. two-channel — per-subject AUC ##########"
+  python -u scripts/subject_auc.py --runs dimts_c2_perkg_s40k --design results/design_c2_perkg \
+    --cohort "$C2_COH" --replicates 1 --out results/subject_auc_c2_perkg
+
+  echo "########## 4. seven-day h256 — frozen min x mean ##########"
+  python -u scripts/run_attack.py --design "$D7_DSN" --runs "$D7_OUT" --cohort "$D7_COH" \
+    --out results/attack_d7_h256
+
+  echo "########## 5. seven-day h256 — per-subject AUC ##########"
+  python -u scripts/subject_auc.py --runs dimts_d7_h256_full --design results/design_d7_pilot \
+    --cohort "$D7_COH" --replicates 1 --out results/subject_auc_d7_h256
+} 2>&1 | tee logs/A2_attack_both.live.log

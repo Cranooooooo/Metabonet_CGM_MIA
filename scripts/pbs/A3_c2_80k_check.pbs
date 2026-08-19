@@ -1,0 +1,54 @@
+#!/bin/bash
+#PBS -N cgm_c280k
+#PBS -P 11704243
+#PBS -j oe
+#
+# Was cutting the two-channel pilot to 40,000 steps the reason its generator failed?
+#
+# WHAT HAPPENED. The pilot was relaunched at 40,000 steps on 2026-08-17 because this
+# cohort's training loss is flat from 20k: 0.01490 at 20k, 0.01474 at 40k, 0.01449 at
+# 80k -- the last 80k of the published budget buys 2.6%. The resulting base fails the
+# discriminator: eight restarts give max 0.9408 with a spread of 0.3908, the bimodal
+# signature of a generator that did not fit. The published one-day single-channel base
+# sits at max 0.543, spread 0.062.
+#
+# So the inference "the loss has converged, therefore the samples are good" was wrong,
+# and it was mine. A flat loss says the objective stopped improving; it says nothing
+# about whether a post-hoc classifier can separate the samples.
+#
+# THE TEST. The abandoned 100,000-step attempt was moved aside rather than deleted, and
+# its base holds checkpoint-4 = 80,000 steps. Same cohort, same architecture, same seed
+# -- only the budget differs. Sample it and score it the same way.
+#
+#   40,000 steps  ->  max 0.9408, spread 0.3908   (already on disk)
+#   80,000 steps  ->  this job
+#
+# If 80k lands near 0.55 the step cut is the cause and the pilot must be re-run at the
+# published budget. If 80k is also bimodal, the budget is innocent and the problem is
+# the second channel -- which would match the three-channel result and would mean
+# basal/kg does to generation what bolus did.
+#
+# ~2.8 h to release 165,085 windows at 60 ms each, plus the restart scan.
+#
+#   qsub -l select=1:ncpus=16:ngpus=1 -l walltime=06:00:00 \
+#        -o logs/A3_c2_80k_check.log scripts/pbs/A3_c2_80k_check.pbs             # -> g1
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+export THREADS=${NCPUS:-16}
+COH=data/cohort/metabonet_sid_c2_perkg
+{
+  python -u scripts/resample.py \
+    --from-run results/runs/_abandoned_c2_perkg_100k_rep1/base \
+    --out results/runs/dimts_c2_perkg_80k_base/base \
+    --job-file results/design_c2_perkg/rep1/jobs/base.json \
+    --cohort "$COH" --milestone 4
+  echo "########## restart scan: 80k against the 40k already on disk ##########"
+  python -u scripts/disc_stability.py \
+    --runs results/runs/dimts_c2_perkg_80k_base/base \
+           results/runs/dimts_c2_perkg_s40k_rep1/base \
+    --cohort "$COH" --job-file results/design_c2_perkg/rep1/jobs/base.json \
+    --restarts 8 --out results/quality_c2_perkg/disc_stability_80k_vs_40k.json
+} 2>&1 | tee logs/A3_c2_80k_check.live.log

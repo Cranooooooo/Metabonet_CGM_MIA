@@ -12,34 +12,50 @@ cd "$REPO"
   git add -A
   echo "staged: $(git diff --cached --numstat | wc -l) files"
   git commit -q -F - <<'MSG'
-Add the lab notebook: one tab per working day
+Both pilots finish. One is unreadable, and a decision chain so the record stays followable
 
-docs/report/index.html is the argument, and an argument hides its own history --
-which of these numbers arrived first, what they replaced, and which days were spent
-discovering that a measurement was wrong. docs/report/notebook.html is that record.
+TWO-CHANNEL, 21/21 AT h128 AND 40,000 STEPS -- NOT READABLE. Eight discriminator
+restarts on the base give max 0.9408 with a spread of 0.3908: the bimodal signature of
+a generator that did not fit, the same one that condemned the seven-day h96 line. Its
+arm AUC of 0.820 cannot be interpreted. A second tell was there: the joint distance
+reads 0.820 while CGM alone reads 0.370 and basal alone 0.600, and a joint far ABOVE
+both parts is backwards.
 
-Thirteen days, 2026-08-06 to 2026-08-18, one gap on 08-11 when nothing ran.
-Reconstructed from artefact mtimes rather than from memory: each day carries what was
-run, what came back with the numbers, what it decided, what bit us, and the artefact
-paths. Days are tagged built / measured / result / defect found / redirected / cost,
-and the timeline bar takes the colour of the day's most consequential tag.
+The 40,000-step budget was cut from the published 100,000 on my recommendation, because
+this cohort's loss is flat from 20k. That inference was wrong. A converged loss says the
+objective stopped improving; it says nothing about whether a classifier can separate the
+samples. The abandoned 100k attempt was moved aside rather than deleted, so its
+80,000-step checkpoint is being resampled and scored to tell the step cut apart from the
+second channel.
 
-The days that went wrong are in it, because they are most of the story: the attack
-design that was measuring which training run it was looking at (08-12), the three
-defects in the raw file (08-14), the campaign killed by a walltime budgeted from the
-wrong per-model cost (08-16), and the discriminator whose weights were never seeded
-(08-18).
+SEVEN-DAY h256, 21/21 -- QUALITY PASSES AND THE EFFECT IS LARGE. Restart max 0.624,
+spread 0.068, tight rather than bimodal. Arm AUC 0.950 (p = 0.0004); per-subject outlier
+0.628 against control 0.459; six of ten outliers above 0.55 and none of ten controls;
+1142 at 1.000.
 
-Interaction is the same system as the report -- day tabs, arrow keys, a timeline you
-can click, a show-every-day-at-once mode that is also what prints, dark mode, and
-per-day URL hashes. Nothing is claimed as finished that is not: the two pilots still
-running get their own dashed panel after the last day.
+It is not yet evidence about window length. 22,000 steps over 7,001 windows is 201
+epochs against the published run's 36, so the seven-day models saw each training window
+5.5x more often. Window length and training regime are still tangled, and a full
+three-replicate design at 50,000 steps would cost 1,449 GPU.h to measure the wrong thing.
 
-check_report_data.py now also verifies the notebook, by recomputing every day's file
-count from the mtimes under results/, logs/, docs/, scripts/, src/ and data/cohort/ and
-comparing it against the page. It also fails if a day with activity on disk has no
-notebook entry. 137 checks, 0 mismatches; the current day is skipped because its count
-moves while the check runs.
+So the control comes first: the same 573 subjects, the same design, 6,996 ONE-DAY
+windows, the same 22,000 steps and the same hidden_size 256, so only T differs. 8 GPU.h.
+Running.
+
+Housekeeping: the seven-day h96 line is deleted -- 7.6 GB across three runs, config and
+meta kept as stubs. Its restart distributions survive as the failed-generator comparator
+and are labelled as that rather than as a seven-day result, because without a condition
+known to be separable a tight distribution at 0.55 could just mean the discriminator
+never works on this data.
+
+MEMO.md now opens with a decision chain: one row per decision, the observation that
+forced it, and what it made us do next. HISTORY, SUMMARY_CN and MEMO together run to
+fifteen thousand words and none of them answered "why that next".
+
+The notebook's per-day counts are now ARTEFACTS ONLY (results/ and data/cohort/). Logs
+move when a rerun overwrites them, and docs/scripts/src carry "last edited" rather than
+"written that day", so a count including them could never settle -- it drifted twice
+while the checker was running. 138 checks against the artefacts, 0 mismatches.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 MSG

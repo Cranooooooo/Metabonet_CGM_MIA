@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lab notebook — CGM membership-inference study</title>
-<meta name="description" content="One tab per working day: what was run, what came back, what it decided. 2026-08-06 to 2026-08-18.">
+<meta name="description" content="One tab per working day: what was run, what came back, what it decided. 2026-08-06 to 2026-08-19.">
 <style>
 :root{
   color-scheme: light;
@@ -209,7 +209,7 @@ td.num2{font-variant-numeric:tabular-nums;font-family:var(--mono)}
  * ==========================================================================*/
 const DAYS = [
 {
- date:"2026-08-06", files:133, tags:["build"],
+ date:"2026-08-06", files:99, tags:["build"],
  headline:"The cohort and the first outlier consensus exist.",
  ran:[
   "Built <code>metabonet875</code> from the MetaboNet public release: keep a (subject, day) only when all 288 five-minute cells carry a reading, keep subjects with at least 30 such days.",
@@ -221,7 +221,7 @@ const DAYS = [
  art:"data/cohort/metabonet875/manifest.json · results/design/design.json · results/outliers/ (16 files)"
 },
 {
- date:"2026-08-07", files:312, tags:["build","measure","cost"],
+ date:"2026-08-07", files:227, tags:["build","measure","cost"],
  headline:"Symmetric pairing, seed stability, and the cost probe that made the campaign schedulable.",
  ran:[
   "Re-drew the design <b>symmetrically</b>: controls are taken OUT of the background first, then each gets its own include model, so all 40 pairs have the identical form and a per-run offset cancels in the comparison.",
@@ -234,7 +234,7 @@ const DAYS = [
  art:"results/design_sym/rep{1,2,3}/design.json · results/seed_stability/stability.json · results/probe/capacity.json · results/attack/copy_paste/summary.json"
 },
 {
- date:"2026-08-08", files:22, tags:["result"],
+ date:"2026-08-08", files:4, tags:["result"],
  headline:"Replicate 1 lands: outliers leak more than matched controls.",
  ran:["Finished replicate 1 (41 models) and ran the frozen <code>min × mean</code> statistic over it."],
  nums:[["arm AUC","0.680","replicate 1"],["p","0.027","between arms"]],
@@ -242,7 +242,7 @@ const DAYS = [
  art:"results/attack/dimts_h128_rep1/summary.json"
 },
 {
- date:"2026-08-09", files:27, tags:["result"],
+ date:"2026-08-09", files:4, tags:["result"],
  headline:"Replicate 2 agrees.",
  ran:["Finished replicate 2 on a non-overlapping control draw."],
  nums:[["arm AUC","0.690","replicate 2"],["p","0.021","between arms"]],
@@ -250,7 +250,7 @@ const DAYS = [
  art:"results/attack/dimts_h128_rep2/summary.json"
 },
 {
- date:"2026-08-10", files:40, tags:["result","measure"],
+ date:"2026-08-10", files:12, tags:["result","measure"],
  headline:"Three replicates, and the first look at what 0.680 is worth per person.",
  ran:[
   "Finished replicate 3 — 123 models, 655 GPU·h, 63.8 h wall clock, zero failures.",
@@ -267,7 +267,7 @@ const DAYS = [
  art:"results/attack/dimts_h128_rep3/summary.json · results/attack/dimts_h128_subject_auc/ · results/attack/dimts_h128_subject_risk/summary.json · results/quality/dimts_h128_rep{1,2,3}__base.json"
 },
 {
- date:"2026-08-12", files:101, tags:["defect","measure"],
+ date:"2026-08-12", files:47, tags:["defect","measure"],
  headline:"The obvious attack design turns out to be measuring which training run it is looking at.",
  ran:[
   "Built a supervised attack panel and ran it <b>per subject</b>: train a classifier on one subject's rows, positives from <code>include_t</code>, negatives from <code>base</code>.",
@@ -281,7 +281,7 @@ const DAYS = [
  art:"results/attack_panel/table.json (per-subject, broken) · results/attack_panel/table_pooled.json (correct) · results/quality/seedcheck_*/"
 },
 {
- date:"2026-08-13", files:45, tags:["measure","result"],
+ date:"2026-08-13", files:19, tags:["measure","result"],
  headline:"The instrument is calibrated: 0.82 on a generator that memorises, 0.50 on a negative control.",
  ran:[
   "Ran the pooled panel on <code>copy_paste</code>, which bootstraps its training rows and therefore memorises by construction.",
@@ -293,7 +293,7 @@ const DAYS = [
  art:"results/attack_panel/table_pooled_copypaste.json · results/quality/{diffusion_ts,diffwave,fourier_diff,timevae}_base__base.json"
 },
 {
- date:"2026-08-14", files:452, tags:["defect","measure","redirect"],
+ date:"2026-08-14", files:340, tags:["defect","measure","redirect"],
  headline:"Back to the raw file. Three defects, a false premise, and a cohort that grows by half.",
  ran:[
   "Inspected all 37 columns of the released parquet rather than the three we had been using.",
@@ -311,7 +311,7 @@ const DAYS = [
  art:"data/cohort/metabonet_sid_c1/ · data/cohort/metabonet_sid_c3/ · results/channel_coverage_studyid/ · results/identifiability_within/ · docs/MEMO.md"
 },
 {
- date:"2026-08-15", files:28, tags:["build","cost"],
+ date:"2026-08-15", files:4, tags:["build","cost"],
  headline:"Three-channel outlier consensus, and the campaign goes out.",
  ran:[
   "Extended the outlier stage to multichannel — group A stays CGM-only because a basal rate has no time in range, which is what keeps the two lists comparable.",
@@ -324,7 +324,7 @@ const DAYS = [
  art:"results/outliers_sid_c3/ (146 files) · results/probe_c3/capacity_c3.json · results/quality_c3/"
 },
 {
- date:"2026-08-16", files:380, tags:["result","redirect","cost"],
+ date:"2026-08-16", files:309, tags:["result","redirect","cost"],
  headline:"The three-channel campaign is stopped, and window length is ruled out without training anything.",
  ran:[
   "Restricted the same attack on the same models to one channel subset at a time — nothing retrained.",
@@ -342,7 +342,7 @@ const DAYS = [
  art:"results/attack_c3_bychannel/ · results/subject_auc_multiday/ · results/quality_c3_width/ · results/channel_coverage_studyid/consecutive_multiday.csv"
 },
 {
- date:"2026-08-17", files:206, tags:["build","result","defect"],
+ date:"2026-08-17", files:126, tags:["build","result","defect"],
  headline:"Two-channel cohort and consensus finished; the seven-day pilot returns numbers that cannot be read.",
  ran:[
   "Tested three unit hypotheses for <code>weight</code> by BMI — all returned NONE PLAUSIBLE for every study, so we went to the official data dictionary instead of guessing a fourth time. Weight is in POUNDS, height in FEET.",
@@ -361,7 +361,7 @@ const DAYS = [
  art:"data/cohort/metabonet_sid_c2_perkg/ · results/outliers_c2_perkg/stability/stability.json · results/attack_d7/ · results/identifiability_within/metabonet_sid_c2_{perkg,raw}.csv · docs/report/index.html"
 },
 {
- date:"2026-08-18", files:32, tags:["defect","result","redirect"],
+ date:"2026-08-18", files:1, tags:["defect","result","redirect"],
  headline:"The metric was broken. Fixing it turned a dead end back into an open question.",
  ran:[
   "Traced why the same <code>samples.npy</code> scored 0.9475 and then 0.5908: <code>discriminative_score</code> seeded the subsample and the batch draw but not the GRU's weight initialisation, so a score depended on how many models had been evaluated earlier in the same process.",
@@ -379,21 +379,44 @@ const DAYS = [
  decided:"“Longer windows” was written off on the strength of a generator too narrow to represent the data. It is not a dead end — it is untested. The 21-model pilot is re-running at hidden_size 256.",
  gotcha:"The instability has structure, and the structure is the useful part. Where a generator is genuinely indistinguishable the classifier lands at chance every time, spread 0.015–0.06. Where a separable feature exists the draws are BIMODAL — the classifier either finds it or the optimisation fails — spread 0.37–0.49. So the reading is a lower bound sampled once: report the maximum over restarts, never a single draw and never a mean. PITFALLS §16.",
  art:"results/quality_d7_h256/disc_stability{,_matched}.json · src/cgmoutlier/quality.py · scripts/disc_stability.py · docs/PITFALLS.md §16 · docs/HISTORY.md stage 14"
+},
+{
+ date:"2026-08-19", files:23, tags:["result","defect","redirect"],
+ headline:"Both pilots finish. One is unreadable and it is my fault; the other is large and confounded.",
+ ran:[
+  "Ran the downstream analysis for both finished pilots — quality first, as a distribution over eight discriminator restarts rather than a single draw.",
+  "Ran the two-channel attack per channel as well as jointly, because flattening channels into one distance is what diluted the three-channel signal.",
+  "Deleted the discarded seven-day h96 line — 7.6 GB of samples and checkpoints across three runs, keeping the derived JSONs.",
+  "Built a one-day cohort matched to the seven-day training regime and launched 21 models on it."],
+ nums:[["two-channel","0.941","disc max, spread 0.391 — FAILED"],
+       ["seven-day h256","0.624","disc max, spread 0.068 — passes"],
+       ["seven-day arm AUC","0.950","p = 0.0004, 1142 = 1.000"],
+       ["the confound","201 vs 36","epochs per training window"]],
+ extra:{title:"Quality gates first, and only one pilot gets through",
+  rows:[["one-day single channel, published","max 0.543, spread 0.062 — arm AUC 0.680"],
+        ["seven-day h256, 22k steps","max 0.624, spread 0.068 — arm AUC 0.950"],
+        ["two-channel h128, 40k steps","max 0.941, spread 0.391 — arm AUC unreadable"],
+        ["two-channel per channel","CGM 0.370 · basal 0.600 · joint 0.820"]]},
+ decided:"Do not spend 1,449 GPU·h on a full seven-day design yet. Build the one-day control at the same 201 epochs first — 8 GPU·h — because if it also reads 0.9 the seven-day number is the training regime and not the window length.",
+ gotcha:"The two-channel pilot was cut from 100,000 steps to 40,000 on my recommendation, because the loss is flat from 20k. <b>A converged loss does not mean the samples are indistinguishable.</b> The result is a generator a classifier separates at 0.94, and 21 models that cannot be read. The abandoned 100k attempt was moved aside rather than deleted, so its 80,000-step checkpoint is being resampled now to tell the step cut apart from the second channel. A second tell was there and I nearly missed it: the joint distance reads 0.820 while CGM alone reads 0.370 and basal alone 0.600 — the joint being far ABOVE both parts is backwards, and is what generator artefacts look like.",
+ art:"results/quality_c2_perkg/disc_stability.json · results/attack_c2_perkg/ · results/attack_c2_bychannel/ · results/subject_auc_c2_perkg/ · results/quality_d7_h256_full/ · results/attack_d7_h256/ · results/subject_auc_d7_h256/ · data/cohort/metabonet_sid_d1_matched/ · docs/MEMO.md decision chain"
 }
 ];
 
 /* running work, shown after the last day rather than pretended to be finished */
 const RUNNING = [
- {name:"Two-channel pilot — CGM + basal/kg", state:"12 of 21 complete, base done",
-  detail:"h128, 40,000 steps. ETA 2026-08-18 around 21:00.",
-  why:"40,000 rather than the published 100,000 because this cohort's loss converges by 20k and the next 80k buys 2.6%. The arm AUC will therefore be comparable internally, not against the published 0.680."},
- {name:"Seven-day pilot — h256", state:"0 of 21 complete",
-  detail:"22,000 steps, 6.60 h/model, 139 GPU·h, launched 2026-08-18 10:50. ETA 2026-08-19 around 07:00.",
-  why:"The membership question asked of a generator that actually fits, for the first time."}
+ {name:"Two-channel base at 80,000 steps", state:"sampling",
+  detail:"Resampled from the abandoned 100k attempt's checkpoint-4, then scored with eight restarts against the 40k base already on disk.",
+  why:"40k reads 0.941 and failed. If 80k lands near 0.55 the step cut is the cause and the pilot must be re-run at the published budget; if 80k is also bimodal, basal/kg is doing to generation what bolus did."},
+ {name:"One-day control at the seven-day training regime", state:"21 models training",
+  detail:"Same 573 subjects, same design, 6,996 one-day windows, 22,000 steps, hidden_size 256 — only T differs. About 8 GPU·h.",
+  why:"The seven-day 0.950 was measured at 201 epochs per window against the published 36. This is the only cheap way to tell window length from training regime, and a full seven-day design would cost 1,449 GPU·h."}
 ];
 
 const OPEN = [
- "Subject 1142's AUC of 1.000 under a failed generator: memorisation, or distribution shift?",
+ "Is the seven-day arm AUC of 0.950 window length, or 201 epochs per training window?",
+ "Did cutting the two-channel pilot to 40,000 steps break it, or is basal/kg the problem?",
+ "Subject 1142's AUC of 1.000: memorisation, or distribution shift?",
  "Whether a generator really does memorise more from a seven-day window — the h256 pilot answers this.",
  "How much of the three-channel quality gap and the width sweep is the metric rather than the models.",
  "Whether to run the two-channel full design: 123 models, about 812 GPU·h."
@@ -428,7 +451,7 @@ function drawTimeline(){
   DAYS.forEach((d,i)=>{
     const h=Math.max(4,(d.files/max)*ih), on=!showAll&&i===cur;
     const g=el('g',{class:'seg',tabindex:'0',role:'button',
-      'aria-label':d.date+', '+d.files+' files written, '+d.headline});
+      'aria-label':d.date+', '+d.files+' files written that day, '+d.headline});
     svg.appendChild(g);
     g.appendChild(el('rect',{x:L+i*bw+2,y:T+ih-h,width:bw-4,height:h,rx:3,
       fill:cs(TAGCOL[mainTag(d)]),opacity:on?1:.45}));
@@ -442,7 +465,7 @@ function drawTimeline(){
   });
   const lab=el('text',{x:L,y:10,'font-size':'10',fill:cs('--ink-3'),
     'font-family':'var(--mono)'});
-  lab.textContent='bar height = files written that day (max '+max+')';
+  lab.textContent='experiment artefacts written that day (max '+max+')';
   svg.appendChild(lab);
 }
 
@@ -452,7 +475,7 @@ function dayHTML(d,i){
   let h='<article class="day" id="d'+d.date+'" data-i="'+i+'">'+
    '<div class="day-head"><span class="day-date">'+d.date+'</span>'+
    '<span class="day-weekday">'+weekday(d.date)+'</span>'+
-   '<span class="day-weekday">· '+d.files+' files written</span></div>'+
+   '<span class="day-weekday">· '+d.files+' artefacts written</span></div>'+
    '<h2>'+esc(d.headline)+'</h2>'+
    '<div class="badges">'+badges+'</div>';
   h+='<div class="sec"><h4>What was run</h4><ul class="items">'+
@@ -529,7 +552,7 @@ $('#allBtn').onclick=()=>{showAll=!showAll;render();
 
 $('#span').textContent=DAYS.length+' working days, '+DAYS[0].date+' to '+
   DAYS[DAYS.length-1].date+' · '+DAYS.reduce((a,b)=>a+b.files,0).toLocaleString('en-US')+
-  ' files written · one gap, 2026-08-11, when nothing ran';
+  ' experiment artefacts · one gap, 2026-08-11, when nothing ran';
 
 addEventListener('keydown',e=>{
   if(e.target.matches('input,textarea,select'))return;

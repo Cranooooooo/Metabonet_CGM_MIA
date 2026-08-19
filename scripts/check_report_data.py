@@ -381,7 +381,11 @@ def main():
         import datetime
         nb_text = nb.read_text(encoding="utf-8")
         actual = {}
-        for top in ("results", "logs", "docs", "scripts", "src", "data/cohort"):
+        # ARTEFACTS ONLY. logs/ moves because a rerun overwrites a log; docs/, scripts/
+        # and src/ move because their mtime is "last edited", not "written that day".
+        # results/ and data/cohort/ are written once by an experiment and then left alone,
+        # which is the only thing a per-day count can honestly mean.
+        for top in ("results", "data/cohort"):
             for f in (ROOT / top).rglob("*"):
                 if not f.is_file():
                     continue

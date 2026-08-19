@@ -911,10 +911,15 @@ multiDay: {
        verdict:"indistinguishable"},
       {label:"h256, 7 days, 22k steps", min:0.4875, median:0.5242, max:0.5508, spread:0.0633,
        verdict:"indistinguishable"},
-      {label:"h96, 7 days, 34k steps", min:0.4792, median:0.6383, max:0.8442, spread:0.3650,
-       verdict:"separable"},
-      {label:"h96, 7 days, 22k steps — MATCHED", min:0.4967, median:0.5538, max:0.9883,
+      {label:"h96 comparator, 7 days, 34k steps", min:0.4792, median:0.6383, max:0.8442,
+       spread:0.3650, verdict:"separable"},
+      {label:"h96 comparator, 22k steps — MATCHED", min:0.4967, median:0.5538, max:0.9883,
        spread:0.4917, verdict:"separable"}],
+    h96Note:"The h96 rows are the FAILED-GENERATOR COMPARATOR, not a seven-day result. " +
+      "That line is discarded and its samples and checkpoints were deleted on 2026-08-19; " +
+      "these distributions are what survives of it, and they are what makes the h256 " +
+      "reading interpretable — without a condition known to be separable, a tight " +
+      "distribution at 0.55 could just mean the discriminator never works here.",
     oneDayReference:{ min:0.4817, median:0.5025, max:0.5433, spread:0.0617, n:16,
       note:"the one-day single-channel base, scored 16 times across the seedcheck runs — the " +
            "profile of a generator that really does fit" },
@@ -930,8 +935,22 @@ multiDay: {
       "23,899 of 59,200 (exit 143, five hours into a twelve-hour walltime — not a walltime kill, " +
       "and the artefacts do not record why), and the rescue sampling pass hit CUDA OOM at " +
       "sample_batch 1000, which is the one-day value. Dropped to 100 and it ran.",
-    campaign:{ status:"in-progress", models:21, done:0, steps:22000, gpuHours:139,
-      perModelH:6.60, launched:"2026-08-18 10:50", eta:"2026-08-19 ≈ 07:00",
+    campaign:{ status:"complete", models:21, done:21, steps:22000, gpuHours:139,
+      perModelH:6.60, launched:"2026-08-18 10:50", finished:"2026-08-19",
+      quality:{ min:0.5558, median:0.6000, max:0.6242, spread:0.0683,
+        reading:"tight, so this is a real reading rather than a bimodal one — the " +
+          "generator fits, though less cleanly than the one-day single-channel base " +
+          "(max 0.543)" },
+      armAuc:0.9500, armP:0.0004, nOut:10, nCtl:10,
+      perSubject:{ outlier:0.6284, control:0.4594, over055Out:6, over055Ctl:0, s1142:1.0000 },
+      confound:"22,000 steps over 7,001 windows is 201 epochs; the published one-day run " +
+        "was 36. The seven-day models saw each training window 5.5× more often, and " +
+        "memorisation rises with epochs whatever T is. So this is NOT yet evidence that " +
+        "window length matters — window length and training regime are still tangled.",
+      control:"A one-day cohort matched to that regime is training now: the same 573 " +
+        "subjects and the same design, 6,996 one-day windows, the same 22,000 steps and " +
+        "the same hidden_size 256, so only T differs. 8 GPU·h against the 1,449 a full " +
+        "three-replicate design at 50,000 steps would cost.",
       note:"The same 21-model pilot at hidden_size 256. base is retrained rather than reused: " +
         "the diagnostic base is a checkpoint rescued from a killed run and sampled by resample, " +
         "and every one of the 20 gaps divides by that base." },
@@ -1001,23 +1020,36 @@ currentStatus: {
     detail:"Both the normalised and the un-normalised cohort measured. The 19× → 22× comparison is " +
       "the internal control for body size.",
     prov:"results/identifiability_within/metabonet_sid_c2_{perkg,raw}.csv"},
-   {name:"Two-channel 21-model pilot", state:"in-progress",
-    detail:"10 outliers + 10 day-matched controls + 1 shared base, h128, 40,000 steps — not the " +
-      "published 100,000, because this cohort's loss converges by 20k and the next 80k buys 2.6%. " +
-      "12 of 21 complete including base. ETA 2026-08-18 around 21:00.",
-    prov:"results/runs/dimts_c2_perkg_s40k_rep1/; results/design_c2_perkg/rep1/design.json",
-    correction:"An earlier attempt at 100,000 steps was abandoned: five of its eight shards would " +
-      "have lost their last model to the walltime. The budget check is now executable."},
+   {name:"Two-channel 21-model pilot", state:"stopped",
+    detail:"21 of 21 trained at hidden_size 128 and 40,000 steps, and UNREADABLE: the base " +
+      "fails the discriminator at max 0.941 with a spread of 0.391 — the bimodal signature " +
+      "of a generator that did not fit. Its arm AUC of 0.820 cannot be interpreted.",
+    prov:"results/quality_c2_perkg/disc_stability.json; results/attack_c2_perkg/",
+    correction:"The 40,000-step budget was cut from the published 100,000 on the grounds that " +
+      "the loss is flat from 20k. That inference was wrong: a converged loss says the " +
+      "objective stopped improving, not that the samples are indistinguishable. A base " +
+      "resampled from the abandoned run's 80,000-step checkpoint is being scored now to " +
+      "separate the step cut from the second channel."},
+   {name:"Two-channel: 40k versus 80k steps", state:"in-progress",
+    detail:"Decides whether cutting the budget broke the pilot, or whether basal/kg does to " +
+      "generation what bolus did. Same cohort, same architecture, same seed.",
+    prov:"scripts/pbs/A3_c2_80k_check.pbs"},
    {name:"Seven-day h256 capacity test", state:"complete",
     detail:"ANSWERED — capacity. At matched 22,000 steps a discriminator reaches 0.988 on h96 and " +
       "0.551 on h256 over eight restarts. Over-training is excluded: h96 is more separable at 22k " +
       "than at 34k.",
     prov:"results/quality_d7_h256/disc_stability_matched.json"},
-   {name:"Seven-day h256 21-model pilot", state:"in-progress",
-    detail:"The membership question re-asked of a generator that fits. 22,000 steps, 6.60 h/model, " +
-      "139 GPU·h, nine shards over three lanes. Launched 2026-08-18 10:50, ETA 2026-08-19 around " +
-      "07:00. 0 of 21 complete.",
-    prov:"results/runs/dimts_d7_h256_full_rep1/; scripts/pbs/89_d7_h256_campaign.pbs"},
+   {name:"Seven-day h256 21-model pilot", state:"complete",
+    detail:"21 of 21. Quality passes — eight restarts give max 0.624 with a spread of 0.068, " +
+      "tight rather than bimodal. Arm AUC 0.950 (p = 0.0004), per-subject outlier 0.628 " +
+      "against control 0.459, six of ten outliers above 0.55 and none of ten controls, " +
+      "1142 at 1.000. PROVISIONAL: 201 epochs against the published 36.",
+    prov:"results/attack_d7_h256/; results/subject_auc_d7_h256/; results/quality_d7_h256_full/"},
+   {name:"One-day control at the seven-day training regime", state:"in-progress",
+    detail:"The experiment that decides whether the 0.950 is window length or 201 epochs. " +
+      "Same 573 subjects, same design, 6,996 one-day windows, same 22,000 steps, same " +
+      "hidden_size 256 — only T differs. 21 models, about 8 GPU·h.",
+    prov:"data/cohort/metabonet_sid_d1_matched/; scripts/pbs/A5_d1_matched_train.pbs"},
    {name:"Discriminator metric defect", state:"complete",
     detail:"The GRU's weight initialisation was never seeded, so a score depended on how many " +
       "models had been evaluated earlier in the same process. Fixed, documented as " +

@@ -1,0 +1,59 @@
+#!/bin/bash
+#PBS -N cgm_q2both
+#PBS -P 11704243
+#PBS -j oe
+#
+# Quality for BOTH finished pilots, in one job.
+#
+# QUALITY BEFORE ATTACK. If a base model cannot generate plausible data, a null attack
+# result means "the generator failed", not "there is no leakage". That gate is the whole
+# reason the seven-day h96 numbers were never readable.
+#
+# AND AS A DISTRIBUTION, NOT A DRAW. `discriminative_score` seeds the subsample and the
+# batch order; until 2026-08-18 it did not seed the GRU's initialisation, so a reading
+# depended on how many models had been scored earlier in the same process — the same
+# samples.npy gave 0.9475, 0.5908 and 0.6483 (docs/PITFALLS.md §16). Eight restarts per
+# base, and the number to read is the MAXIMUM with the spread beside it.
+#
+# Reference points already on disk:
+#   copy_paste, 1 day            0.5317      verbatim copies, indistinguishable
+#   copy_paste, 7 days           max 0.5100  spread 0.0150
+#   one-day single channel       max 0.5433  spread 0.0617   (16 scorings)
+#   h256 7 days @ 22k, diagnostic max 0.5508 spread 0.0633
+#   h96  7 days @ 22k            max 0.9883  spread 0.4917   <- what failure looks like
+#   one-day three channel        0.553 / 0.653 / 0.677       (single draws, old method)
+#
+# Both bases in one job rather than two: gdev's GPU pool is 16 cards for the WHOLE
+# machine, not per user (docs/PITFALLS.md, shared machines).
+#
+#   qsub -l select=1:ncpus=32:mem=192gb:ngpus=1 -l walltime=02:00:00 \
+#        -o logs/A1_quality_both.log scripts/pbs/A1_quality_both.pbs           # -> gdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export THREADS=${NCPUS:-32}
+C2_COH=data/cohort/metabonet_sid_c2_perkg
+C2_DSN=results/design_c2_perkg/rep1
+C2_OUT=results/runs/dimts_c2_perkg_s40k_rep1
+D7_COH=data/cohort/metabonet_sid_c1_d7_contiguous
+D7_DSN=results/design_d7_pilot/rep1
+D7_OUT=results/runs/dimts_d7_h256_full_rep1
+{
+  echo "########## 1. two-channel base — ContextFID and predictive ##########"
+  python -u scripts/eval_quality.py --runs "$C2_OUT/base" --design "$C2_DSN" \
+    --cohort "$C2_COH" --out results/quality_c2_perkg
+
+  echo "########## 2. two-channel base — eight discriminator restarts ##########"
+  python -u scripts/disc_stability.py --runs "$C2_OUT/base" \
+    --cohort "$C2_COH" --job-file "$C2_DSN/jobs/base.json" --restarts 8 \
+    --out results/quality_c2_perkg/disc_stability.json
+
+  echo "########## 3. seven-day h256 base — ContextFID and predictive ##########"
+  python -u scripts/eval_quality.py --runs "$D7_OUT/base" --design "$D7_DSN" \
+    --cohort "$D7_COH" --out results/quality_d7_h256_full
+
+  echo "########## 4. seven-day h256 base — eight discriminator restarts ##########"
+  python -u scripts/disc_stability.py --runs "$D7_OUT/base" \
+    --cohort "$D7_COH" --job-file "$D7_DSN/jobs/base.json" --restarts 8 \
+    --out results/quality_d7_h256_full/disc_stability.json
+} 2>&1 | tee logs/A1_quality_both.live.log

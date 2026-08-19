@@ -1,4 +1,77 @@
-# Memo: three-channel rerun vs longer windows — which is cheaper to answer
+# Memo
+
+## The decision chain — read this first
+
+This file, `HISTORY.md` and `SUMMARY_CN.md` between them run to some fifteen thousand
+words, and none of them answers the question that actually gets asked: *why did we do
+that next?* This section is only the spine. One row per decision, with the observation
+that forced it. Everything else is detail hanging off it.
+
+| # | Date | What we saw | Therefore |
+|---|---|---|---|
+| 1 | 08-06 | Population-level MIA on random clusters finds nothing — and not because the attacker is weak | Averaging over ~220 people per cluster divides one person's exposure by 220. **Go after individuals** |
+| 2 | 08-06/07 | 1,300 subjects need 1,301 models each; unaffordable | Pick targets on a hypothesis — the extremes. **Fix the outlier definition before seeing any leakage number**, or it becomes a free parameter |
+| 3 | 08-07 | Four seeds give 24/24/22/28, intersecting to 20 | The list is a property of the cohort, not the draw. **Build the 123-model campaign on those 20** |
+| 4 | 08-08→10 | Arm AUC 0.680, three replicates, p ≈ 0.0005 | An effect that replicates is not an effect that matters. **Ask what an attacker could do with it** |
+| 5 | 08-12 | The per-subject attack protocol reads +0.14 — and its negative control reads the same | Within a subject the positive class IS one release. **Pool negatives across releases**; the effect drops to +0.014 |
+| 6 | 08-13 | copy_paste reads 0.82, negative control 0.50 | The instrument has sensitivity and specificity, so the null is a measurement. **Claim becomes a bounded safety result** |
+| 7 | 08-13 | Still one doubt: one day of one channel may simply have nothing to leak | **Go back to the raw file** rather than tune the attack further |
+| 8 | 08-14 | 37 columns not 3; `insulin = basal + bolus`; ids collide across studies; a float32 reduction was silently 34% wrong | Rebuild the cohorts on `(source_file, id)`. And a day of **basal identifies its owner 20× better than CGM** — so **go multichannel** |
+| 9 | 08-15/16 | Three channels: quality worse (0.55–0.68 vs 0.50), signal *diluted* (CGM 0.735 → all three 0.581), cost 1.63× | Adding channels subtracts. **Stop at 44/123.** Finding: identifiability ≠ memorisability |
+| 10 | 08-16 | copy_paste's ceiling is flat 0.811–0.824 from 1 day to 21 | Window length does not limit the **attack**. Open question: does it limit the **generator**? **Train seven-day models** |
+| 11 | 08-17 | Seven-day h96 reads discriminator 0.9475 — "did not fit" | Correct instinct. But **that number was one draw of an unseeded classifier** (same file also reads 0.5908, 0.6483) |
+| 12 | 08-18 | Fixed the seeding; eight restarts at **matched** 22,000 steps give h96 **0.988** and h256 **0.551** | Capacity, not data volume — and over-training is excluded because h96 is *more* separable at 22k than 34k. **The seven-day question was never actually tested.** Re-run at h256 |
+| 13 | 08-19 | Seven-day h256: quality passes (max 0.624, spread 0.068), **arm AUC 0.950**, 1142 = 1.000 | Would overturn the bounded-safety claim — **if it is window length**. But 22,000 steps over 7,001 windows is **201 epochs against the published 36** |
+| 14 | 08-19 | — | **Build a one-day cohort matched to that regime** (same 573 subjects, 6,996 windows, same 22,000 steps, same h256) so only T differs. 8 GPU·h against the 1,449 a full design would cost. **Running** |
+
+And the second line of work, which ran in parallel from 08-17:
+
+| # | Date | What we saw | Therefore |
+|---|---|---|---|
+| A | 08-17 | A BMI check rejects all three unit hypotheses for `weight` | Stop guessing; read the data dictionary. Pounds and feet. **Build CGM + basal/kg**, 1,208 subjects |
+| B | 08-17 | Four seeds give 24/25/22/23, intersecting to 22 — 84.6% stable against the single-channel run's 66.7% | The two-channel outlier list is *more* stable. **Run a 21-model pilot** |
+| C | 08-17 | This cohort's loss is flat from 20k; the last 80k of the published budget buys 2.6% | **Cut the pilot to 40,000 steps.** This inference was mine and it was wrong |
+| D | 08-19 | The 40k base fails the discriminator: max 0.941, spread 0.391 — the bimodal signature | **A converged loss does not mean the samples are indistinguishable.** The 0.820 arm AUC is unreadable |
+| E | 08-19 | The abandoned 100k attempt was moved aside, not deleted, and its base holds checkpoint-4 = 80,000 steps | **Sample it and score it the same way.** 80k near 0.55 ⇒ the step cut is the cause; 80k also bimodal ⇒ the second channel is |
+
+### What is running right now (2026-08-19)
+
+```
+cgm_c280k    g1     two-channel base at 80,000 steps, resampled and restart-scored
+                    -> decides whether cutting to 40k broke the two-channel pilot
+cgm_d1ma/b   g3,g2  21 one-day models, h256, 22,000 steps, 6,996 windows
+                    -> decides whether the seven-day 0.950 is window length or 201 epochs
+```
+
+### Housekeeping done on 2026-08-19
+
+The seven-day h96 line is discarded and its bulk is deleted — 7.6 GB across
+`dimts_d7_conv_rep1` (34,000 steps), `dimts_d7_pilot_rep1` (the earlier 3,700-step
+attempt) and `dimts_d7_conv_m11` (h96 resampled at 22,000). `config.json` and
+`meta.json` survive as stubs so the runs are still identifiable in the record.
+
+**What that costs, stated plainly:** the matched-steps comparison in row 12 can no longer
+be recomputed, only cited. Its result lives in
+`results/quality_d7_h256/disc_stability_matched.json`, and the h96 restart distribution
+is the control that makes the h256 reading mean anything — so those numbers stay in the
+report, labelled as the failed-generator comparator rather than as a seven-day result.
+
+### Three corrections to things stated earlier in this file
+
+- The two-channel pilot ran at **hidden_size 128**, not 96 and not 256. h128 was chosen
+  to match the published single-channel campaign; that choice is now superseded.
+- "Converged loss ⇒ usable samples" appears nowhere as an explicit claim but was acted
+  on in row C. It is false, and `PITFALLS.md` should carry it if the 80k check confirms.
+- The seven-day full design was costed at 139 GPU·h for one replicate at 22,000 steps.
+  At 50,000 steps and three replicates in the published 20+20 shape it is **1,449
+  GPU·h** — 102 models from scratch at 12.58 h plus 21 resumed from 22k at 7.88 h.
+  Resuming works: `solver.load()` restores model, EMA *and* optimiser state, and
+  `train()` counts locally, so `max_steps` becomes "additional steps". The adapter needs
+  one change — `--load_milestone` is currently gated behind `--skip_train`.
+
+---
+
+## Costing, 2026-08-14: three-channel rerun versus longer windows
 
 2026-08-14. Costing two proposals for extending the membership study, against measured
 numbers rather than estimates. Sources: `results/probe/capacity.json` (GPU cost),

@@ -1,0 +1,15 @@
+#!/bin/bash
+#PBS -N cgm_mcoh
+#PBS -P 11704243
+#PBS -j oe
+# Build the one-day cohort that matches the seven-day training regime.
+#   qsub -l select=1:ncpus=16:mem=128gb -l walltime=00:30:00 \
+#        -o logs/A4_matched_cohort.log scripts/pbs/A4_matched_cohort.pbs      # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+python -u scripts/build_cohort_matched.py \
+  --src data/cohort/metabonet_sid_c1 \
+  --design results/design_d7_pilot/rep1 \
+  --target-windows 7001 \
+  --out data/cohort/metabonet_sid_d1_matched 2>&1 | tee logs/A4_matched_cohort.live.log
