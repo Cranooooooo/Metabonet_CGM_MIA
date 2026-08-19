@@ -1,0 +1,65 @@
+#!/bin/bash
+#PBS -N cgm_mtrain
+#PBS -P 11704243
+#PBS -j oe
+#
+# One cell of the 2x2 matrix. hidden_size 256, 100,000 steps, always.
+#
+#   CELL=d1_c1   1 day,  CGM                 CELL=d7_c1   7 days, CGM
+#   CELL=d1_c2   1 day,  CGM + basal/kg      CELL=d7_c2   7 days, CGM + basal/kg
+#
+# THE SAME SHAPE FOR EVERY CELL: the same 534 subjects, the same design out of
+# results/matrix/design/rep1, the same width, the same budget. Only the cohort's T and
+# C differ, which is the whole point.
+#
+# CHAINED, NOT SIZED. Each lane submits this job several times with `depend=afterany`.
+# `loo.train` skips any model whose samples.npy exists, so a chain finishes the cell
+# however long each individual model turns out to take -- which is more robust than
+# betting a 24 h walltime on a per-model estimate. That bet has now been lost twice.
+#
+#   CELL=d1_c1 qsub -l select=1:ncpus=64:ngpus=4 -l walltime=24:00:00 \
+#     -v CELL=d1_c1,SHARD_BASE=0,N_SHARDS=8 ... scripts/pbs/B2_matrix_train.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+: "${CELL:?pass -v CELL=d1_c1}"
+: "${SHARD_BASE:?}"; : "${N_SHARDS:?}"
+
+DSN=results/matrix/design/rep1
+COH=data/cohort/matrix_${CELL}
+OUT=results/runs/matrix_${CELL}
+STEPS=100000
+SAVE_CYCLE=10000
+LOGTAG=${PBS_JOBID%%.*}
+case "$CELL" in
+  d7_*) SAMPLE_BATCH=100 ;;   # T=2016 at h256: 1000 OOMs on a 40 GB card
+  *)    SAMPLE_BATCH=500 ;;
+esac
+
+test -d "$COH" || { echo "no cohort $COH -- prep has not run"; exit 1; }
+test -f "$DSN/design.json" || { echo "no design $DSN -- prep has not run"; exit 1; }
+
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
+export THREADS=$(( ${NCPUS:-16} / ${#ALLOC[@]} ))
+echo "cell $CELL  cohort $COH  shards ${SHARD_BASE}..$(( SHARD_BASE + ${#ALLOC[@]} - 1 )) of $N_SHARDS"
+python -c "import json;m=json.load(open('$COH/manifest.json'));print(f\"  {m['n_subjects']} subjects, {m['n_windows']:,} windows, T={m['T']}, C={m.get('C',len(m.get('channels',[1])))}\")"
+echo "  already done: $(find "$OUT" -name samples.npy 2>/dev/null | wc -l) / 21"
+
+pids=(); rc=0
+for i in "${!ALLOC[@]}"; do
+    s=$(( SHARD_BASE + i ))
+    ( export CUDA_VISIBLE_DEVICES="${ALLOC[$i]}"
+      python scripts/run_loo.py --design "$DSN" --out "$OUT" --cohort "$COH" \
+        --shard "$s" --n-shards "$N_SHARDS" \
+        --params "{\"hidden_size\": 256, \"steps\": $STEPS, \"save_cycle\": $SAVE_CYCLE, \"sample_batch\": $SAMPLE_BATCH}"
+    ) > "logs/B2_${CELL}_${LOGTAG}_shard${s}.log" 2>&1 &
+    pids+=($!)
+done
+for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then echo "shard $(( SHARD_BASE + i )) OK"
+    else echo "shard $(( SHARD_BASE + i )) FAILED"; rc=1; fi
+done
+echo "$CELL: $(find "$OUT" -name samples.npy 2>/dev/null | wc -l) / 21 models complete"
+exit $rc

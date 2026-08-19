@@ -22,7 +22,8 @@ that forced it. Everything else is detail hanging off it.
 | 11 | 08-17 | Seven-day h96 reads discriminator 0.9475 — "did not fit" | Correct instinct. But **that number was one draw of an unseeded classifier** (same file also reads 0.5908, 0.6483) |
 | 12 | 08-18 | Fixed the seeding; eight restarts at **matched** 22,000 steps give h96 **0.988** and h256 **0.551** | Capacity, not data volume — and over-training is excluded because h96 is *more* separable at 22k than 34k. **The seven-day question was never actually tested.** Re-run at h256 |
 | 13 | 08-19 | Seven-day h256: quality passes (max 0.624, spread 0.068), **arm AUC 0.950**, 1142 = 1.000 | Would overturn the bounded-safety claim — **if it is window length**. But 22,000 steps over 7,001 windows is **201 epochs against the published 36** |
-| 14 | 08-19 | — | **Build a one-day cohort matched to that regime** (same 573 subjects, 6,996 windows, same 22,000 steps, same h256) so only T differs. 8 GPU·h against the 1,449 a full design would cost. **Running** |
+| 14 | 08-19 | — | **Build a one-day cohort matched to that regime** (same 573 subjects, 6,996 windows, same 22,000 steps, same h256) so only T differs. 8 GPU·h against the 1,449 a full design would cost |
+| 15 | 08-19 | The matched one-day control reads **arm AUC 0.940** against the seven-day 0.950 | **The window length was worth 0.010.** Going from 36 epochs to 201 at a FIXED T = 288 moves the arm AUC from 0.680 to 0.940 — the confound was not a footnote, it was the whole effect. **Do not run the 1,449 GPU·h seven-day design.** The 8 GPU·h control paid for itself 180× over |
 
 And the second line of work, which ran in parallel from 08-17:
 
@@ -33,15 +34,28 @@ And the second line of work, which ran in parallel from 08-17:
 | C | 08-17 | This cohort's loss is flat from 20k; the last 80k of the published budget buys 2.6% | **Cut the pilot to 40,000 steps.** This inference was mine and it was wrong |
 | D | 08-19 | The 40k base fails the discriminator: max 0.941, spread 0.391 — the bimodal signature | **A converged loss does not mean the samples are indistinguishable.** The 0.820 arm AUC is unreadable |
 | E | 08-19 | The abandoned 100k attempt was moved aside, not deleted, and its base holds checkpoint-4 = 80,000 steps | **Sample it and score it the same way.** 80k near 0.55 ⇒ the step cut is the cause; 80k also bimodal ⇒ the second channel is |
+| F | 08-19 | 80,000 steps reads **max 0.878, spread 0.373** — still bimodal, and its median is *worse* than 40k's (0.754 against 0.572) | **The step cut is exonerated; doubling the budget does not help.** Two candidates remain: basal/kg does to generation what bolus did, or h128 is too narrow for two channels. The three-channel width sweep that would have excluded the second was measured with the unseeded discriminator, so it no longer excludes anything. **Re-run at h256**, which is what was asked for anyway |
 
-### What is running right now (2026-08-19)
+### Both of 08-19's questions came back the same evening
 
 ```
-cgm_c280k    g1     two-channel base at 80,000 steps, resampled and restart-scored
-                    -> decides whether cutting to 40k broke the two-channel pilot
-cgm_d1ma/b   g3,g2  21 one-day models, h256, 22,000 steps, 6,996 windows
-                    -> decides whether the seven-day 0.950 is window length or 201 epochs
+two-channel 80k   max 0.878, spread 0.373 -- still bimodal. The step cut is exonerated;
+                  the candidates are basal/kg itself or h128 being too narrow.
+one-day matched   arm AUC 0.940 against the seven-day 0.950. Window length is worth 0.010.
 ```
+
+**And a caveat that has to travel with the second one.** The matched control's own quality
+FAILED: max 0.964, spread 0.443, the bimodal signature. Two hundred epochs over 7,000
+windows breaks a one-day generator, while the same regime leaves the seven-day one at
+0.624. So the two conditions are not equally well fitted, and the honest claim is the
+narrow one: *at a fixed T = 288, raising the regime from 36 to 201 epochs moves the arm
+AUC from 0.680 to 0.940.* Window length adds 0.010 on top of that.
+
+**Why this is not merely an artefact to be corrected away.** You cannot have seven-day
+windows AND 176,445 of them — a week needs seven consecutive complete days and the data
+holds 7,001. So any seven-day study on this cohort is forced into the high-epoch regime.
+"Seven-day training leaks more" stays true in practice; what is false is that the
+sequence length is why.
 
 ### Housekeeping done on 2026-08-19
 

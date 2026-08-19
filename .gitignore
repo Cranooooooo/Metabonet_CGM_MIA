@@ -48,3 +48,7 @@ results/_smoke_c3/
 results/_smoke3/
 results/_refactor_check/
 .campaign_seen/
+
+# Scaffolding for the matrix build: superseded the moment the four-way
+# intersection is known, and rebuilt by scripts/pbs/B1_matrix_prep.pbs.
+data/cohort/_stage1_*/

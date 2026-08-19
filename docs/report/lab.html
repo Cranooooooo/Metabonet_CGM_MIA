@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en" data-palette="#2a78d6,#eb6834,#1baf7a">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab diary — the decision chain</title>
+<meta name="description" content="Every decision in the CGM membership study, the observation that forced it, and where it led. Bound as a lab notebook.">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#faf8f3; --surface-1:#fffefb; --surface-2:#f1eee5; --surface-3:#e8e4d8;
+  --rule:#e3ded0; --line:#dcd7c8; --line-strong:#bdb6a2;
+  --ink:#171512; --ink-2:#4f4a41; --ink-3:#867f70;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; --warn-ink:#8a6100;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --maxw:1080px;
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --paper:#14140f; --surface-1:#1c1b16; --surface-2:#24231d; --surface-3:#2d2b23;
+  --rule:#2c2b23; --line:#35332a; --line-strong:#4c4940;
+  --ink:#f7f5ef; --ink-2:#c5c0b2; --ink-3:#8d887a;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+  --good:#35c035; --warn:#fab219; --crit:#e86a6a; --warn-ink:#fab219;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  color-scheme: dark;
+  --paper:#14140f; --surface-1:#1c1b16; --surface-2:#24231d; --surface-3:#2d2b23;
+  --rule:#2c2b23; --line:#35332a; --line-strong:#4c4940;
+  --ink:#f7f5ef; --ink-2:#c5c0b2; --ink-3:#8d887a;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+  --good:#35c035; --warn:#fab219; --crit:#e86a6a; --warn-ink:#fab219;
+}}
+*{box-sizing:border-box}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{
+  animation-duration:.001ms!important;transition-duration:.001ms!important}}
+/* the page is ruled paper: a repeating baseline the entries sit on */
+body{margin:0;color:var(--ink);
+  background:var(--paper);
+  background-image:repeating-linear-gradient(to bottom,transparent 0 27px,var(--rule) 27px 28px);
+  background-attachment:local;
+  font:16px/28px -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 26px 120px}
+h1{font:600 2.1rem/1.25 var(--serif);margin:0 0 6px;letter-spacing:-.01em}
+h2{font:600 1.3rem/28px var(--serif);margin:0}
+p{margin:0 0 28px;color:var(--ink-2)}
+code,.mono{font-family:var(--mono);font-size:.88em}
+a{color:var(--s1)}
+a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible,
+[tabindex]:focus-visible{outline:2px solid var(--s1);outline-offset:2px;border-radius:3px}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:8px;top:8px;z-index:200;background:var(--surface-1);padding:8px 14px;
+  border:1px solid var(--line-strong);border-radius:6px}
+
+header{padding:56px 0 0}
+.sub{font:400 1.02rem/28px var(--serif);color:var(--ink-2);margin:0 0 28px;font-style:italic}
+.meta{font:400 12px/28px var(--mono);color:var(--ink-3)}
+
+/* ---------- the fold-out diagram ---------- */
+.foldout{background:var(--surface-1);border:1px solid var(--line);border-radius:4px;
+  padding:18px 18px 8px;margin:0 0 28px;box-shadow:2px 3px 0 var(--surface-3)}
+.foldout h3{font:600 11px/16px var(--mono);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 4px}
+.foldout .cap{font-size:.83rem;color:var(--ink-3);line-height:1.5;margin:8px 0 4px}
+svg.chain{display:block;width:100%;height:auto;overflow:visible}
+.node{cursor:pointer}
+.node:focus{outline:none}
+.node:focus-visible rect{stroke:var(--ink);stroke-width:2.5}
+
+/* ---------- index ---------- */
+.index{background:var(--surface-1);border:1px solid var(--line);border-radius:4px;
+  padding:18px 20px;margin:0 0 28px;box-shadow:2px 3px 0 var(--surface-3)}
+.index h3{font:600 11px/16px var(--mono);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 10px}
+.index ol{margin:0;padding-left:0;list-style:none;
+  columns:2;column-gap:26px}
+@media(max-width:760px){.index ol{columns:1}}
+.index li{font-size:.86rem;line-height:22px;break-inside:avoid;margin-bottom:2px}
+.index a{text-decoration:none;color:var(--ink-2);display:flex;gap:8px}
+.index a:hover{color:var(--ink)}
+.index .no{font:600 10px/22px var(--mono);color:var(--ink-3);flex:0 0 26px}
+.index .tt{flex:1 1 auto;border-bottom:1px dotted var(--line-strong);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- filters ---------- */
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 24px}
+.bar input[type=search]{flex:1 1 220px;min-width:180px;background:var(--surface-1);
+  border:1px solid var(--line);border-radius:4px;padding:7px 11px;font:inherit;
+  font-size:.86rem;color:var(--ink)}
+button.chip{background:var(--surface-1);border:1px solid var(--line);color:var(--ink-2);
+  border-radius:999px;padding:5px 12px;font:inherit;font-size:.8rem;cursor:pointer}
+button.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);
+  color:var(--paper)}
+.count{font:400 12px/1 var(--mono);color:var(--ink-3)}
+
+/* ---------- entries ---------- */
+.entry{display:grid;grid-template-columns:1fr 210px;gap:26px;
+  border-top:2px solid var(--line-strong);padding:22px 0 6px;margin:0}
+@media(max-width:860px){.entry{grid-template-columns:1fr}
+  .margin{border-left:3px solid var(--line);padding-left:14px}}
+.entry.hide{display:none}
+.ehead{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+.eno{font:600 11px/28px var(--mono);letter-spacing:.1em;color:var(--paper);
+  background:var(--ink);border-radius:3px;padding:0 8px}
+.edate{font:400 12px/28px var(--mono);color:var(--ink-3)}
+.track{font:600 10px/16px var(--mono);letter-spacing:.09em;text-transform:uppercase;
+  padding:3px 7px;border-radius:3px;border:1px solid}
+.tk-main{color:var(--s1);border-color:var(--s1)}
+.tk-c2{color:var(--s2);border-color:var(--s2)}
+.field{margin:0 0 14px}
+.field .lab{font:600 10px/16px var(--mono);letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:1px}
+.field .val{color:var(--ink-2);font-size:.95rem;line-height:26px}
+.field.saw .val{color:var(--ink)}
+.field.did .val{border-left:3px solid var(--s2);padding-left:12px}
+.margin{font-size:.8rem;line-height:22px;color:var(--ink-3)}
+.margin .mh{font:600 10px/16px var(--mono);letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 4px}
+.margin ul{margin:0 0 14px;padding-left:0;list-style:none}
+.margin li{margin-bottom:3px;word-break:break-word}
+.margin code{font-size:.75rem}
+.out{display:inline-flex;align-items:center;gap:5px;font:600 10px/16px var(--mono);
+  letter-spacing:.07em;text-transform:uppercase;padding:4px 8px;border-radius:3px;
+  border:1px solid transparent;margin-bottom:10px}
+.o-answered{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good);
+  border-color:color-mix(in srgb,var(--good) 40%,transparent)}
+.o-ruledout{background:color-mix(in srgb,var(--s1) 13%,transparent);color:var(--s1);
+  border-color:color-mix(in srgb,var(--s1) 38%,transparent)}
+.o-defect{background:color-mix(in srgb,var(--crit) 13%,transparent);color:var(--crit);
+  border-color:color-mix(in srgb,var(--crit) 36%,transparent)}
+.o-mistake{background:color-mix(in srgb,var(--crit) 20%,transparent);color:var(--crit);
+  border-color:var(--crit)}
+.o-running{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn-ink);
+  border-color:color-mix(in srgb,var(--warn) 42%,transparent)}
+.o-setup{background:var(--surface-2);color:var(--ink-3);border-color:var(--line-strong)}
+mark{background:color-mix(in srgb,var(--warn) 40%,transparent);color:inherit;
+  padding:0 2px;border-radius:2px}
+
+.foot{margin-top:44px;padding-top:20px;border-top:1px solid var(--line);
+  font-size:.82rem;color:var(--ink-3)}
+.floaters{position:fixed;right:14px;bottom:14px;z-index:50;display:flex;gap:7px}
+.floaters button{background:var(--surface-1);border:1px solid var(--line-strong);
+  color:var(--ink-2);border-radius:999px;padding:8px 14px;font:inherit;font-size:.8rem;
+  cursor:pointer}
+@media print{
+  body{background:#fff;background-image:none}
+  .floaters,.bar,.foldout .cap{display:none!important}
+  .entry{break-inside:avoid;page-break-inside:avoid;grid-template-columns:1fr 190px}
+  .entry.hide{display:grid!important}
+  a{color:#000;text-decoration:underline}
+  .index{break-after:page}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#entries">Skip to the entries</a>
+<div class="wrap">
+<header>
+  <p class="meta" style="margin:0 0 10px"><a href="index.html">the report</a> ·
+    <a href="notebook.html">by day</a> · <b>by decision</b></p>
+  <h1>Lab diary</h1>
+  <p class="sub">Every decision in the study, the observation that forced it, and what it
+  ruled out. Bound in the order the reasoning happened rather than the order the files
+  were written.</p>
+  <p class="meta" id="stamp"></p>
+</header>
+
+<section class="foldout">
+  <h3>The chain, folded out</h3>
+  <svg class="chain" id="chainFig" role="img"
+       aria-label="Decision chain: two tracks of experiments with the dependencies between them"></svg>
+  <p class="cap" id="chainCap">Each block is one decision. A line means the left one is
+  why the right one happened. Click a block to jump to its entry.</p>
+</section>
+
+<nav class="index" aria-label="Index of entries">
+  <h3>Index</h3>
+  <ol id="indexList"></ol>
+</nav>
+
+<div class="bar">
+  <input type="search" id="q" placeholder="Search the entries…" aria-label="Search entries">
+  <button class="chip" data-f="all" aria-pressed="true">All</button>
+  <button class="chip" data-f="main" aria-pressed="false">Main line</button>
+  <button class="chip" data-f="c2" aria-pressed="false">Two-channel line</button>
+  <button class="chip" data-f="defect" aria-pressed="false">Defects &amp; mistakes</button>
+  <button class="chip" data-f="running" aria-pressed="false">Open</button>
+  <span class="count" id="count"></span>
+</div>
+
+<main id="entries"></main>
+
+<p class="foot" id="foot"></p>
+</div>
+
+<div class="floaters"><button id="themeBtn">Dark</button></div>
+
+<script>
+/* ============================================================================
+ * The entries. This is docs/MEMO.md's decision chain, one object per row.
+ * `saw` is the observation, `did` is what it forced, `why` is the reasoning that
+ * connects them, and `from` names the entries that led here.
+ * ==========================================================================*/
+const E = [
+{n:"01", date:"2026-08-06", track:"main", out:"ruledout", from:[],
+ title:"Population-level MIA finds nothing",
+ saw:"Subjects split at random into 2/4/6/8/10 clusters, several generators, several model sizes. No generator shows a meaningful membership risk — and the attacker is not the weak link.",
+ why:"A cluster holds roughly 220 people. Whatever one exposed person contributes to a cluster-level statistic is divided by 220 before anyone reads it.",
+ did:"Stop asking about the population. Go after the individuals most likely to leak.",
+ ev:["docs/SUMMARY_CN.md §1"]},
+
+{n:"02", date:"2026-08-06", track:"main", out:"setup", from:["01"],
+ title:"Individuals are unaffordable, so the targets must be chosen in advance",
+ saw:"Every target needs a model trained with them and one without. The base is shared, so N targets cost 1 + N models — but 1,300 subjects is still 1,301 models per replicate.",
+ why:"If the target list is chosen after seeing a leakage number, 'who is an outlier' becomes a free parameter fitted to the result.",
+ did:"Fix the outlier definition first, on a hypothesis: subjects at the extreme of some distribution.",
+ ev:["results/design_sym/rep1/design.json"]},
+
+{n:"03", date:"2026-08-07", track:"main", out:"answered", from:["02"],
+ title:"The outlier list is a property of the cohort, not of the draw",
+ saw:"Fourteen methods, thirteen of which vote; top 5%; at least 7 votes. Four base seeds give 24 / 24 / 22 / 28 subjects, intersecting to 20.",
+ why:"E13 (day count) is computed and deliberately not allowed to vote — without that control the consensus might only be measuring how much data a subject has.",
+ did:"Build the 123-model campaign on those 20, with 20 day-matched controls per replicate.",
+ ev:["results/seed_stability/stability.json"]},
+
+{n:"04", date:"2026-08-08", track:"main", out:"answered", from:["03"],
+ title:"Outliers do leak more than matched controls, and it replicates",
+ saw:"Arm AUC 0.680 / 0.690 / 0.670 over three replicates with disjoint control draws. Mean 0.680, 95% CI [0.655, 0.705], one-sided p ≈ 0.0005.",
+ why:"The within-arm p-values swing four orders of magnitude across replicates while the between-arm AUC moves by 0.02 — a per-run offset dominates one and cancels in the other. That is what the symmetric pairing was built for.",
+ did:"Ask the only question that matters next: could an attacker use this?",
+ ev:["results/attack/dimts_h128_rep{1,2,3}/summary.json"]},
+
+{n:"05", date:"2026-08-12", track:"main", out:"defect", from:["04"],
+ title:"The obvious attack design is measuring which training run it is looking at",
+ saw:"A per-subject classifier reads outliers 0.78 against controls 0.64, +0.14. Its negative control — where the subject is not a member of the positive release either — reads 0.78 as well.",
+ why:"Within one subject there is exactly ONE release containing them, so 'is this that release' predicts the label perfectly. Splitting train/test by window cannot help: held-out windows face the same two releases.",
+ did:"Pool negatives across several releases. The effect drops from +0.14 to +0.014.",
+ ev:["results/attack_panel/table.json","docs/PITFALLS.md §12"]},
+
+{n:"06", date:"2026-08-13", track:"main", out:"answered", from:["05"],
+ title:"The null is a measurement, not a failure to measure",
+ saw:"The same panel reads 0.82 on copy_paste, which memorises by construction, against an arithmetic ceiling of 0.816 — and 0.50 on every negative control.",
+ why:"Without both controls, 'no leakage' and 'cannot detect leakage' produce the same table.",
+ did:"State the claim as a bounded safety result: measurable, systematic, negligible.",
+ ev:["results/attack_panel/table_pooled_copypaste.json"]},
+
+{n:"07", date:"2026-08-14", track:"main", out:"defect", from:["06"],
+ title:"Back to the raw file — 37 columns, and three defects",
+ saw:"insulin is exactly basal + bolus. bolus is 93% zeros. 241 of 1,291 ids appear in more than one study, so 238 of the 875 cohort subjects are composites of several people. A float32 reduction along axis 0 had silently written CGM mean 96.05 where the truth is 145.29.",
+ why:"The remaining doubt about the null was the data itself: one smooth channel over one day might have nothing to leak. That is a question about the raw file, not about the attack.",
+ did:"Re-key on (source_file, id) — which also grows the cohort from 875 to 1,329 — and check what else is in there.",
+ ev:["docs/PITFALLS.md §13, §14"]},
+
+{n:"08", date:"2026-08-14", track:"main", out:"answered", from:["07"],
+ title:"A day of basal identifies its owner 20× better than a day of CGM",
+ saw:"Leave-one-day-out retrieval on real windows, ranked within each subject's own study: basal 29.3% top-1 (61× chance), CGM 1.5% (3.1×).",
+ why:"Ranking within study holds units, device, pump model, protocol and era fixed. Without it the retrieval measures the study rather than the person.",
+ did:"Go multichannel. If identity lives in basal, put basal in front of the attack.",
+ ev:["results/identifiability_within/"], links:{sec:"s11"}},
+
+{n:"09", date:"2026-08-16", track:"main", out:"ruledout", from:["08"],
+ title:"Adding channels subtracts",
+ saw:"Three channels: generation quality worse, and the membership signal diluted rather than amplified — CGM alone 0.735, CGM+basal 0.731, all three 0.581, basal alone 0.393. Subject 1142 falls from 0.636 on CGM to 0.508 on CGM+basal, outside his own interval. Cost 1.63×, entirely in training.",
+ why:"The statistic is a Euclidean distance over the flattened window and min picks the nearest released sample IN THE JOINT SPACE. 288 uninformative dimensions change which sample is nearest.",
+ did:"Stop at 44 of 123 models. Two findings fall out: identifiability does not predict memorisability, and a multi-channel attack must be reported per channel.",
+ ev:["results/attack_c3_bychannel/"], links:{sec:"s09"}},
+
+{n:"10", date:"2026-08-16", track:"main", out:"ruledout", from:["09"],
+ title:"Window length does not limit the attack",
+ saw:"copy_paste's detection ceiling is flat at 0.811–0.824 from one day to three weeks, while the absolute gap grows 54%.",
+ why:"Bootstrapping returns 63.2% of a target's windows verbatim at every length, and a rank statistic sees only the fraction, not the margin. This measurement never involves DiM-TS at all.",
+ did:"Rules out 'one day is too short for a signal to exist'. Leaves open whether length limits the GENERATOR — so train seven-day models.",
+ ev:["results/subject_auc_multiday/"], links:{sec:"s10"}},
+
+{n:"11", date:"2026-08-17", track:"main", out:"defect", from:["10"],
+ title:"The number the seven-day run was judged on is not reproducible",
+ saw:"The seven-day h96 models read a discriminator accuracy of 0.9475 — 'did not fit'. The same byte-identical samples.npy also reads 0.5908, and 0.6483.",
+ why:"discriminative_score seeded the subsample and the batch order but not the GRU's weight initialisation, which came from torch's global RNG. A score therefore depended on how many models had been evaluated earlier in the same process.",
+ did:"Seed it, add an init_seed argument, and re-read every quality number as a distribution over eight restarts.",
+ ev:["docs/PITFALLS.md §16","scripts/disc_stability.py"]},
+
+{n:"12", date:"2026-08-18", track:"main", out:"answered", from:["11"],
+ title:"Capacity, not data volume — and the seven-day question was never tested",
+ saw:"At matched 22,000 steps, eight restarts give h96 a max of 0.988 and h256 a max of 0.551. h96 is MORE separable at 22k than at 34k.",
+ why:"h96 kept every checkpoint, so its own checkpoint-11 is the same milestone h256 was read at — which removes the budget difference and leaves width alone. The over-training reading dies with it: more training made h96 better, not worse.",
+ did:"'Longer windows' was written off on the strength of a model too narrow to represent the data. Re-run the pilot at hidden_size 256.",
+ ev:["results/quality_d7_h256/disc_stability_matched.json"], links:{sec:"s10"}},
+
+{n:"13", date:"2026-08-19", track:"main", out:"answered", from:["12"],
+ title:"Seven days at h256: quality passes and the effect is large",
+ saw:"Restart max 0.624, spread 0.068 — tight, not bimodal. Arm AUC 0.950 (p = 0.0004). Per-subject outlier 0.628 against control 0.459; six of ten outliers above 0.55 and none of ten controls; 1142 at 1.000.",
+ why:"This is the first time the membership question has been asked of a seven-day generator that actually fits.",
+ did:"Would overturn the bounded-safety claim — but only if it is about window length.",
+ ev:["results/attack_d7_h256/","results/subject_auc_d7_h256/"]},
+
+{n:"14", date:"2026-08-19", track:"main", out:"running", from:["13"],
+ title:"But it is confounded, and the control costs 8 GPU·h",
+ saw:"22,000 steps at batch 64 over 7,001 windows is 201 epochs. The published one-day run was 100,000 steps over 176,445 windows, which is 36. The seven-day models saw each training window 5.5× more often.",
+ why:"Memorisation rises with epochs whatever T is. A full three-replicate seven-day design at 50,000 steps costs 1,449 GPU·h, and it would be measuring the wrong thing if the regime is the cause.",
+ did:"Build a one-day cohort matched to that regime — same 573 subjects, same design, 6,996 windows, same 22,000 steps, same hidden_size 256 — so only T differs. Running.",
+ ev:["data/cohort/metabonet_sid_d1_matched/","scripts/pbs/A5_d1_matched_train.pbs"]},
+
+{n:"A", date:"2026-08-17", track:"c2", out:"defect", from:["09"],
+ title:"weight is in pounds, and a BMI check could not have told us",
+ saw:"Three unit hypotheses for weight, tested by whether they produce a plausible BMI. All three return NONE PLAUSIBLE for every one of the 14 studies.",
+ why:"The hypotheses omitted feet. Guessing a fourth would have been the same mistake again.",
+ did:"Read the official data dictionary instead: pounds and feet. Build CGM + basal/kg, 1,208 subjects — insulin is dosed per kilogram, so an un-normalised basal channel mostly carries body size.",
+ ev:["results/channel_coverage_studyid/weight_units.csv"]},
+
+{n:"B", date:"2026-08-17", track:"c2", out:"answered", from:["A"],
+ title:"The two-channel outlier list is more stable than the single-channel one",
+ saw:"Four seeds give 24 / 25 / 22 / 23, intersecting to 22 — 84.6% of the union, against 66.7% for the single-channel run. 1142 is in all four.",
+ why:"Stability across seeds is what says a list is a property of the cohort rather than of the draw.",
+ did:"Run a 21-model pilot: 10 outliers, 10 day-matched controls, one shared base.",
+ ev:["results/outliers_c2_perkg/stability/stability.json"]},
+
+{n:"C", date:"2026-08-17", track:"c2", out:"mistake", from:["B"],
+ title:"Cutting the budget to 40,000 steps — my recommendation, and wrong",
+ saw:"This cohort's loss is flat from 20k: 0.01490 at 20k, 0.01474 at 40k, 0.01449 at 80k. The last 80,000 steps of the published budget buy 2.6%.",
+ why:"I inferred that a converged loss meant the samples were good enough. It does not. A flat loss says the objective stopped improving; it says nothing about whether a post-hoc classifier can separate the output from real data.",
+ did:"Relaunched the pilot at 40,000 steps, which is 2.5× cheaper and, as it turned out, unusable.",
+ ev:["scripts/pbs/95_c2_train.pbs"]},
+
+{n:"D", date:"2026-08-19", track:"c2", out:"defect", from:["C"],
+ title:"The two-channel pilot finished, and cannot be read",
+ saw:"Eight restarts on the base give max 0.9408 with a spread of 0.3908 — the bimodal signature of a generator that did not fit. Arm AUC 0.820, uninterpretable. A second tell: the joint distance reads 0.820 while CGM alone reads 0.370 and basal alone 0.600.",
+ why:"A joint distance far ABOVE both of its parts is backwards. In the three-channel run the joint was DILUTED relative to CGM alone; a joint that is higher than either component is what generator artefacts look like, not what membership looks like.",
+ did:"Test the budget directly rather than argue about it. The abandoned 100k attempt had been moved aside rather than deleted, and its base holds an 80,000-step checkpoint.",
+ ev:["results/quality_c2_perkg/disc_stability.json"]},
+
+{n:"E", date:"2026-08-19", track:"c2", out:"setup", from:["D"],
+ title:"The abandoned 100k attempt was moved aside, not deleted",
+ saw:"Its base still holds checkpoint-4, which is 80,000 steps on the same cohort, the same architecture and the same seed.",
+ why:"Arguing about whether the budget was the problem is cheaper to settle than to debate: only one variable separates that checkpoint from the 40k base.",
+ did:"Resample it and score it with the same eight restarts, side by side with the 40k base.",
+ ev:["scripts/pbs/A3_c2_80k_check.pbs"]},
+
+{n:"F", date:"2026-08-19", track:"c2", out:"answered", from:["E"],
+ title:"80,000 steps does not fix it — so the budget is exonerated",
+ saw:"80k reads max 0.878 with a spread of 0.373, still bimodal, and its median is worse than 40k's: 0.754 against 0.572.",
+ why:"Doubling the budget moves nothing. Two candidates remain: basal/kg does to generation what bolus did, or hidden_size 128 is too narrow for two channels. The three-channel width sweep that would have excluded the second was measured with the unseeded discriminator, so it no longer excludes anything.",
+ did:"Re-run the two-channel pilot at hidden_size 256 — which is what had been asked for anyway, and which entry 12 gives an independent reason to expect.",
+ ev:["results/quality_c2_perkg/disc_stability_80k_vs_40k.json"]}
+];
+
+/* dependencies that cross between the tracks, drawn as well as listed */
+const OUT_TXT={answered:"answered",ruledout:"ruled out",defect:"defect found",
+  mistake:"my mistake",running:"running",setup:"setup"};
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a)=>{const e=document.createElementNS(NS,t);
+  if(a)for(const k in a)if(a[k]!=null)e.setAttribute(k,a[k]);return e};
+const cs=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const OUTCOL={answered:'--good',ruledout:'--s1',defect:'--crit',mistake:'--crit',
+  running:'--warn',setup:'--ink-3'};
+
+/* ---------------------------------------------------------------- diagram
+ * A layered layout, but the layers are already known -- they are the order the
+ * decisions happened -- and there are only two rows. So the coordinates are
+ * computed directly rather than by a Sugiyama solver: d3-dag would earn its
+ * ~300 KB only if the layering and the within-layer ordering had to be solved.
+ */
+function drawChain(){
+  const main=E.filter(e=>e.track==='main'), c2=E.filter(e=>e.track==='c2');
+  const W=980, bw=54, bh=30, gap=10, padL=34, padR=14;
+  const cols=Math.max(main.length,c2.length+9);       // c2 starts under entry 09
+  const step=(W-padL-padR-bw)/(cols-1);
+  const H=176, yMain=52, yC2=126;
+  const svg=$('#chainFig'); svg.textContent='';
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  const pos={};
+  main.forEach((e,i)=>pos[e.n]=[padL+i*step, yMain]);
+  c2.forEach((e,i)=>pos[e.n]=[padL+(i+9)*step, yC2]);
+
+  const lab=(x,y,t)=>{const n=el('text',{x,y,'font-size':'10','font-family':'var(--mono)',
+    fill:cs('--ink-3')}); n.textContent=t; svg.appendChild(n)};
+  lab(padL,yMain-20,'MAIN LINE — the outlier membership question');
+  lab(padL+9*step,yC2-20,'TWO-CHANNEL LINE — CGM + basal/kg');
+
+  /* edges first so blocks sit on top */
+  E.forEach(e=>(e.from||[]).forEach(f=>{
+    if(!pos[f]||!pos[e.n])return;
+    const [x1,y1]=pos[f], [x2,y2]=pos[e.n];
+    const a=[x1+bw,y1+bh/2], b=[x2,y2+bh/2];
+    const d = y1===y2
+      ? `M${a[0]},${a[1]} L${b[0]},${b[1]}`
+      : `M${a[0]},${a[1]} C${a[0]+26},${a[1]} ${b[0]-26},${b[1]} ${b[0]},${b[1]}`;
+    svg.appendChild(el('path',{d,fill:'none',stroke:cs('--line-strong'),
+      'stroke-width':y1===y2?1.6:1.6,'stroke-dasharray':y1===y2?null:'4 3'}));
+    svg.appendChild(el('path',{d:`M${b[0]},${b[1]} l-6,-3.4 l0,6.8 z`,fill:cs('--line-strong')}));
+  }));
+
+  E.forEach(e=>{
+    const [x,y]=pos[e.n];
+    const g=el('g',{class:'node',tabindex:'0',role:'link',
+      'aria-label':`Entry ${e.n}, ${e.date}, ${e.title}. ${OUT_TXT[e.out]}.`});
+    svg.appendChild(g);
+    g.appendChild(el('rect',{x,y,width:bw,height:bh,rx:3,
+      fill:cs('--surface-1'),stroke:cs(OUTCOL[e.out]),'stroke-width':1.8}));
+    g.appendChild(el('rect',{x,y,width:4,height:bh,rx:0,fill:cs(OUTCOL[e.out])}));
+    const t=el('text',{x:x+bw/2+2,y:y+bh/2+4,'text-anchor':'middle','font-size':'12',
+      'font-weight':'650','font-family':'var(--mono)',fill:cs('--ink')});
+    t.textContent=e.n; g.appendChild(t);
+    const go=()=>{location.hash='#e'+e.n;
+      document.getElementById('e'+e.n).scrollIntoView({block:'start',
+        behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
+    g.addEventListener('click',go);
+    g.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();go()}});
+  });
+
+  /* legend */
+  let lx=padL;
+  Object.keys(OUT_TXT).forEach(k=>{
+    svg.appendChild(el('rect',{x:lx,y:H-14,width:9,height:9,rx:2,fill:cs(OUTCOL[k])}));
+    const t=el('text',{x:lx+13,y:H-6,'font-size':'10',fill:cs('--ink-3')});
+    t.textContent=OUT_TXT[k]; svg.appendChild(t);
+    lx+=26+OUT_TXT[k].length*5.6;
+  });
+}
+
+/* ---------------------------------------------------------------- entries */
+function entryHTML(e){
+  const froms=(e.from||[]).map(f=>`<a href="#e${f}">entry ${f}</a>`).join(', ');
+  const leads=E.filter(x=>(x.from||[]).includes(e.n))
+               .map(x=>`<a href="#e${x.n}">entry ${x.n}</a>`).join(', ');
+  return `<article class="entry" id="e${e.n}" data-track="${e.track}" data-out="${e.out}">
+    <div>
+      <div class="ehead"><span class="eno">${e.n}</span>
+        <span class="edate">${e.date}</span>
+        <span class="track tk-${e.track}">${e.track==='main'?'main line':'two-channel'}</span>
+      </div>
+      <h2>${esc(e.title)}</h2>
+      <div class="out o-${e.out}">${OUT_TXT[e.out]}</div>
+      <div class="field saw"><div class="lab">Observation</div>
+        <div class="val">${esc(e.saw)}</div></div>
+      <div class="field"><div class="lab">Reading</div>
+        <div class="val">${esc(e.why)}</div></div>
+      <div class="field did"><div class="lab">Therefore</div>
+        <div class="val">${esc(e.did)}</div></div>
+    </div>
+    <aside class="margin">
+      ${froms?`<div class="mh">Follows from</div><ul><li>${froms}</li></ul>`:''}
+      ${leads?`<div class="mh">Led to</div><ul><li>${leads}</li></ul>`:''}
+      <div class="mh">Evidence</div>
+      <ul>${(e.ev||[]).map(x=>`<li><code>${esc(x)}</code></li>`).join('')}</ul>
+      ${e.links&&e.links.sec?`<div class="mh">In the report</div>
+        <ul><li><a href="index.html#${e.links.sec}">section ${e.links.sec.slice(1)}</a></li></ul>`:''}
+      <div class="mh">Also that day</div>
+      <ul><li><a href="notebook.html#d${e.date}">${e.date} in the notebook</a></li></ul>
+    </aside>
+  </article>`;
+}
+$('#entries').innerHTML=E.map(entryHTML).join('');
+$('#indexList').innerHTML=E.map(e=>
+  `<li><a href="#e${e.n}"><span class="no">${e.n}</span>`+
+  `<span class="tt">${esc(e.title)}</span></a></li>`).join('');
+
+/* ---------------------------------------------------------------- filter */
+let filt='all', term='';
+function apply(){
+  let shown=0;
+  E.forEach(e=>{
+    const node=document.getElementById('e'+e.n);
+    const okF = filt==='all' || e.track===filt ||
+                (filt==='defect'&&(e.out==='defect'||e.out==='mistake')) ||
+                (filt==='running'&&e.out==='running');
+    const hay=(e.title+' '+e.saw+' '+e.why+' '+e.did+' '+(e.ev||[]).join(' ')).toLowerCase();
+    const okQ = !term || hay.includes(term);
+    node.classList.toggle('hide',!(okF&&okQ));
+    if(okF&&okQ)shown++;
+  });
+  $('#count').textContent=shown+' of '+E.length+' entries';
+  /* highlight the search term without touching the DOM structure */
+  if(term){
+    $$('.entry:not(.hide) .val').forEach(v=>{
+      const raw=v.getAttribute('data-raw')||v.textContent;
+      v.setAttribute('data-raw',raw);
+      v.innerHTML=esc(raw).replace(new RegExp('('+term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),
+        '<mark>$1</mark>');
+    });
+  }else{
+    $$('.val[data-raw]').forEach(v=>{v.textContent=v.getAttribute('data-raw')});
+  }
+}
+$$('.chip').forEach(b=>b.onclick=()=>{
+  filt=b.getAttribute('data-f');
+  $$('.chip').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  apply();
+});
+$('#q').addEventListener('input',e=>{term=e.target.value.trim().toLowerCase();apply()});
+
+/* ---------------------------------------------------------------- chrome */
+const dates=E.map(e=>e.date).sort();
+$('#stamp').textContent=E.length+' entries · '+dates[0]+' to '+dates[dates.length-1]+
+  ' · two parallel lines of work';
+$('#foot').innerHTML='Kept as a lab notebook is kept: appended in the order the reasoning '+
+  'happened, with the mistakes left in. Entry C is one of mine. The same material is in '+
+  '<code>docs/MEMO.md</code>; the day-by-day view is the '+
+  '<a href="notebook.html">notebook</a>, and the finished argument is the '+
+  '<a href="index.html">report</a>.<br>Laid out without a graph library on purpose: the '+
+  'chain’s layers are the chronology and each layer holds one node, so there is '+
+  'nothing for a Sugiyama solver to solve.';
+
+const themeBtn=$('#themeBtn');
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  themeBtn.textContent=t==='dark'?'Light':'Dark';
+  drawChain();
+}
+themeBtn.onclick=()=>applyTheme(
+  document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
+if(matchMedia('(prefers-color-scheme: dark)').matches){
+  document.documentElement.setAttribute('data-theme','dark');
+  themeBtn.textContent='Light';
+}
+drawChain(); apply();
+if(location.hash){const t=document.querySelector(location.hash); if(t)t.scrollIntoView()}
+addEventListener('resize',()=>{clearTimeout(window._t);window._t=setTimeout(drawChain,150)});
+</script>
+</body>
+</html>

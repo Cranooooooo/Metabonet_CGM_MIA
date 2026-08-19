@@ -1,0 +1,98 @@
+#!/bin/bash
+#PBS -N cgm_c2h256
+#PBS -P 11704243
+#PBS -j oe
+#
+# The two-channel pilot at hidden_size 256 — the one knob left untested.
+#
+# WHY 40,000 STEPS AND NOT MORE. The budget has already been tested and exonerated:
+# h128 reads max 0.9408 (spread 0.3908) at 40,000 steps and max 0.8783 (spread 0.3725)
+# at 80,000 — both bimodal, and 80k's MEDIAN is worse. Doubling the budget moves
+# nothing, so raising it further would only add a second variable. Holding steps at
+# 40,000 makes this a clean width comparison against a run that already exists:
+#
+#     h128, 40,000 steps   max 0.941   <- on disk
+#     h256, 40,000 steps   this job
+#
+# WHY WIDTH IS THE RIGHT SUSPECT. The seven-day line just showed that too narrow a model
+# is a real and detectable failure mode — h96 at T=2016 is separable at 0.988 where h256
+# is at 0.551. And the three-channel width sweep that would otherwise have excluded
+# capacity here (128 → 256, no trend) was measured with the unseeded discriminator, so
+# it no longer excludes anything.
+#
+# If h256 also fails, width is out too and the remaining suspect is the basal/kg channel
+# itself — which would make it the second sparse-ish channel to break generation, after
+# bolus.
+#
+# COST. Measured: 210 ms/step at h128 on this cohort, and the capacity probe puts
+# h256/h128 at 1.36x, so ~286 ms/step -> 3.18 h training. Sampling 165,085 windows at
+# 59.9 ms x 2.37 = 6.52 h. 9.7 h/model, 204 GPU.h. Three per shard is 29 h, which is past
+# the 24 h ceiling on g1/g2/g3 — so both lanes are glong.
+#
+#   qsub -l select=1:ncpus=64:ngpus=4 -l walltime=40:00:00 -v SHARD_BASE=0,N_SHARDS=8 ... -> glong
+#   qsub -l select=1:ncpus=64:ngpus=4 -l walltime=40:00:00 -v SHARD_BASE=4,N_SHARDS=8 ... -> glong
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+: "${SHARD_BASE:?}"; : "${N_SHARDS:?}"
+DSN=results/design_c2_perkg/rep1
+OUT=results/runs/dimts_c2_perkg_h256_rep1
+COH=data/cohort/metabonet_sid_c2_perkg
+STEPS=40000
+SAVE_CYCLE=10000
+SAMPLE_BATCH=500
+LOGTAG=${PBS_JOBID%%.*}
+
+python - "$DSN" "$N_SHARDS" "$STEPS" "$COH" <<'PY' || exit 1
+import json, os, subprocess, sys
+dsn, n_shards, steps, coh = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+n_jobs = json.load(open(f"{dsn}/design.json"))["n_jobs"]
+per_shard = max(len(list(range(n_jobs))[s::n_shards]) for s in range(n_shards))
+k = json.load(open(f"{coh}/manifest.json"))["n_windows"]
+train_h = steps * (0.210 * 1.36) / 3600          # measured h128 rate x probe's h256/h128
+sample_h = k * (0.0599 * 2.37) / 3600
+per_model = train_h + sample_h
+need = per_shard * per_model
+wall = os.environ.get("PBS_WALLTIME")
+if not wall:
+    out = subprocess.run(["qstat", "-f", os.environ.get("PBS_JOBID", "")],
+                         capture_output=True, text=True).stdout
+    for line in out.splitlines():
+        if "Resource_List.walltime" in line:
+            h, m, s = line.split("=")[1].strip().split(":")
+            wall = int(h) * 3600 + int(m) * 60 + int(s)
+wall_h = float(wall) / 3600 if wall else None
+print(f"[budget] {n_jobs} jobs / {n_shards} shards -> {per_shard} on the busiest")
+print(f"[budget] {steps:,} steps = {train_h:.2f} h train + {sample_h:.2f} h sample "
+      f"= {per_model:.2f} h/model ({k:,} windows)")
+print(f"[budget] busiest shard {need:.1f} h vs walltime {wall_h} h")
+if wall_h is None:
+    print("[budget] WARNING: walltime unreadable")
+elif need > wall_h * 0.85:
+    print(f"[budget] REFUSING TO START: {need:.1f} h against {wall_h:.1f} h")
+    sys.exit(1)
+else:
+    print(f"[budget] OK — {need/wall_h*100:.0f}% of walltime, {wall_h-need:.1f} h spare")
+PY
+
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
+export THREADS=$(( ${NCPUS:-16} / ${#ALLOC[@]} ))
+echo "shards ${SHARD_BASE}..$(( SHARD_BASE + ${#ALLOC[@]} - 1 )) of $N_SHARDS -> $OUT"
+pids=(); rc=0
+for i in "${!ALLOC[@]}"; do
+    s=$(( SHARD_BASE + i ))
+    ( export CUDA_VISIBLE_DEVICES="${ALLOC[$i]}"
+      python scripts/run_loo.py --design "$DSN" --out "$OUT" --cohort "$COH" \
+        --shard "$s" --n-shards "$N_SHARDS" \
+        --params "{\"hidden_size\": 256, \"steps\": $STEPS, \"save_cycle\": $SAVE_CYCLE, \"sample_batch\": $SAMPLE_BATCH}"
+    ) > "logs/A7_${LOGTAG}_shard${s}.log" 2>&1 &
+    pids+=($!)
+done
+for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then echo "shard $(( SHARD_BASE + i )) OK"
+    else echo "shard $(( SHARD_BASE + i )) FAILED"; rc=1; fi
+done
+echo "$(find "$OUT" -name samples.npy | wc -l) / 21 models complete"
+exit $rc

@@ -1,0 +1,28 @@
+{
+ "source": "data/raw/metabonet_public.parquet",
+ "channels": [
+  "CGM"
+ ],
+ "C": 1,
+ "T": 288,
+ "dt_min": 5,
+ "zclip": 5.0,
+ "n_subjects": 506,
+ "n_windows": 107927,
+ "min_days": 30,
+ "seed": 2026,
+ "stratified_on": "n_days",
+ "channel_constants": [
+  {
+   "name": "CGM",
+   "mean": 145.93704223632812,
+   "sd": 57.653873443603516,
+   "nonzero_frac": 1.0
+  }
+ ],
+ "denorm_formula": "raw[:, :, i] = x * zclip * sd[i] + mean[i]",
+ "note": "Per-channel constants. There are deliberately no scalar mean_mgdl/sd_mgdl fields: cohort.to_mgdl would apply CGM's constants to every channel, so it must fail loudly here. SUBSAMPLED \u2014 not a cohort for any other purpose. SUBSAMPLED \u2014 not a cohort for any other purpose.",
+ "subsampled_from": "data/cohort/_stage1_matrix_d1_c1",
+ "subsample_seed": 2026,
+ "matched_to": "the seven-day pilot's training regime: same subjects, same window count, so the same step budget gives the same epochs"
+}

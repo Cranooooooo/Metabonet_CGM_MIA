@@ -12,50 +12,58 @@ cd "$REPO"
   git add -A
   echo "staged: $(git diff --cached --numstat | wc -l) files"
   git commit -q -F - <<'MSG'
-Both pilots finish. One is unreadable, and a decision chain so the record stays followable
+One standard: h256, 100,000 steps. Everything else was noise I introduced
 
-TWO-CHANNEL, 21/21 AT h128 AND 40,000 STEPS -- NOT READABLE. Eight discriminator
-restarts on the base give max 0.9408 with a spread of 0.3908: the bimodal signature of
-a generator that did not fit, the same one that condemned the seven-day h96 line. Its
-arm AUC of 0.820 cannot be interpreted. A second tell was there: the joint distance
-reads 0.820 while CGM alone reads 0.370 and basal alone 0.600, and a joint far ABOVE
-both parts is backwards.
+The study had drifted into cells that differed in two or three things at once --
+h96/h128/h256 crossed with 22k/40k/80k/100k steps crossed with different cohorts. Asked
+to compare "one-day h128 100k" against "one-day h256 22k", there is no answer. That was
+mine, and it came from optimising each run's cost in isolation.
 
-The 40,000-step budget was cut from the published 100,000 on my recommendation, because
-this cohort's loss is flat from 20k. That inference was wrong. A converged loss says the
-objective stopped improving; it says nothing about whether a classifier can separate the
-samples. The abandoned 100k attempt was moved aside rather than deleted, so its
-80,000-step checkpoint is being resampled and scored to tell the step cut apart from the
-second channel.
+From here there is one standard and two variables:
 
-SEVEN-DAY h256, 21/21 -- QUALITY PASSES AND THE EFFECT IS LARGE. Restart max 0.624,
-spread 0.068, tight rather than bimodal. Arm AUC 0.950 (p = 0.0004); per-subject outlier
-0.628 against control 0.459; six of ten outliers above 0.55 and none of ten controls;
-1142 at 1.000.
+                     1 channel (CGM)     2 channels (CGM + basal/kg)
+    1 day            matrix_d1_c1        matrix_d1_c2
+    7 days           matrix_d7_c1        matrix_d7_c2
 
-It is not yet evidence about window length. 22,000 steps over 7,001 windows is 201
-epochs against the published run's 36, so the seven-day models saw each training window
-5.5x more often. Window length and training regime are still tangled, and a full
-three-replicate design at 50,000 steps would cost 1,449 GPU.h to measure the wrong thing.
+All at hidden_size 256 and 100,000 steps, all on the SAME 506 subjects, all using ONE
+design. A subject qualifies only with complete days, a basal trace with a recorded body
+mass, and seven consecutive complete days; the three-way intersection is 534, and the
+seven-day two-channel cell then returns 506 because a day needs all 288 cells of EVERY
+channel, which leaves fewer unbroken weeks. The matrix runs on what all four cells
+share. The outlier consensus is re-derived once on the one-day CGM view and reused
+unchanged, so "who counts as an outlier" cannot vary with the channel set.
 
-So the control comes first: the same 573 subjects, the same design, 6,996 ONE-DAY
-windows, the same 22,000 steps and the same hidden_size 256, so only T differs. 8 GPU.h.
-Running.
+Chained with afterany rather than sized against a walltime estimate: loo.train skips a
+model that already has samples.npy, so a chain finishes a cell however long each model
+takes. That bet has been lost twice and will not be made a third time.
+~1,496 GPU.h, critical path the seven-day cells at ~138 h.
 
-Housekeeping: the seven-day h96 line is deleted -- 7.6 GB across three runs, config and
-meta kept as stubs. Its restart distributions survive as the failed-generator comparator
-and are labelled as that rather than as a seven-day result, because without a condition
-known to be separable a tight distribution at 0.55 could just mean the discriminator
-never works on this data.
+WHAT THE DISCARDED WORK ESTABLISHED, before it was superseded:
 
-MEMO.md now opens with a decision chain: one row per decision, the observation that
-forced it, and what it made us do next. HISTORY, SUMMARY_CN and MEMO together run to
-fifteen thousand words and none of them answered "why that next".
+- Two-channel at 80,000 steps reads max 0.878, spread 0.373 -- still bimodal, median
+  worse than 40k's. Doubling the budget does nothing, so cutting to 40k was not what
+  broke it. Width or the basal/kg channel remain.
+- The one-day control at the seven-day training regime reads arm AUC 0.940 against the
+  seven-day 0.950. At a fixed T=288, going from 36 epochs to 201 moves the arm AUC from
+  0.680 to 0.940. Window length was worth 0.010.
+- The within-arm reading, which had not been reported and should have been: the CONTROL
+  arm never moves -- per-subject mean 0.5018 / 0.4863 / 0.4594 / 0.4994 across every
+  condition, and 0 of 10 controls above 0.55 in any of them. The OUTLIER arm does:
+  0.5129 at 36 epochs (1 of 20 above 0.55), 0.575-0.628 at 201 (6 of 10). The risk
+  tracks how often the generator sees each training window, and it lands on outliers.
 
-The notebook's per-day counts are now ARTEFACTS ONLY (results/ and data/cohort/). Logs
-move when a rerun overwrites them, and docs/scripts/src carry "last edited" rather than
-"written that day", so a count including them could never settle -- it drifted twice
-while the checker was running. 138 checks against the artefacts, 0 mismatches.
+A LATENT TRAP FOUND ON THE WAY. seed_stability defaulted its clinical-metrics cache to
+results/outliers/_clinical.parquet -- built 2026-08-06 on metabonet875, keyed on the old
+bare `id`. It hard-links that into any cohort's run. Here it failed loudly with a
+KeyError; on a cohort sharing the key SCHEME it would have silently scored one cohort's
+subjects with another's metrics. Default is now local to the run, and outliers/run.py
+refuses a cache that does not cover its subjects instead of raising a pandas KeyError.
+
+Also: docs/report/lab.html, a lab diary whose spine is MEMO's decision chain -- 20
+entries, each with the observation, the reading and what it forced, cross-linked to the
+day view and the report. Laid out without a graph library: the chain's layers are the
+chronology and each holds one node, so d3-dag's Sugiyama solver would have nothing to
+solve and would cost ~300 KB in a file that has to stay self-contained.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 MSG

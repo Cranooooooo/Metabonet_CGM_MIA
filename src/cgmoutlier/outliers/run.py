@@ -92,6 +92,14 @@ def run(cohort, out, only=None, dtw_per_subject=30, device="cuda", seed=SEED,
              else CL.per_subject_metrics(X, sids, man, verbose=verbose))
         if not cache.exists():
             C.to_parquet(cache)
+        missing = [s for s in subs if s not in C.index]
+        if missing:
+            raise SystemExit(
+                f"{cache} does not cover this cohort: {len(missing)} of {len(subs)} "
+                f"subjects are absent, e.g. {missing[:4]}. A clinical cache is only "
+                f"valid for the cohort it was built on -- a cache keyed on a different "
+                f"subject scheme, or on a cohort where the same id means someone else, "
+                f"would score the wrong people. Delete it or pass --clinical-cache.")
         C = C.loc[subs]
         for k, fn in [("A1", CL.A1), ("A2", CL.A2), ("A3", CL.A3), ("A4", CL.A4)]:
             if todo(k):

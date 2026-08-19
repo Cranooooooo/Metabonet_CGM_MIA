@@ -46,9 +46,13 @@ import numpy as np
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", required=True, help="the full one-day cohort to draw from")
-    ap.add_argument("--design", required=True,
+    ap.add_argument("--design", default=None,
                     help="the design whose subjects must all survive")
-    ap.add_argument("--target-windows", type=int, required=True)
+    ap.add_argument("--target-windows", type=int, default=None,
+                    help="subsample to this many windows; omit to keep every window of "
+                         "every kept subject, which is what a matrix cell wants")
+    ap.add_argument("--subjects", default=None,
+                    help="newline-delimited subject ids to keep, instead of --design")
     ap.add_argument("--out", required=True)
     ap.add_argument("--seed", type=int, default=2026)
     a = ap.parse_args()
@@ -59,20 +63,30 @@ def main():
     days = np.load(src / "days.npy", allow_pickle=True)
     man = json.loads((src / "manifest.json").read_text())
 
-    design = json.loads((Path(a.design) / "design.json").read_text())
-    keep = set()
-    for k in ("outliers", "controls"):
-        keep.update(map(str, design.get(k, [])))
-    # the background is not listed by name in design.json; take it from the base job
-    base = json.loads((Path(a.design) / "jobs" / "base.json").read_text())
-    keep.update(map(str, base["subjects"]))
-    print(f"[matched] design names {len(keep)} subjects")
+    if a.subjects:
+        keep = {l.strip() for l in Path(a.subjects).read_text().splitlines() if l.strip()}
+        print(f"[matched] keeping {len(keep)} subjects from {a.subjects}")
+    else:
+        design = json.loads((Path(a.design) / "design.json").read_text())
+        keep = set()
+        for k in ("outliers", "controls"):
+            keep.update(map(str, design.get(k, [])))
+        base = json.loads((Path(a.design) / "jobs" / "base.json").read_text())
+        keep.update(map(str, base["subjects"]))
+        print(f"[matched] design names {len(keep)} subjects")
 
     have = set(map(str, np.unique(sids)))
     missing = sorted(keep - have)
     if missing:
         sys.exit(f"[matched] {len(missing)} design subjects are absent from {src}: "
                  f"{missing[:5]} — the comparison would not be like for like")
+
+    if a.target_windows is None:
+        sel = np.sort(np.flatnonzero(np.isin(sids, list(keep))))
+        print(f"[matched] keeping every window: {len(sel):,} over "
+              f"{len(np.unique(sids[sel]))} subjects")
+        write(out, src, X, sids, days, man, sel, a)
+        return 0
 
     rng = np.random.default_rng(a.seed)
     idx_by_subject = {}
@@ -113,6 +127,11 @@ def main():
     print(f"[matched] selected {len(sel):,} windows over "
           f"{len(np.unique(sids[sel]))} subjects")
 
+    write(out, src, X, sids, days, man, sel, a)
+    return 0
+
+
+def write(out, src, X, sids, days, man, sel, a):
     out.mkdir(parents=True, exist_ok=True)
     np.save(out / "windows.npy", np.ascontiguousarray(X[sel]))
     np.save(out / "subject_ids.npy", sids[sel])
@@ -133,7 +152,6 @@ def main():
     print(f"[matched] windows per subject: min {per.min()} median "
           f"{int(np.median(per))} max {per.max()}")
     print(f"[matched] wrote {out}")
-    return 0
 
 
 if __name__ == "__main__":

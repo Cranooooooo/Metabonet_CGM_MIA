@@ -1,0 +1,71 @@
+#!/bin/bash
+#PBS -N cgm_mprep
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=384gb
+#PBS -l walltime=06:00:00
+#PBS -j oe
+#
+# Prepare the 2x2 matrix: window length x channel count, everything else held fixed.
+#
+# WHY THIS EXISTS. The study had drifted into comparing cells that differed in two or
+# three things at once -- h96/h128/h256 crossed with 22k/40k/80k/100k steps crossed with
+# different cohorts. Nothing could be read against anything else. From here there is ONE
+# standard, hidden_size 256 and 100,000 steps, and only two things vary.
+#
+#                       1 channel (CGM)     2 channels (CGM + basal/kg)
+#     1 day             cell A              cell B
+#     7 days            cell C              cell D
+#
+# THE SAME 534 PEOPLE IN ALL FOUR CELLS. A subject needs complete days, a basal trace
+# with a recorded body mass, and seven CONSECUTIVE complete days. The intersection of
+# those is 534, and every cell is restricted to it so that "who is in the cohort" cannot
+# vary with the condition.
+#
+# THE SAME TARGETS IN ALL FOUR CELLS. The outlier consensus is re-derived here on the
+# 534-subject one-day CGM view, and the design is then reused unchanged by every cell.
+# Deriving it per cell would let "who counts as an outlier" vary with the channel set --
+# a separate question, already answered (Jaccard 0.357 between the one- and
+# three-channel lists), and it would wreck this one.
+#
+#   qsub -o logs/B1_matrix_prep.log scripts/pbs/B1_matrix_prep.pbs                # -> q2
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+export THREADS=${NCPUS:-64}
+S=results/matrix/common_subjects.txt
+{
+  echo "########## 1. cohorts, restricted to the FOUR-WAY intersection ##########"
+  # Stage 1 built each cell from the three-way intersection of the source cohorts, 534
+  # subjects. The seven-day two-channel cell then came back with 506: a day is complete
+  # only if all 288 cells of EVERY channel are present, so two channels leave fewer
+  # unbroken weeks, and 28 subjects lost their fourth window. Restricting a subject set
+  # cannot restore them, so the matrix has to run on what all four cells share.
+  #
+  # Restricting a cell by subject does not change any surviving subject's windows, so
+  # this pass is exact and does not need the seven-day cohorts rebuilt from scratch.
+  F=results/matrix/final_subjects.txt
+  for c in matrix_d1_c1 matrix_d1_c2 matrix_d7_c1 matrix_d7_c2; do
+    test -f "data/cohort/$c/manifest.json" && continue
+    python -u scripts/build_cohort_matched.py --src "data/cohort/_stage1_$c" \
+      --subjects "$F" --out "data/cohort/$c"
+  done
+  for c in matrix_d1_c1 matrix_d1_c2 matrix_d7_c1 matrix_d7_c2; do
+    python -c "import json;m=json.load(open('data/cohort/$c/manifest.json'));print(f'  $c  {m[\"n_subjects\"]} subjects  {m[\"n_windows\"]:,} windows  T={m[\"T\"]}')"
+  done
+
+  echo "########## 3. one outlier consensus, on the one-day CGM view ##########"
+  python -u scripts/seed_stability.py --cohort data/cohort/matrix_d1_c1 \
+    --out results/matrix/outliers --seeds 2026,7,101,999
+
+  echo "########## 4. one design, reused by every cell ##########"
+  TARGETS=$(python -u scripts/pick_targets.py \
+    --stability results/matrix/outliers/stability.json \
+    --consensus results/matrix/outliers/seed2026/consensus.json \
+    --n 10 --force Loop/1142)
+  echo "targets: $TARGETS"
+  python -u scripts/build_design.py --cohort data/cohort/matrix_d1_c1 \
+    --outliers "$TARGETS" --out results/matrix/design/rep1 \
+    --replicates 1 --n-candidates 1
+
+  echo "########## 5. every cell must contain every design subject ##########"
+  python -u scripts/check_matrix_cells.py
+} 2>&1 | tee logs/B1_matrix_prep.live.log

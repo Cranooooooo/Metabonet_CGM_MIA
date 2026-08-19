@@ -66,9 +66,14 @@ def main():
         d.mkdir(parents=True, exist_ok=True)
         # A1-A4 read from cohort-level metrics that no seed touches; hard-link the
         # cache in so each seed does not recompute 875 subjects' clinical battery.
-        src = (Path(a.clinical_cache) if a.clinical_cache else
-               Path(a.cohort).parent.parent.parent / "results" / "outliers"
-               / "_clinical.parquet")
+        # ⚠ The default used to be results/outliers/_clinical.parquet -- a cache built
+        # on 2026-08-06 over metabonet875, keyed on the OLD bare `id`. Copying it into a
+        # run on any other cohort is wrong, and on 2026-08-19 it took down the matrix
+        # prep with a raw KeyError. Where the key SCHEME happens to match it would have
+        # been worse: silently scoring one cohort's subjects with another's metrics.
+        # The default is now local to this run; sharing must be asked for explicitly.
+        src = (Path(a.clinical_cache) if a.clinical_cache
+               else out / "_clinical.parquet")
         if src.exists() and not (d / "_clinical.parquet").exists():
             shutil.copy(src, d / "_clinical.parquet")
         if not a.analyse_only:

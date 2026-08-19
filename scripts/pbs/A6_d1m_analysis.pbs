@@ -1,0 +1,47 @@
+#!/bin/bash
+#PBS -N cgm_d1man
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:mem=192gb:ngpus=1
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#
+# The one experiment that decides what the seven-day 0.950 means.
+#
+#   seven-day h256   T=2016  7,001 windows  22,000 steps  201 epochs  -> arm AUC 0.950
+#   one-day matched  T= 288  6,996 windows  22,000 steps  201 epochs  -> this job
+#
+# Same 573 subjects, same design file, same 10 outliers and 10 day-matched controls,
+# same width, same budget. Only T differs.
+#
+#   near 0.9  -> the seven-day number is the training regime, not the window length, and
+#               a 1,449 GPU.h full design would measure the wrong thing
+#   near 0.68 -> window length is real, and it is the most important result in the study
+#
+# Quality first and as a distribution, for the reason in docs/PITFALLS.md 16.
+#
+#   qsub -o logs/A6_d1m_analysis.log scripts/pbs/A6_d1m_analysis.pbs            # -> gdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+module load cuda/11.8.0
+export THREADS=${NCPUS:-32}
+COH=data/cohort/metabonet_sid_d1_matched
+DSN=results/design_d7_pilot/rep1
+OUT=results/runs/dimts_d1_matched_rep1
+{
+  echo "########## 1. quality — ContextFID and predictive ##########"
+  python -u scripts/eval_quality.py --runs "$OUT/base" --design "$DSN" \
+    --cohort "$COH" --out results/quality_d1_matched
+
+  echo "########## 2. quality — eight discriminator restarts ##########"
+  python -u scripts/disc_stability.py --runs "$OUT/base" --cohort "$COH" \
+    --job-file "$DSN/jobs/base.json" --restarts 8 \
+    --out results/quality_d1_matched/disc_stability.json
+
+  echo "########## 3. attack, frozen min x mean ##########"
+  python -u scripts/run_attack.py --design "$DSN" --runs "$OUT" --cohort "$COH" \
+    --out results/attack_d1_matched
+
+  echo "########## 4. per-subject AUC ##########"
+  python -u scripts/subject_auc.py --runs dimts_d1_matched --design results/design_d7_pilot \
+    --cohort "$COH" --replicates 1 --out results/subject_auc_d1_matched
+} 2>&1 | tee logs/A6_d1m_analysis.live.log
