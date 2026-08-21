@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lab notebook — CGM membership-inference study</title>
-<meta name="description" content="One tab per working day: what was run, what came back, what it decided. 2026-08-06 to 2026-08-19.">
+<meta name="description" content="One tab per working day: what was run, what came back, what it decided. 2026-08-06 to 2026-08-21.">
 <style>
 :root{
   color-scheme: light;
@@ -382,7 +382,7 @@ const DAYS = [
  art:"results/quality_d7_h256/disc_stability{,_matched}.json · src/cgmoutlier/quality.py · scripts/disc_stability.py · docs/PITFALLS.md §16 · docs/HISTORY.md stage 14"
 },
 {
- date:"2026-08-19", files:23, tags:["result","defect","redirect"],
+ date:"2026-08-19", files:53, tags:["result","defect","redirect"],
  headline:"Both pilots finish. One is unreadable and it is my fault; the other is large and confounded.",
  ran:[
   "Ran the downstream analysis for both finished pilots — quality first, as a distribution over eight discriminator restarts rather than a single draw.",
@@ -401,6 +401,32 @@ const DAYS = [
  decided:"Do not spend 1,449 GPU·h on a full seven-day design yet. Build the one-day control at the same 201 epochs first — 8 GPU·h — because if it also reads 0.9 the seven-day number is the training regime and not the window length.",
  gotcha:"The two-channel pilot was cut from 100,000 steps to 40,000 on my recommendation, because the loss is flat from 20k. <b>A converged loss does not mean the samples are indistinguishable.</b> The result is a generator a classifier separates at 0.94, and 21 models that cannot be read. The abandoned 100k attempt was moved aside rather than deleted, so its 80,000-step checkpoint is being resampled now to tell the step cut apart from the second channel. A second tell was there and I nearly missed it: the joint distance reads 0.820 while CGM alone reads 0.370 and basal alone 0.600 — the joint being far ABOVE both parts is backwards, and is what generator artefacts look like.",
  art:"results/quality_c2_perkg/disc_stability.json · results/attack_c2_perkg/ · results/attack_c2_bychannel/ · results/subject_auc_c2_perkg/ · results/quality_d7_h256_full/ · results/attack_d7_h256/ · results/subject_auc_d7_h256/ · data/cohort/metabonet_sid_d1_matched/ · docs/MEMO.md decision chain"
+},
+{
+ date:"2026-08-20", files:0, tags:["defect"],
+ headline:"Nothing ran. The campaign had failed two days earlier and looked launched.",
+ ran:["Nothing. The matrix prep had died on the 19th and every dependent job was released by afterany, bailed on the missing design, and left an empty queue."],
+ nums:[["cluster idle","48.5 h","from the first prep failure"],
+       ["models run","0","of 84"],
+       ["window wasted","~776","GPU\u00b7h at the 16 cards it was sized for"]],
+ decided:"Not a decision so much as a hole in the record. It is kept as a day because the notebook is a record of what happened, and what happened was nothing.",
+ gotcha:"Two prep failures of the same species, neither watched. The first copied a clinical cache built on 2026-08-06 over metabonet875, keyed on the old bare id, into a run keyed (source_file, id). The second assumed every cohort carries days.npy, where a multi-day cohort carries day_start.npy and seams.npy.",
+ art:"logs/B1_matrix_prep.live.log"
+},
+{
+ date:"2026-08-21", files:111, tags:["defect","build"],
+ headline:"Fixed both prep failures generally, and put a mechanism where the human was.",
+ ran:[
+  "Generalised the cohort restrictor: it now carries every .npy whose first axis is the window axis, instead of naming days.npy.",
+  "Made the clinical cache default to the run's own directory, and made outliers/run.py refuse a cache that does not cover its subjects.",
+  "Rebuilt the four matrix cohorts on the 506-subject four-way intersection.",
+  "Added scripts/matrix_status.sh, a half-hourly watcher, and an autolauncher job on depend=afterok."],
+ nums:[["cohorts","4 / 4","built on 506 subjects"],
+       ["d1_c1","107,927","windows"],["d1_c2","98,083","windows"],
+       ["standard","h256 / 100k","every cell"]],
+ decided:"afterok, not afterany, for anything a failure must not release — and a status command whose VERDICT names the failure mode rather than printing qstat.",
+ gotcha:"The seven-day two-channel cell came back with 506 subjects where the other three had 534: a day is complete only if all 288 cells of EVERY channel are present, so two channels leave fewer unbroken weeks. The matrix runs on what all four cells share.",
+ art:"scripts/matrix_status.sh \u00b7 scripts/pbs/B0_autolaunch.pbs \u00b7 docs/PITFALLS.md \u00a717"
 }
 ];
 

@@ -1,0 +1,21 @@
+#!/bin/bash
+#PBS -N cgm_autolaunch
+#PBS -P 11704243
+#PBS -l select=1:ncpus=1:mem=4gb
+#PBS -l walltime=00:20:00
+#PBS -j oe
+#
+# Submitted with depend=afterok on the prep job, so it runs only if prep SUCCEEDED, and
+# then submits the 26 training jobs itself. This removes the human from the one step
+# that has already failed twice: prep dies, nobody notices, the queue empties.
+#
+# afterok, not afterany -- the whole point is that a failed prep must NOT release the
+# training chain. That is what happened on 08-19 and again on 08-20: every dependent job
+# was released, each bailed on the missing design in under a second, and the campaign
+# looked like it had been launched when it had not.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+cd "$REPO"
+test -f results/matrix/design/rep1/design.json || {
+  echo "prep exited 0 but there is no design -- refusing to launch"; exit 1; }
+echo "design present; launching the four cells"
+PREP=${PREP_JOB:-$PBS_JOBID} bash scripts/pbs/launch_matrix.sh 2>&1 | tee logs/B0_autolaunch.live.log

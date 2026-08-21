@@ -302,6 +302,20 @@ const E = [
  did:"Build a one-day cohort matched to that regime — same 573 subjects, same design, 6,996 windows, same 22,000 steps, same hidden_size 256 — so only T differs. Running.",
  ev:["data/cohort/metabonet_sid_d1_matched/","scripts/pbs/A5_d1_matched_train.pbs"]},
 
+{n:"16", date:"2026-08-19", track:"main", out:"mistake", from:["15"],
+ title:"The matrix sat dead for 48 hours and looked launched",
+ saw:"A multi-stage prep died in step 1. The 26 training jobs chained to it with afterany were released anyway, each checked for the design file, found nothing, exited 1 within a second, and the queue went empty.",
+ why:"afterany means what it says. It is right for chaining rounds of the same work, where one shard failing must not strand the rest; it is wrong for a prerequisite, because it makes a dead campaign indistinguishable from a running one. And a job that exits non-zero in under a second leaves nothing in qstat to look at — only an empty queue, which reads as finished.",
+ did:"Both prep failures were the same species: a function assuming a file layout only one kind of cohort has. The clinical cache defaulted to another cohort's, keyed on the old bare id; and build_cohort_matched assumed days.npy where a multi-day cohort carries day_start.npy. Fixed generally — the cache defaults to the run's own directory and run.py refuses one that does not cover its subjects, and the cohort restrictor now carries every .npy whose first axis is the window axis.",
+ ev:["docs/PITFALLS.md §17","scripts/build_cohort_matched.py","src/cgmoutlier/outliers/run.py"]},
+
+{n:"17", date:"2026-08-21", track:"main", out:"setup", from:["16"],
+ title:"Three layers, and only the third does not need a human",
+ saw:"48.5 hours of idle cluster, twice from the same cause, both times noticed only because someone asked.",
+ why:"A person who has to remember to come back is not a mechanism.",
+ did:"scripts/matrix_status.sh prints a VERDICT in which STALLED is defined as queue empty AND work unfinished — the exact shape of the bug rather than a wall of qstat output. A half-hourly watcher reads it. And scripts/pbs/B0_autolaunch.pbs sits on depend=afterok, re-checks that the design exists, and submits the training chain itself.",
+ ev:["scripts/matrix_status.sh","scripts/pbs/B0_autolaunch.pbs"]},
+
 {n:"A", date:"2026-08-17", track:"c2", out:"defect", from:["09"],
  title:"weight is in pounds, and a BMI check could not have told us",
  saw:"Three unit hypotheses for weight, tested by whether they produce a plausible BMI. All three return NONE PLAUSIBLE for every one of the 14 studies.",

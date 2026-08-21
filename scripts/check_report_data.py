@@ -403,9 +403,11 @@ def main():
             if day == max(claimed):
                 OK.append((f"notebook {day} (today, count moves)", "mtimes", "skipped"))
                 continue
-            if actual.get(day) != int(n):
+            # a day with no artefacts is absent from the tally, not zero in it -- and a
+            # zero day is a real entry: 2026-08-20 is the day the campaign sat dead
+            if actual.get(day, 0) != int(n):
                 BAD.append((f"notebook file count {day}", "mtimes",
-                            f"page says {n}, disk says {actual.get(day)}"))
+                            f"page says {n}, disk says {actual.get(day, 0)}"))
             else:
                 OK.append((f"notebook file count {day} = {n}", "mtimes", "ok"))
         gaps = sorted(set(actual) - set(claimed))

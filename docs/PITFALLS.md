@@ -426,6 +426,55 @@ three looks seeded from every angle except the one that matters, and the symptom
 number that moves when you score a different set of models together — looks like a data
 problem rather than an RNG problem.
 
+## 17. ⛔ `afterany` releases a dependent chain even when the job it depends on FAILED
+
+A multi-stage prep job and 26 training jobs chained to it with `-W depend=afterany`. Prep
+died in step 1. PBS released all 26 anyway — that is what `afterany` means — each one
+checked for the design file, found nothing, exited 1 within a second, and the queue went
+empty. Everything looked launched. Nothing had run.
+
+**It happened twice and cost 48.5 hours of idle cluster**, which at the 16 cards the
+campaign was sized for is a window of about 776 GPU·h. Neither failure was slow queues
+or a bad estimate; both were a prep that died unwatched.
+
+```
+2026-08-19 22:20   prep dies: seed_stability copied results/outliers/_clinical.parquet
+                   -- a cache built 08-06 on metabonet875, keyed on the OLD bare `id` --
+                   into a run on a cohort keyed (source_file, id). C.loc[subs] matched
+                   nothing.
+2026-08-20 ~23:00  prep dies: build_cohort_matched assumed every cohort carries days.npy.
+                   A multi-day cohort carries day_start.npy and seams.npy instead.
+2026-08-21 22:38   noticed, by being asked
+```
+
+### Three things, and only the third is independent of a human
+
+1. **`afterok`, not `afterany`, for anything a failure must not release.** `afterany` is
+   right for chaining rounds of the SAME work, where a shard failing must not strand the
+   rest. It is wrong for a prerequisite. Getting this backwards makes a dead campaign
+   indistinguishable from a running one.
+2. **A status command that names the failure mode.** `scripts/matrix_status.sh` prints a
+   VERDICT, and `STALLED` is defined as *queue empty AND work unfinished* — the exact
+   shape of this bug, rather than a wall of `qstat` output a reader has to interpret.
+3. **A launcher job, not a person.** `scripts/pbs/B0_autolaunch.pbs` sits on
+   `depend=afterok:<prep>`, re-checks that the design really exists, and submits the
+   training chain itself. A person who has to remember to come back is not a mechanism.
+
+### The generalisable pair
+
+**A dependency type encodes a policy about failure; the default is rarely the policy you
+want.** And: **a job that exits non-zero in under a second is invisible in `qstat`** —
+by the time anyone looks there is nothing to look at, only an empty queue that reads as
+"finished".
+
+There is a smaller lesson underneath both prep failures. Each was a function assuming a
+file layout that only one kind of cohort has: a clinical cache assumed to match whatever
+cohort is being scored, and `days.npy` assumed to exist. Both now carry the general form
+— the cache defaults to the run's own directory and `outliers/run.py` refuses one that
+does not cover its subjects, and `build_cohort_matched.py` carries every `.npy` whose
+first axis is the window axis rather than naming the files it expects.
+
+
 ## Shared machines
 
 Measure before scaling up. On this hardware the per-worker cost was **not** the

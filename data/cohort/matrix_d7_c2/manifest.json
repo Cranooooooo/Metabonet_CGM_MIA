@@ -1,0 +1,39 @@
+{
+ "source": "data/cohort/matrix_d1_c2",
+ "channels": [
+  "CGM",
+  "basal"
+ ],
+ "C": 2,
+ "T": 2016,
+ "dt_min": 5,
+ "zclip": 5.0,
+ "n_subjects": 506,
+ "n_windows": 6081,
+ "min_days": 30,
+ "seed": 2026,
+ "stratified_on": "n_days",
+ "channel_constants": [
+  {
+   "name": "CGM",
+   "mean": 145.55177693626197,
+   "sd": 57.53718939766071,
+   "nonzero_frac": 1.0
+  },
+  {
+   "name": "basal",
+   "mean": 0.001364872555673955,
+   "sd": 0.0015984147499705503,
+   "nonzero_frac": 0.7501577266560409
+  }
+ ],
+ "denorm_formula": "raw[:, :, i] = x * zclip * sd[i] + mean[i]",
+ "note": "An L-day window. Constants are inherited from the source cohort unchanged -- this is a regrouping of the same normalised values, not a renormalisation, so a metric computed here is on the same scale as one computed there. SUBSAMPLED \u2014 not a cohort for any other purpose.",
+ "subsampled_from": "data/cohort/_stage1_matrix_d7_c2",
+ "subsample_seed": 2026,
+ "matched_to": "the seven-day pilot's training regime: same subjects, same window count, so the same step budget gives the same epochs",
+ "days_per_window": 7,
+ "mode": "contiguous",
+ "min_windows_per_subject": 4,
+ "seams_total": 0
+}

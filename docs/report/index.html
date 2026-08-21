@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Membership inference on CGM generative models — interactive experiment record</title>
-<meta name="description" content="Two questions, kept apart: what a realistic attacker can do, and how a generator responds to one added subject. Revision 2026-08-18.">
+<meta name="description" content="Two questions, kept apart: what a realistic attacker can do, and how a generator responds to one added subject. Revision 2026-08-21.">
 <style>
 :root{
   color-scheme: light;
@@ -401,7 +401,7 @@ body.guided section.sec.active{opacity:1}
 const DATA = {
 
 metadata: {
-  revision: "2026-08-18",
+  revision: "2026-08-21",
   generator: "DiM-TS (Mamba diffusion)",
   dataset: "MetaboNet public release (no DUA)"
 },
@@ -1006,7 +1006,7 @@ findings: {
 },
 
 currentStatus: {
-  asOf:"2026-08-18",
+  asOf:"2026-08-21",
   items:[
    {name:"CGM + basal/kg cohort", state:"complete",
     detail:"1,208 subjects, 167,726 windows. Manifest verified, 0 duplicate (subject, day).",
@@ -1047,10 +1047,19 @@ currentStatus: {
       "against control 0.459, six of ten outliers above 0.55 and none of ten controls, " +
       "1142 at 1.000. PROVISIONAL: 201 epochs against the published 36.",
     prov:"results/attack_d7_h256/; results/subject_auc_d7_h256/; results/quality_d7_h256_full/"},
-   {name:"One-day control at the seven-day training regime", state:"in-progress",
-    detail:"The experiment that decides whether the 0.950 is window length or 201 epochs. " +
-      "Same 573 subjects, same design, 6,996 one-day windows, same 22,000 steps, same " +
-      "hidden_size 256 — only T differs. 21 models, about 8 GPU·h.",
+   {name:"The 2x2 matrix — window length x channel count", state:"in-progress",
+    detail:"One standard everywhere: hidden_size 256, 100,000 steps. The same 506 subjects and " +
+      "one shared design in all four cells, so only window length and channel count vary. " +
+      "About 1,496 GPU·h; prep running, 0 of 84 models. Everything measured before it compared " +
+      "cells that differed in two or three things at once and cannot be read against it.",
+    prov:"data/cohort/matrix_d{1,7}_c{1,2}/; scripts/pbs/B2_matrix_train.pbs",
+    correction:"The campaign sat dead for 48.5 hours after a prep failure that `afterany` " +
+      "released the whole dependent chain through. docs/PITFALLS.md §17."},
+   {name:"One-day control at the seven-day training regime", state:"complete",
+    detail:"ANSWERED — the training regime, not the window length. Arm AUC 0.940 against the " +
+      "seven-day 0.950, so T was worth 0.010. At a fixed T = 288, going from 36 epochs to 201 " +
+      "moves the arm AUC from 0.680 to 0.940. Its own generator failed the discriminator " +
+      "(max 0.964), so the narrow claim is the one that holds.",
     prov:"data/cohort/metabonet_sid_d1_matched/; scripts/pbs/A5_d1_matched_train.pbs"},
    {name:"Discriminator metric defect", state:"complete",
     detail:"The GRU's weight initialisation was never seeded, so a score depended on how many " +

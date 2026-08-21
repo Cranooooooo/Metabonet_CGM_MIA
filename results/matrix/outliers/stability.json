@@ -1,0 +1,247 @@
+{
+  "seeds": [
+    2026,
+    7,
+    101,
+    999
+  ],
+  "per_seed": {
+    "2026": [
+      "DCLP5/81",
+      "DCLP3/91",
+      "DCLP5/52",
+      "Loop/633",
+      "Loop/100",
+      "Loop/342",
+      "Loop/467",
+      "Loop/19",
+      "Loop/1153",
+      "Loop/1142",
+      "Loop/1120",
+      "Loop/727",
+      "Loop/256",
+      "Loop/884",
+      "Loop/968",
+      "DCLP5/28"
+    ],
+    "7": [
+      "DCLP3/91",
+      "DCLP5/81",
+      "Loop/633",
+      "DCLP5/52",
+      "Loop/100",
+      "Loop/1153",
+      "DCLP5/28",
+      "Loop/727",
+      "Loop/342",
+      "Loop/19",
+      "Loop/467",
+      "Loop/1142",
+      "DCLP3/19",
+      "Loop/968",
+      "Loop/1120",
+      "DCLP5/57",
+      "DCLP5/48"
+    ],
+    "101": [
+      "DCLP3/91",
+      "DCLP5/52",
+      "DCLP5/81",
+      "Loop/633",
+      "Loop/100",
+      "Loop/342",
+      "Loop/467",
+      "Loop/19",
+      "Loop/1142",
+      "Loop/1120",
+      "Loop/1153",
+      "Loop/727",
+      "DCLP5/57",
+      "Loop/884",
+      "Loop/968",
+      "DCLP5/28"
+    ],
+    "999": [
+      "DCLP3/91",
+      "DCLP5/81",
+      "Loop/633",
+      "DCLP5/52",
+      "Loop/100",
+      "Loop/1142",
+      "Loop/342",
+      "Loop/467",
+      "Loop/1120",
+      "Loop/1153",
+      "Loop/19",
+      "Loop/727",
+      "Loop/884",
+      "Loop/968"
+    ]
+  },
+  "per_method": {
+    "A1": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 1.0,
+      "min_rho": 1.0,
+      "median_top_overlap": 1.0,
+      "min_top_overlap": 1.0
+    },
+    "A2": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 1.0,
+      "min_rho": 1.0,
+      "median_top_overlap": 1.0,
+      "min_top_overlap": 1.0
+    },
+    "A3": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 1.0,
+      "min_rho": 1.0,
+      "median_top_overlap": 1.0,
+      "min_top_overlap": 1.0
+    },
+    "A4": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 1.0,
+      "min_rho": 1.0,
+      "median_top_overlap": 1.0,
+      "min_top_overlap": 1.0
+    },
+    "B5": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 0.4858,
+      "min_rho": -0.173,
+      "median_top_overlap": 0.5,
+      "min_top_overlap": 0.12
+    },
+    "B6": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 0.3772,
+      "min_rho": 0.3211,
+      "median_top_overlap": 0.3,
+      "min_top_overlap": 0.24
+    },
+    "B7a": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 0.9997,
+      "min_rho": 0.9997,
+      "median_top_overlap": 0.96,
+      "min_top_overlap": 0.96
+    },
+    "B7b": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 0.9768,
+      "min_rho": 0.9738,
+      "median_top_overlap": 0.76,
+      "min_top_overlap": 0.76
+    },
+    "C10": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 0.9955,
+      "min_rho": 0.9948,
+      "median_top_overlap": 0.94,
+      "min_top_overlap": 0.92
+    },
+    "C8": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 0.9983,
+      "min_rho": 0.9954,
+      "median_top_overlap": 0.96,
+      "min_top_overlap": 0.92
+    },
+    "C9": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 0.9992,
+      "min_rho": 0.9975,
+      "median_top_overlap": 0.98,
+      "min_top_overlap": 0.96
+    },
+    "D11": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 1.0,
+      "min_rho": 1.0,
+      "median_top_overlap": 1.0,
+      "min_top_overlap": 1.0
+    },
+    "E13": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 1.0,
+      "min_rho": 1.0,
+      "median_top_overlap": 1.0,
+      "min_top_overlap": 1.0
+    },
+    "E14": {
+      "n_seeds": 4,
+      "cut_n": 25,
+      "median_rho": 0.9994,
+      "min_rho": 0.999,
+      "median_top_overlap": 0.98,
+      "min_top_overlap": 0.96
+    }
+  },
+  "n_seeds": 4,
+  "counts": {
+    "DCLP5/81": 4,
+    "DCLP3/91": 4,
+    "DCLP5/52": 4,
+    "Loop/633": 4,
+    "Loop/100": 4,
+    "Loop/342": 4,
+    "Loop/467": 4,
+    "Loop/19": 4,
+    "Loop/1153": 4,
+    "Loop/1142": 4,
+    "Loop/1120": 4,
+    "Loop/727": 4,
+    "Loop/256": 1,
+    "Loop/884": 3,
+    "Loop/968": 4,
+    "DCLP5/28": 3,
+    "DCLP3/19": 1,
+    "DCLP5/57": 2,
+    "DCLP5/48": 1
+  },
+  "always": [
+    "DCLP3/91",
+    "DCLP5/52",
+    "DCLP5/81",
+    "Loop/100",
+    "Loop/1120",
+    "Loop/1142",
+    "Loop/1153",
+    "Loop/19",
+    "Loop/342",
+    "Loop/467",
+    "Loop/633",
+    "Loop/727",
+    "Loop/968"
+  ],
+  "sometimes": [
+    "Loop/884",
+    "DCLP5/28",
+    "DCLP5/57",
+    "Loop/256",
+    "DCLP3/19",
+    "DCLP5/48"
+  ],
+  "jaccard_to_first": {
+    "2026": 1.0,
+    "7": 0.7368,
+    "101": 0.8824,
+    "999": 0.875
+  },
+  "note": "`always` is the list to carry forward: a subject that survives every subsample is flagged by the cohort, not by the draw."
+}

@@ -60,8 +60,24 @@ def main():
     src, out = Path(a.src), Path(a.out)
     X = np.load(src / "windows.npy", mmap_mode="r")
     sids = np.load(src / "subject_ids.npy", allow_pickle=True)
-    days = np.load(src / "days.npy", allow_pickle=True)
     man = json.loads((src / "manifest.json").read_text())
+
+    # A one-day cohort carries days.npy; a multi-day one carries day_start.npy and
+    # seams.npy instead, and no subjects.parquet. Rather than name them, take every
+    # sidecar array whose first axis is the window axis and subset it alongside the
+    # windows. Getting this wrong silently mis-aligns a window with its subject.
+    side = {}
+    for f in sorted(src.glob("*.npy")):
+        if f.name in ("windows.npy", "subject_ids.npy"):
+            continue
+        arr = np.load(f, allow_pickle=True)
+        if arr.shape and arr.shape[0] == X.shape[0]:
+            side[f.name] = arr
+        else:
+            print(f"[matched] {f.name} is not per-window ({arr.shape}); not carried")
+    days = side.get("days.npy")
+    print(f"[matched] carrying {len(side)} per-window sidecar(s): "
+          f"{', '.join(side) if side else 'none'}")
 
     if a.subjects:
         keep = {l.strip() for l in Path(a.subjects).read_text().splitlines() if l.strip()}
@@ -85,15 +101,16 @@ def main():
         sel = np.sort(np.flatnonzero(np.isin(sids, list(keep))))
         print(f"[matched] keeping every window: {len(sel):,} over "
               f"{len(np.unique(sids[sel]))} subjects")
-        write(out, src, X, sids, days, man, sel, a)
+        write(out, src, X, sids, side, man, sel, a)
         return 0
 
     rng = np.random.default_rng(a.seed)
     idx_by_subject = {}
     for s in sorted(keep):
         w = np.flatnonzero(sids == s)
-        order = np.argsort(days[w])          # date order, so a block is contiguous in time
-        idx_by_subject[s] = w[order]
+        if days is not None:
+            w = w[np.argsort(days[w])]       # date order, so a block is contiguous in time
+        idx_by_subject[s] = w
 
     total = sum(len(v) for v in idx_by_subject.values())
     frac = a.target_windows / total
@@ -127,18 +144,20 @@ def main():
     print(f"[matched] selected {len(sel):,} windows over "
           f"{len(np.unique(sids[sel]))} subjects")
 
-    write(out, src, X, sids, days, man, sel, a)
+    write(out, src, X, sids, side, man, sel, a)
     return 0
 
 
-def write(out, src, X, sids, days, man, sel, a):
+def write(out, src, X, sids, side, man, sel, a):
     out.mkdir(parents=True, exist_ok=True)
     np.save(out / "windows.npy", np.ascontiguousarray(X[sel]))
     np.save(out / "subject_ids.npy", sids[sel])
-    np.save(out / "days.npy", days[sel])
-    if (src / "subjects.parquet").exists():
-        import shutil
-        shutil.copy(src / "subjects.parquet", out / "subjects.parquet")
+    for name, arr in side.items():
+        np.save(out / name, arr[sel])
+    for extra in ("subjects.parquet",):
+        if (src / extra).exists():
+            import shutil
+            shutil.copy(src / extra, out / extra)
 
     man = dict(man)
     man.update(n_subjects=int(len(np.unique(sids[sel]))), n_windows=int(len(sel)),

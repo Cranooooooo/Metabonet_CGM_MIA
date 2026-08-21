@@ -12,58 +12,46 @@ cd "$REPO"
   git add -A
   echo "staged: $(git diff --cached --numstat | wc -l) files"
   git commit -q -F - <<'MSG'
-One standard: h256, 100,000 steps. Everything else was noise I introduced
+The campaign sat dead for 48 hours and looked launched
 
-The study had drifted into cells that differed in two or three things at once --
-h96/h128/h256 crossed with 22k/40k/80k/100k steps crossed with different cohorts. Asked
-to compare "one-day h128 100k" against "one-day h256 22k", there is no answer. That was
-mine, and it came from optimising each run's cost in isolation.
+A multi-stage prep job died in step 1. The 26 training jobs chained to it with
+`-W depend=afterany` were released anyway -- that is what afterany means -- each checked
+for the design file, found nothing, exited 1 within a second, and the queue went empty.
+It happened twice. 48.5 hours of idle cluster, a window of about 776 GPU.h at the 16
+cards the campaign was sized for. Neither failure was a slow queue or a bad estimate;
+both were a prep that died with nobody watching.
 
-From here there is one standard and two variables:
+The two prep failures were the same species -- a function assuming a file layout that
+only one kind of cohort has:
 
-                     1 channel (CGM)     2 channels (CGM + basal/kg)
-    1 day            matrix_d1_c1        matrix_d1_c2
-    7 days           matrix_d7_c1        matrix_d7_c2
+  1. seed_stability defaulted its clinical cache to results/outliers/_clinical.parquet,
+     built 2026-08-06 over metabonet875 and keyed on the old bare `id`, then copied it
+     into a run on a cohort keyed (source_file, id).
+  2. build_cohort_matched assumed days.npy. A multi-day cohort carries day_start.npy and
+     seams.npy instead, and no subjects.parquet.
 
-All at hidden_size 256 and 100,000 steps, all on the SAME 506 subjects, all using ONE
-design. A subject qualifies only with complete days, a basal trace with a recorded body
-mass, and seven consecutive complete days; the three-way intersection is 534, and the
-seven-day two-channel cell then returns 506 because a day needs all 288 cells of EVERY
-channel, which leaves fewer unbroken weeks. The matrix runs on what all four cells
-share. The outlier consensus is re-derived once on the one-day CGM view and reused
-unchanged, so "who counts as an outlier" cannot vary with the channel set.
+Both are fixed generally rather than case by case: the cache now defaults to the run's
+own directory and outliers/run.py refuses one that does not cover its subjects, and the
+cohort restrictor carries every .npy whose first axis is the window axis instead of
+naming the files it expects.
 
-Chained with afterany rather than sized against a walltime estimate: loo.train skips a
-model that already has samples.npy, so a chain finishes a cell however long each model
-takes. That bet has been lost twice and will not be made a third time.
-~1,496 GPU.h, critical path the seven-day cells at ~138 h.
+And three layers so this cannot recur, of which only the third is independent of a human:
 
-WHAT THE DISCARDED WORK ESTABLISHED, before it was superseded:
+  scripts/matrix_status.sh   a VERDICT in which STALLED is defined as queue empty AND
+                             work unfinished -- the shape of the bug, not a wall of qstat
+  a half-hourly watcher      reads that verdict and acts on it
+  B0_autolaunch.pbs          depend=afterok, re-checks the design exists, and submits the
+                             training chain itself. afterok, not afterany: a failed
+                             prerequisite must not release the chain, because that is
+                             what makes a dead campaign indistinguishable from a live one
 
-- Two-channel at 80,000 steps reads max 0.878, spread 0.373 -- still bimodal, median
-  worse than 40k's. Doubling the budget does nothing, so cutting to 40k was not what
-  broke it. Width or the basal/kg channel remain.
-- The one-day control at the seven-day training regime reads arm AUC 0.940 against the
-  seven-day 0.950. At a fixed T=288, going from 36 epochs to 201 moves the arm AUC from
-  0.680 to 0.940. Window length was worth 0.010.
-- The within-arm reading, which had not been reported and should have been: the CONTROL
-  arm never moves -- per-subject mean 0.5018 / 0.4863 / 0.4594 / 0.4994 across every
-  condition, and 0 of 10 controls above 0.55 in any of them. The OUTLIER arm does:
-  0.5129 at 36 epochs (1 of 20 above 0.55), 0.575-0.628 at 201 (6 of 10). The risk
-  tracks how often the generator sees each training window, and it lands on outliers.
+docs/PITFALLS.md 17 has the account. MEMO's decision chain gains rows 16 and 17, the lab
+diary gains the matching entries, and the notebook gains 08-20 -- a day with zero
+artefacts, which is the point of keeping it.
 
-A LATENT TRAP FOUND ON THE WAY. seed_stability defaulted its clinical-metrics cache to
-results/outliers/_clinical.parquet -- built 2026-08-06 on metabonet875, keyed on the old
-bare `id`. It hard-links that into any cohort's run. Here it failed loudly with a
-KeyError; on a cohort sharing the key SCHEME it would have silently scored one cohort's
-subjects with another's metrics. Default is now local to the run, and outliers/run.py
-refuses a cache that does not cover its subjects instead of raising a pandas KeyError.
-
-Also: docs/report/lab.html, a lab diary whose spine is MEMO's decision chain -- 20
-entries, each with the observation, the reading and what it forced, cross-linked to the
-day view and the report. Laid out without a graph library: the chain's layers are the
-chronology and each holds one node, so d3-dag's Sugiyama solver would have nothing to
-solve and would cost ~300 KB in a file that has to stay self-contained.
+Also fixed: the checker treated a day absent from the mtime tally as different from a
+day with zero artefacts, so the one day nothing ran could not be recorded. 140 checks
+against the artefacts, 0 mismatches.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 MSG
