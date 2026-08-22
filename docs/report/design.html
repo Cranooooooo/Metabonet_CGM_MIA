@@ -1,0 +1,185 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Study design — background, controls, outliers</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{
+  --s1:#2a78d6; --s2:#d95926; --s3:#199e70;
+  --ink:#0b0b0b; --ink-2:#52514e; --ink-3:#84837c;
+  --surface-0:#f6f5f2; --surface-1:#fff; --surface-2:#eeece6;
+  --line:#dedcd6; --line-strong:#c4c2ba;
+}
+@media (prefers-color-scheme:dark){
+  /* dark steps are chosen against #131312, not flipped: s2/s3 are lifted so the fill
+     still clears 3:1 on the dark surface, which the light steps do not */
+  :root{
+    --s1:#5c9df0; --s2:#f07a49; --s3:#2fc98d;
+    --ink:#ffffff; --ink-2:#c3c2b7; --ink-3:#8d8c84;
+    --surface-0:#131312; --surface-1:#1a1a19; --surface-2:#232322;
+    --line:#333331; --line-strong:#4a4a46;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;padding:32px 20px 64px;background:var(--surface-0);color:var(--ink);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+main{max-width:900px;margin:0 auto}
+h1{font-size:23px;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--ink-2);margin:0 0 32px}
+figure{margin:0 0 40px;padding:20px;background:var(--surface-1);
+  border:1px solid var(--line);border-radius:10px}
+figcaption{font-weight:600;margin-bottom:2px}
+.note{color:var(--ink-2);font-size:13.5px;margin:0 0 16px}
+.prov{color:var(--ink-3);font-size:12px;margin-top:14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.lbl{font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;fill:var(--ink)}
+.num{font:700 19px ui-monospace,SFMono-Regular,Menlo,monospace;fill:var(--ink)}
+.cap{font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;fill:var(--ink-2)}
+.mono{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace;fill:var(--ink)}
+.mono2{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:var(--ink-2)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin-top:6px}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--ink-2);font-weight:600}
+td.n{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:right}
+.key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:7px;vertical-align:-1px}
+@media print{
+  body{background:#fff;padding:0}
+  figure{break-inside:avoid;border:1px solid #999;background:#fff}
+}
+</style>
+<main>
+<h1>Who is in which set, and what gets compared</h1>
+<p class="sub">Four disjoint roles over 506 subjects. Every cell of the 2&times;2 matrix uses this same design.</p>
+
+<figure>
+  <figcaption>1 &middot; The cohort splits into four roles</figcaption>
+  <p class="note">Every subject has exactly one role. Only two of the four are ever
+  <em>tested</em>.</p>
+  <svg viewBox="0 0 860 300" role="img"
+       aria-label="506 subjects split into 13 outliers, 13 controls, 5 borderline excluded, and 475 background.">
+    <rect x="8" y="30" width="844" height="252" rx="10" fill="var(--surface-2)" stroke="var(--line-strong)"/>
+    <text x="24" y="22" class="cap">the 506-subject cohort</text>
+
+    <!-- tested groups -->
+    <circle cx="120" cy="105" r="42" fill="var(--s2)"/>
+    <text x="120" y="112" class="num" text-anchor="middle" fill="#fff">13</text>
+    <text x="120" y="172" class="lbl" text-anchor="middle">outliers</text>
+    <text x="120" y="190" class="cap" text-anchor="middle">consensus in every seed</text>
+    <text x="120" y="206" class="cap" text-anchor="middle">TESTED &mdash; outlier arm</text>
+
+    <circle cx="310" cy="105" r="42" fill="var(--s1)"/>
+    <text x="310" y="112" class="num" text-anchor="middle" fill="#fff">13</text>
+    <text x="310" y="172" class="lbl" text-anchor="middle">controls</text>
+    <text x="310" y="190" class="cap" text-anchor="middle">flagged by no method, any seed</text>
+    <text x="310" y="206" class="cap" text-anchor="middle">TESTED &mdash; control arm</text>
+
+    <!-- discarded -->
+    <circle cx="470" cy="105" r="26" fill="none" stroke="var(--ink-3)"
+            stroke-width="2" stroke-dasharray="5 4"/>
+    <text x="470" y="111" class="num" text-anchor="middle" font-size="15">5</text>
+    <text x="470" y="172" class="lbl" text-anchor="middle">borderline</text>
+    <text x="470" y="190" class="cap" text-anchor="middle">flagged in some seeds</text>
+    <text x="470" y="206" class="cap" text-anchor="middle">DROPPED entirely</text>
+
+    <!-- background -->
+    <rect x="580" y="58" width="250" height="94" rx="8" fill="none"
+          stroke="var(--s3)" stroke-width="2.5"/>
+    <text x="705" y="112" class="num" text-anchor="middle">475</text>
+    <text x="705" y="172" class="lbl" text-anchor="middle">background</text>
+    <text x="705" y="190" class="cap" text-anchor="middle">in every model, never a target</text>
+    <text x="705" y="206" class="cap" text-anchor="middle">NOT tested</text>
+
+    <line x1="24" y1="238" x2="836" y2="238" stroke="var(--line-strong)"/>
+    <text x="24" y="262" class="mono2">13 outliers + 13 controls + 5 borderline + 475 background = 506</text>
+  </svg>
+  <p class="prov">results/matrix/design/rep1/design.json &middot; jobs/base.json</p>
+</figure>
+
+<figure>
+  <figcaption>2 &middot; 27 models per cell: one base, plus one per tested subject</figcaption>
+  <p class="note">Each <code>include_</code> model differs from <code>base</code> by
+  <strong>exactly one subject</strong> &mdash; nothing is ever removed.</p>
+  <svg viewBox="0 0 860 330" role="img"
+       aria-label="base trains on 475 background subjects; each include model trains on those 475 plus one target, giving 476.">
+    <!-- base -->
+    <rect x="8" y="24" width="300" height="76" rx="8" fill="none" stroke="var(--s3)" stroke-width="2.5"/>
+    <text x="26" y="52" class="lbl">base</text>
+    <text x="26" y="76" class="mono2">background only</text>
+    <text x="288" y="68" class="num" text-anchor="end">475</text>
+    <text x="322" y="68" class="cap">&times;1 model</text>
+
+    <!-- include outlier -->
+    <rect x="8" y="128" width="300" height="76" rx="8" fill="none" stroke="var(--s3)" stroke-width="2.5"/>
+    <text x="26" y="156" class="lbl">include_&lt;outlier&gt;</text>
+    <text x="26" y="180" class="mono2">background + 1 outlier</text>
+    <circle cx="252" cy="166" r="13" fill="var(--s2)"/>
+    <text x="288" y="172" class="num" text-anchor="end">476</text>
+    <text x="322" y="172" class="cap">&times;13 models</text>
+
+    <!-- include control -->
+    <rect x="8" y="232" width="300" height="76" rx="8" fill="none" stroke="var(--s3)" stroke-width="2.5"/>
+    <text x="26" y="260" class="lbl">include_&lt;control&gt;</text>
+    <text x="26" y="284" class="mono2">background + 1 control</text>
+    <circle cx="252" cy="270" r="13" fill="var(--s1)"/>
+    <text x="288" y="276" class="num" text-anchor="end">476</text>
+    <text x="322" y="276" class="cap">&times;13 models</text>
+
+    <line x1="430" y1="24" x2="430" y2="308" stroke="var(--line)"/>
+    <text x="456" y="52" class="lbl">Why controls must leave the background</text>
+    <text x="456" y="78"  class="cap">If a control stayed among the 475, then base would</text>
+    <text x="456" y="96"  class="cap">already contain them, include_&lt;control&gt; would be</text>
+    <text x="456" y="114" class="cap">identical to base, and the gap would be zero by</text>
+    <text x="456" y="132" class="cap">construction. There would be nothing to measure.</text>
+    <text x="456" y="170" class="lbl">Why that also makes it symmetric</text>
+    <text x="456" y="196" class="cap">Both arms use the SAME base as their non-member,</text>
+    <text x="456" y="214" class="cap">so any per-run offset in that base enters both with</text>
+    <text x="456" y="232" class="cap">the same sign and cancels in the contrast.</text>
+    <text x="456" y="270" class="mono2">1 + 13 + 13 = 27 models per cell</text>
+    <text x="456" y="290" class="mono2">27 &times; 4 cells = 108 models</text>
+  </svg>
+  <p class="prov">scripts/pbs/B2_matrix_train.pbs &middot; src/cgmoutlier/loo/design.py (symmetric branch)</p>
+</figure>
+
+<figure>
+  <figcaption>3 &middot; The measurement is a contrast, not a level</figcaption>
+  <p class="note">A positive gap on outliers proves nothing on its own &mdash; adding any
+  476th subject nudges a generator. The control arm measures that baseline.</p>
+  <svg viewBox="0 0 860 300" role="img"
+       aria-label="For each target the gap is distance to base minus distance to the include model. Leakage is the outlier arm minus the control arm.">
+    <text x="8" y="26" class="lbl">For one tested subject t, in either arm:</text>
+    <rect x="8" y="42" width="560" height="52" rx="7" fill="var(--surface-2)" stroke="var(--line)"/>
+    <text x="26" y="74" class="mono">gap(t) = d(t, base samples) &minus; d(t, include_t samples)</text>
+    <text x="590" y="64" class="cap">positive = the generator</text>
+    <text x="590" y="82" class="cap">moved toward t</text>
+
+    <rect x="8" y="122" width="270" height="96" rx="8" fill="none" stroke="var(--s2)" stroke-width="2.5"/>
+    <text x="26" y="150" class="lbl">outlier arm</text>
+    <text x="26" y="174" class="cap">13 gaps, one per outlier</text>
+    <text x="26" y="196" class="cap">the question</text>
+
+    <rect x="300" y="122" width="270" height="96" rx="8" fill="none" stroke="var(--s1)" stroke-width="2.5"/>
+    <text x="318" y="150" class="lbl">control arm</text>
+    <text x="318" y="174" class="cap">13 gaps, one per control</text>
+    <text x="318" y="196" class="cap">what &ldquo;no leakage&rdquo; looks like</text>
+
+    <path d="M148 224 L148 246 L436 246 L436 224" fill="none" stroke="var(--ink-3)" stroke-width="1.5"/>
+    <rect x="150" y="256" width="420" height="34" rx="7" fill="var(--surface-2)" stroke="var(--line)"/>
+    <text x="170" y="279" class="mono">leakage = outlier arm ABOVE control arm</text>
+    <text x="590" y="279" class="cap">not the outlier gaps themselves</text>
+  </svg>
+  <p class="prov">src/cgmoutlier/attack/statistic.py &middot; frozen statistic: min &times; mean</p>
+</figure>
+
+<figure>
+  <figcaption>Roles at a glance</figcaption>
+  <table>
+    <tr><th>role</th><th class="n">n</th><th>in <code>base</code>?</th><th>ever a target?</th><th>screened by</th></tr>
+    <tr><td><span class="key" style="background:var(--s2)"></span>outliers</td><td class="n">13</td><td>no</td><td>yes — outlier arm</td><td>consensus in <em>every</em> seed</td></tr>
+    <tr><td><span class="key" style="background:var(--s1)"></span>controls</td><td class="n">13</td><td>no</td><td>yes — control arm</td><td>flagged by <em>no</em> method, any seed</td></tr>
+    <tr><td><span class="key" style="background:transparent;border:1.5px dashed var(--ink-3)"></span>borderline</td><td class="n">5</td><td>no</td><td>no</td><td>consensus in <em>some</em> seeds</td></tr>
+    <tr><td><span class="key" style="background:transparent;border:2px solid var(--s3)"></span>background</td><td class="n">475</td><td><strong>yes</strong></td><td>no</td><td>everyone else</td></tr>
+  </table>
+  <p class="prov">Identity is carried by the label in every case; colour is redundant.
+  Palette re-uses the report's series steps, checked for CVD separation
+  (min &Delta;E 10.2 deuteranope, 13.4 protanope; adjacent-pair floor 8).</p>
+</figure>
+</main>
