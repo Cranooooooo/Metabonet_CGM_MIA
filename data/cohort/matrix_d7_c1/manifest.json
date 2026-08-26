@@ -1,32 +1,46 @@
 {
- "source": "data/cohort/matrix_d1_c1",
- "channels": [
-  "CGM"
- ],
- "C": 1,
- "T": 2016,
- "dt_min": 5,
- "zclip": 5.0,
- "n_subjects": 506,
- "n_windows": 6072,
- "min_days": 30,
- "seed": 2026,
- "stratified_on": "n_days",
- "channel_constants": [
-  {
-   "name": "CGM",
-   "mean": 145.93704223632812,
-   "sd": 57.653873443603516,
-   "nonzero_frac": 1.0
+  "source": "data/cohort/matrix_d1_c1",
+  "channels": [
+    "CGM"
+  ],
+  "C": 1,
+  "T": 2016,
+  "dt_min": 5,
+  "zclip": 5.0,
+  "n_subjects": 506,
+  "n_windows": 6072,
+  "min_days": 30,
+  "seed": 2026,
+  "stratified_on": "n_days",
+  "channel_constants": [
+    {
+      "name": "CGM",
+      "mean": 145.93704223632812,
+      "sd": 57.653873443603516,
+      "nonzero_frac": 1.0
+    }
+  ],
+  "denorm_formula": "raw[:, :, i] = x * zclip * sd[i] + mean[i]",
+  "note": "An L-day window. Constants are inherited from the source cohort unchanged -- this is a regrouping of the same normalised values, not a renormalisation, so a metric computed here is on the same scale as one computed there. SUBSAMPLED \u2014 not a cohort for any other purpose.",
+  "subsampled_from": "data/cohort/matrix_d7_c1",
+  "subsample_seed": 2026,
+  "days_per_window": 7,
+  "mode": "contiguous",
+  "min_windows_per_subject": 4,
+  "seams_total": 0,
+  "selection": "block-matched to results/matrix/reference_blocks.csv",
+  "pack": {
+    "file": "cohort.npz",
+    "format": "npz/deflate",
+    "dtype": "float32",
+    "lossless": true,
+    "size_mb": 13.7,
+    "arrays": [
+      "windows",
+      "subject_ids",
+      "day_start",
+      "seams"
+    ],
+    "sha256": "3c3852aa77cf29c306f09e259d38cef274953128c481fcdd8ae482cd0788b9a9"
   }
- ],
- "denorm_formula": "raw[:, :, i] = x * zclip * sd[i] + mean[i]",
- "note": "An L-day window. Constants are inherited from the source cohort unchanged -- this is a regrouping of the same normalised values, not a renormalisation, so a metric computed here is on the same scale as one computed there. SUBSAMPLED \u2014 not a cohort for any other purpose.",
- "subsampled_from": "data/cohort/matrix_d7_c1",
- "subsample_seed": 2026,
- "days_per_window": 7,
- "mode": "contiguous",
- "min_windows_per_subject": 4,
- "seams_total": 0,
- "selection": "block-matched to results/matrix/reference_blocks.csv"
 }

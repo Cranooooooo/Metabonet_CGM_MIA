@@ -49,8 +49,25 @@ def main():
     man = json.loads((d / "manifest.json").read_text())
     assert X.dtype == np.float32, X.dtype
 
-    print(f"{X.shape} float32, {X.nbytes / 1e6:.0f} MB -> compressing ...")
-    np.savez_compressed(out, windows=X, subject_ids=s)
+    # Sidecars used to be dropped: the pack held windows and subject_ids only. That is
+    # enough to TRAIN and not enough to rebuild or check anything -- a one-day cohort
+    # keys its calendar on days.npy and a multi-day one on day_start.npy/seams.npy, and
+    # build_cohort_matched.py --match-blocks, the mechanism that makes the four cells
+    # comparable, aligns on exactly those. A clone without them can retrain the models
+    # and cannot verify the cohorts they were trained on.
+    side = {}
+    for f in sorted(d.glob("*.npy")):
+        if f.name in ("windows.npy", "subject_ids.npy"):
+            continue
+        arr = np.load(f, allow_pickle=True)
+        if arr.shape and arr.shape[0] == X.shape[0]:
+            side[f.stem] = arr
+        else:
+            print(f"  {f.name} is not per-window ({arr.shape}); NOT packed")
+    print(f"{X.shape} float32, {X.nbytes / 1e6:.0f} MB"
+          + (f" + sidecars {sorted(side)}" if side else " (no sidecars)")
+          + " -> compressing ...")
+    np.savez_compressed(out, windows=X, subject_ids=s, **side)
     mb = out.stat().st_size / 1e6
     print(f"  {out}  {mb:.1f} MB  ({mb / (X.nbytes / 1e6):.1%} of source)")
     if mb > 100:
@@ -60,13 +77,16 @@ def main():
         print("  note: over GitHub's 50 MB advisory threshold; push warns but works.")
 
     z = np.load(out, allow_pickle=True)
-    if not np.array_equal(z["windows"], X) or not np.array_equal(z["subject_ids"], s):
-        print("  ERROR: round-trip is not identical.", file=sys.stderr)
+    bad = [k for k, v in [("windows", X), ("subject_ids", s)] + list(side.items())
+           if not np.array_equal(z[k], v)]
+    if bad:
+        print(f"  ERROR: round-trip differs for {bad}.", file=sys.stderr)
         return 1
-    print("  round-trip identical (bit for bit)")
+    print(f"  round-trip identical (bit for bit), {2 + len(side)} arrays")
 
     man["pack"] = dict(file=out.name, format="npz/deflate", dtype="float32",
                        lossless=True, size_mb=round(mb, 1),
+                       arrays=["windows", "subject_ids"] + sorted(side),
                        sha256=hashlib.sha256(out.read_bytes()).hexdigest())
     (d / "manifest.json").write_text(json.dumps(man, indent=2))
 

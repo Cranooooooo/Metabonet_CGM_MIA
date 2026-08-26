@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -N cgm_pack
+#PBS -P 11704243
+#PBS -l select=1:ncpus=8:mem=110gb
+#PBS -l walltime=00:40:00
+#PBS -q normal
+#PBS -j oe
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+{
+set -euo pipefail
+for C in matrix_d1_c1 matrix_d1_c2 matrix_d7_c1 matrix_d7_c2 matrix_detect; do
+  python -u scripts/pack_cohort.py data/cohort/$C --verify
+done
+echo "--- 打包结果 ---"
+for C in matrix_d1_c1 matrix_d1_c2 matrix_d7_c1 matrix_d7_c2 matrix_detect; do
+  raw=$(du -sb data/cohort/$C/windows.npy 2>/dev/null | cut -f1)
+  npz=$(du -sb data/cohort/$C/cohort.npz 2>/dev/null | cut -f1)
+  python3 -c "print(f'  $C  windows.npy {$raw/1048576:.1f} MB -> cohort.npz {$npz/1048576:.1f} MB  ({100*$npz/$raw:.0f}%)')"
+done
+echo "PACK OK"
+} 2>&1 | tee logs/E1_pack.live.log
