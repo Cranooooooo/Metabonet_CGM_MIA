@@ -1,0 +1,59 @@
+#!/bin/bash
+#PBS -N cgm_steps
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:ngpus=4:mem=440gb
+#PBS -l walltime=04:00:00
+#PBS -j oe
+#
+# How few denoising steps can a released set have and still be worth attacking?
+#
+# Quality is the gate: an MIA number from a generator that did not produce good samples
+# answers nothing. So this measures QUALITY ONLY, on `base` -- the generator that saw no
+# target -- at 100 and 200 steps, against the 500-step reference already on disk.
+#
+# 50 steps was measured first and failed for the seven-day cell: context_fid went
+# 0.3313 -> 0.6096 (x1.84) where the one-day cells moved x1.21 and x1.13. The damage is
+# not uniform across cells, which is what makes it disqualifying -- a cross-cell
+# comparison at 50 steps confounds window length with sampling budget.
+#
+# Three base models per step count, not 81: the decision is about quality, and 27
+# include models would cost 30x more to answer the same question.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+{
+set -euo pipefail
+IFS=',' read -ra GPU <<< "${CUDA_VISIBLE_DEVICES:-0}"; NG=${#GPU[@]}
+FAIL=0; i=0; declare -a pids names
+for ST in 100 200; do
+  for CELL in d1_c1 d1_c2 d7_c1; do
+    case "$CELL" in d7_*) SB=100 ;; *) SB=500 ;; esac
+    OUT=results/runs/matrix_${CELL}_st${ST}/base
+    [ -f "$OUT/samples.npy" ] && continue
+    slot=$(( i % NG ))
+    ( export CUDA_VISIBLE_DEVICES="${GPU[$slot]}"
+      python -u scripts/resample.py --from-run results/runs/matrix_$CELL/base \
+        --job-file results/matrix/design/rep1/jobs/base.json \
+        --cohort data/cohort/matrix_$CELL --out "$OUT" \
+        --sampling-timesteps $ST --milestone 10 --params "{\"sample_batch\": $SB}"
+    ) >> "logs/D10_st${ST}_${CELL}.log" 2>&1 &
+    pids[$slot]=$!; names[$slot]="${CELL}@${ST}"; i=$((i+1))
+    if [ $(( i % NG )) -eq 0 ]; then
+      for s in "${!pids[@]}"; do wait "${pids[$s]}" || { echo "FAILED ${names[$s]}"; FAIL=1; }; done
+      pids=(); names=()
+    fi
+  done
+done
+for s in "${!pids[@]}"; do wait "${pids[$s]}" || { echo "FAILED ${names[$s]}"; FAIL=1; }; done
+[ "$FAIL" -eq 0 ] || { echo "RESAMPLE FAILED -- do not read the table"; exit 1; }
+
+for ST in 100 200; do
+  for CELL in d1_c1 d1_c2 d7_c1; do
+    python -u scripts/eval_quality_tsgem.py --runs results/runs/matrix_${CELL}_st${ST}/base \
+      --cohort data/cohort/matrix_$CELL --design results/matrix/design/rep1 \
+      --label "${CELL}_st${ST}" --out results/matrix/quality_tsgem/${CELL}_st${ST}.json
+  done
+done
+echo "STEPS OK"
+} 2>&1 | tee logs/D10_steps.live.log

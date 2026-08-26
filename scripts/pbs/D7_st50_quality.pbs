@@ -1,0 +1,20 @@
+#!/bin/bash
+#PBS -N cgm_st50q
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=220gb
+#PBS -l walltime=08:00:00
+#PBS -j oe
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+{
+set -euo pipefail
+for CELL in d1_c1 d1_c2 d7_c1; do
+  python -u scripts/eval_quality_tsgem.py --runs results/runs/matrix_${CELL}_st50/base \
+    --cohort data/cohort/matrix_$CELL --design results/matrix/design/rep1 \
+    --label "${CELL}_st50" --out results/matrix/quality_tsgem/${CELL}_st50.json
+  python -u scripts/disc_stability.py --runs results/runs/matrix_${CELL}_st50/*/ \
+    --cohort data/cohort/matrix_$CELL --restarts 8 \
+    --out results/matrix/quality/${CELL}_st50/disc_stability.json
+done
+echo "ST50-Q OK"
+} 2>&1 | tee logs/D7_st50_quality.live.log

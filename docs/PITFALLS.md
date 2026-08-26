@@ -489,3 +489,50 @@ eight evaluation seeds — half the machine's fast lane, held by one user, for w
 batches trivially: `scripts/eval_quality.py --runs` takes several run directories, and
 `18_quality.pbs` passes `SEED`/`OUT` through, so N seeds over M models fit in far fewer
 jobs. Batch first, then submit.
+
+## 18. A single-run neural quality metric reports the WRONG DIRECTION at low denoising budgets
+
+Section 16 established that one discriminative accuracy is a single draw of a lower
+bound, and that the draws are bimodal wherever a separable feature exists. The fix there
+was to sweep `init_seed` and report the maximum. This is the same defect one step
+further on, and it is worse than under-reporting: the metric inverts.
+
+Resampling the three finished matrix cells from milestone 10 at `sampling_timesteps=50`
+instead of 500 -- same checkpoints, same K, same seed, only the denoising budget changed:
+
+| | 8 restarts, max median | | tsgen_metrics, single run |
+|---|---|---|---|
+| | 500 steps | 50 steps | 500 -> 50 |
+| d1_c1 | 0.5417 | **0.7192** | 0.0238 -> 0.0163 |
+| d1_c2 | 0.5825 | **0.6458** | 0.0263 -> 0.0100 |
+| d7_c1 | 0.6675 | **0.7850** | 0.0062 -> 0.0025 |
+
+Restart spread went 0.021 -> 0.209, 0.061 -> 0.118, 0.155 -> 0.271, and the worst single
+reading on a 50-step release was 0.9217.
+
+Eight restarts say 50-step samples are far more separable. The single run says they are
+*less* separable, in all three cells, by roughly 2.5x. Anyone reading only the
+single-run column would conclude that cutting the denoising budget by 10x IMPROVED
+generation quality.
+
+The mechanism is the one section 16 describes, seen from the other side. Fewer denoising
+steps leave samples closer to the denoiser's conditional mean: smoother, lower-variance,
+and in a sense easier for a classifier to separate -- but only once it finds the feature.
+A GRU trained once for 2,000 iterations frequently does not find it, so the single
+reading sits near chance; across eight restarts one of them does, so the maximum is high
+and the spread is wide. Low denoising budgets make the distribution MORE bimodal, which
+is exactly the regime where one draw is least informative.
+
+WHAT TO DO. Never gate a sampling-budget decision on a single-run neural metric.
+`tsgen_metrics` runs its neural metrics once by construction (its README says so), so its
+`discriminative` and `predictive` columns are for ranking generators at a FIXED sampling
+budget, not for comparing budgets. Comparing budgets needs the restart sweep, and the
+statistic to read is the spread as much as the maximum -- a tight cluster at 0.54 and a
+cluster spanning 0.50 to 0.84 are different findings even when their medians are close.
+
+The statistical metrics in the same suite (`context_fid`, `vds`, `mdd`, `acd`) do move in
+the right direction, but understate it: context_fid degraded only 1.13-1.84x where the
+discriminator's max median moved 0.12-0.18 absolute. They also degrade UNEVENLY across
+cells -- 1.84x for the seven-day cell against 1.21x and 1.13x for the one-day cells --
+so a cross-cell comparison at a reduced budget confounds window length with sampling
+budget even when every cell individually still looks acceptable.

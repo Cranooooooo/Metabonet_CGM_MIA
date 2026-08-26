@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -N cgm_st50atk
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=440gb
+#PBS -l walltime=06:00:00
+#PBS -q normal
+#PBS -j oe
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+{
+set -euo pipefail
+for CELL in d1_c1 d1_c2 d7_c1; do
+  echo "########## $CELL @ 50 steps ##########"
+  python -u scripts/run_attack.py --design results/matrix/design/rep1 \
+    --cohort data/cohort/matrix_$CELL --runs results/runs/matrix_${CELL}_st50 \
+    --out results/matrix/attack/${CELL}_st50 --generator dimts
+  python -u scripts/subject_auc.py --runs results/runs/matrix_${CELL}_st50 \
+    --design results/matrix/design --cohort data/cohort/matrix_$CELL \
+    --replicates 1 --out results/matrix/subject_auc/${CELL}_st50
+done
+echo "ST50-ATK OK"
+} 2>&1 | tee logs/D6_st50_attack.live.log

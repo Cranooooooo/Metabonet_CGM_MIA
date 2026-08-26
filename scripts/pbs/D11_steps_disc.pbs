@@ -1,0 +1,28 @@
+#!/bin/bash
+#PBS -N cgm_stepdisc
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=220gb
+#PBS -l walltime=04:00:00
+#PBS -j oe
+# The 8-restart discriminator on the 100/200-step bases.
+#
+# D10 measures tsgen_metrics only, and that is the blind spot this whole exercise keeps
+# rediscovering: its single-run `discriminative` said 50-step samples were BETTER than
+# 500-step (0.0238 -> 0.0163 on d1_c1) while eight restarts put the max median at 0.7192
+# against 0.5417 and the spread 10x wider. A single draw cannot see bimodality, and
+# bimodality is the whole signal.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+{
+set -euo pipefail
+for ST in 100 200; do
+  for CELL in d1_c1 d1_c2 d7_c1; do
+    R=results/runs/matrix_${CELL}_st${ST}/base
+    for i in $(seq 1 60); do [ -f "$R/samples.npy" ] && break; sleep 30; done
+    [ -f "$R/samples.npy" ] || { echo "no $R/samples.npy after 30 min"; exit 1; }
+    python -u scripts/disc_stability.py --runs "$R" --cohort data/cohort/matrix_$CELL \
+      --restarts 8 --out results/matrix/quality/${CELL}_st${ST}/disc_stability.json
+  done
+done
+echo "STEPDISC OK"
+} 2>&1 | tee logs/D11_steps_disc.live.log
