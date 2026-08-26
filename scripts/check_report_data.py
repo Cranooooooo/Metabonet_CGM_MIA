@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = ROOT / "docs" / "report" / "index.html"
 
-OK, BAD, MISSING = [], [], []
+OK, BAD, MISSING, SKIPPED, AMBIG = [], [], [], [], []
 
 
 def load_json(rel):
@@ -58,12 +58,55 @@ def frozen(summary):
 
 
 def check(name, artefact, expect, page_text, fmt="{}"):
-    """`expect` must appear in the page rendered as `fmt`."""
+    """Verify the page carries `expect` at the place `fmt` names.
+
+    Substring matching was the wrong tool twice over. It passed on a NON-UNIQUE needle --
+    "done:0" for a campaign with no directory matched "{rep:3,done:0,of:41}" from an
+    unrelated three-channel replicate -- and on a PREFIX, since "auc:0.67" matches
+    "auc:0.6737" as happily as "auc:0.6700". 25 of 138 passing needles were one of those.
+
+    But tightening it to an exact string is also wrong, in the other direction:
+    `str(round(0.6700, 4))` is "0.67" while the page writes "auc:0.6700", so an honest
+    page fails. The value is a NUMBER; compare it as one. `fmt` is split into the key
+    that locates it and the value that must match, and every occurrence of the key in the
+    page is parsed and compared numerically, to the precision `expect` was given to.
+    """
     if expect is None:
         MISSING.append((name, artefact))
         return
     needle = fmt.format(expect)
-    (OK if needle in page_text else BAD).append((name, artefact, needle))
+    key = fmt.split("{}")[0]
+
+    if key and isinstance(expect, (int, float)) and not isinstance(expect, bool):
+        found = [float(m.group(1)) for m in
+                 re.finditer(re.escape(key) + r"(-?\d+(?:\.\d+)?)", page_text)]
+        if not found:
+            BAD.append((name, artefact, f"{needle} (no '{key}<number>' anywhere)"))
+            return
+        txt = f"{expect}"
+        dp = len(txt.split(".")[1]) if "." in txt else 0
+        tol = 0.5 * 10 ** (-dp)
+        hits = [v for v in found if abs(v - float(expect)) <= tol]
+        if not hits:
+            near = ", ".join(f"{v:g}" for v in found[:4])
+            BAD.append((name, artefact,
+                        f"{needle}; page has {key}{{{near}}}"))
+        elif len(hits) > 1:
+            AMBIG.append((name, artefact,
+                          f"{needle} matches {len(hits)} places"))
+        else:
+            OK.append((name, artefact, needle))
+        return
+
+    hits = [i for i in range(len(page_text)) if page_text.startswith(needle, i)]
+    solid = [i for i in hits
+             if not page_text[i + len(needle):i + len(needle) + 1].isdigit()]
+    if not solid:
+        BAD.append((name, artefact, needle))
+    elif len(solid) > 1:
+        AMBIG.append((name, artefact, f"{needle} matches {len(solid)} places"))
+    else:
+        OK.append((name, artefact, needle))
 
 
 def main():
@@ -401,7 +444,8 @@ def main():
             # docs/ and logs/ keep changing as this very run writes to them, so the count
             # is asserted only for days that are closed
             if day == max(claimed):
-                OK.append((f"notebook {day} (today, count moves)", "mtimes", "skipped"))
+                # a skip is not a pass: it went into OK and inflated the verified count
+                SKIPPED.append((f"notebook {day} (today, count moves)", "mtimes"))
                 continue
             # a day with no artefacts is absent from the tally, not zero in it -- and a
             # zero day is a real entry: 2026-08-20 is the day the campaign sat dead
@@ -420,6 +464,8 @@ def main():
     print(f"  verified against artefacts : {len(OK)}")
     print(f"  MISMATCHED                 : {len(BAD)}")
     print(f"  artefact not on disk       : {len(MISSING)}")
+    print(f"  ambiguous (cannot verify)  : {len(AMBIG)}")
+    print(f"  skipped (not checked)      : {len(SKIPPED)}")
     if BAD:
         print("\nMISMATCHES — the page disagrees with the artefact:")
         for n, a, v in BAD:
@@ -428,8 +474,20 @@ def main():
         print("\nNOT VERIFIABLE — no artefact on disk. The page must mark these unverified:")
         for n, a in MISSING:
             print(f"  ? {n:44} {a}")
+    if AMBIG:
+        print("\nAMBIGUOUS — the needle matches more than one place, so a hit proves "
+              "nothing. Give these a more specific format string:")
+        for n, a, v in AMBIG:
+            print(f"  ~ {n:44} {v}")
+    if SKIPPED:
+        print("\nSKIPPED — deliberately not checked, and not counted as verified:")
+        for n, a in SKIPPED:
+            print(f"  - {n:44} {a}")
     print()
-    return 1 if BAD else 0
+    # MISSING used not to affect the exit code, so the checker went green on a wholly
+    # absent results/ tree -- "0 mismatches" out of nothing checked. An artefact that is
+    # not on disk cannot corroborate a number that is on the page.
+    return 1 if (BAD or MISSING) else 0
 
 
 if __name__ == "__main__":
