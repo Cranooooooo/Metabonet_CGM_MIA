@@ -1,0 +1,47 @@
+#!/bin/bash
+#PBS -N cgm_a_d1c1
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=440gb
+#PBS -l walltime=04:00:00
+#PBS -q normal
+#PBS -j oe
+#
+# First analysable cell: d1_c1 = one-day windows (T=288), CGM channel only, 27/27 models.
+#
+# ORDER MATTERS, and the gate comes first. A generator that failed to fit produces a
+# gap that means nothing -- the samples would differ from the target for reasons that
+# have nothing to do with membership. The discriminator with 8 restarts is that gate
+# (PITFALLS section 16: a single reading is one draw of a lower bound, so take the max
+# over restarts and read the spread as the error bar).
+#
+# But quality on GPU needs a band, and g1/g2/g3/glong are all at their per-user limit
+# with the training itself. The attack is pure distance arithmetic -- 26 targets x ~12
+# windows x 5,741 samples x dim 288, under 2M comparisons -- so it runs on CPU here,
+# and the GPU gate follows separately in C2. The attack numbers below are therefore
+# PROVISIONAL until C2 confirms the models fit.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+{
+set -euo pipefail
+# subject_auc.py builds its own "rep{r}" suffix, so --design takes the PARENT of rep1
+# while run_attack.py takes rep1 itself. Two scripts, two conventions, one design tree.
+echo "########## attack: frozen statistic min x mean ##########"
+python -u scripts/run_attack.py \
+  --design results/matrix/design/rep1 \
+  --cohort data/cohort/matrix_d1_c1 \
+  --runs results/runs/matrix_d1_c1 \
+  --out results/matrix/attack/d1_c1 \
+  --generator dimts
+
+echo
+echo "########## per-subject AUC (Q1 view: one released set) ##########"
+python -u scripts/subject_auc.py \
+  --runs results/runs/matrix_d1_c1 \
+  --design results/matrix/design \
+  --cohort data/cohort/matrix_d1_c1 \
+  --replicates 1 \
+  --out results/matrix/subject_auc/d1_c1
+echo
+echo "ANALYSIS OK"
+} 2>&1 | tee logs/C1_analyse_d1_c1.live.log

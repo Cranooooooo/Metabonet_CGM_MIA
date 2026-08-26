@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tsgen-metrics"
+version = "0.1.0"
+description = "Reusable generation-quality metrics for time series (10 metrics, lower=better), with reference-validated deterministic metrics."
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.21",
+    "scipy>=1.7",
+    "torch>=1.12",
+]
+
+[project.scripts]
+tsgen-metrics = "tsgen_metrics.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["tsgen_metrics*"]

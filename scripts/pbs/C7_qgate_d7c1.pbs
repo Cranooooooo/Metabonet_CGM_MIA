@@ -1,0 +1,48 @@
+#!/bin/bash
+#PBS -N cgm_qgate7
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+#
+# The gate that has to pass before either AUC means anything.
+#
+# WHY. A generator that failed to fit still produces a gap: its samples differ from the
+# target for reasons that have nothing to do with membership. The h128 two-channel pilot
+# died exactly here -- loss had converged, so the run looked finished, but the
+# discriminator read max 0.941 with spread 0.391 and the 0.820 arm AUC was unreadable.
+#
+# HOW IT IS READ (PITFALLS section 16). One discriminative accuracy is a single draw of a
+# LOWER BOUND, and the draws are bimodal wherever a separable feature exists -- the
+# classifier either finds it or does not. So sweep init_seed, report the MAXIMUM as "the
+# best a post-hoc classifier managed", and read the spread as the honest error bar. A
+# single low reading is weak evidence of quality; a single high reading is strong
+# evidence of separability.
+#
+#   max near 0.50 across restarts -> indistinguishable -> the AUC is readable
+#   max high, spread wide         -> the model did not fit -> the AUC is not
+#
+# The subsample seed is held fixed at 2026 so only the classifier's initialisation
+# varies; that is deliberate and narrower than "restarts", and disc_stability.py says so.
+#
+# Cost: 2 cells x 27 models x 8 restarts = 432 fits of a 32-unit GRU for 2,000 iters.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+{
+set -euo pipefail
+for CELL in d7_c1; do
+  echo "########## $CELL ##########"
+  # each run is scored against ITS OWN training set: disc_stability reads job_file out of
+  # the run's meta.json rather than taking one --job-file for the whole list, which is how
+  # the seven-day copy_paste anchor got scored against a 553-subject reference when the
+  # model had trained on 533.
+  python -u scripts/disc_stability.py \
+    --runs results/runs/matrix_$CELL/*/ \
+    --cohort data/cohort/matrix_$CELL \
+    --restarts 8 \
+    --out results/matrix/quality/$CELL/disc_stability.json
+  echo
+done
+echo "QGATE OK"
+} 2>&1 | tee logs/C7_qgate_d7c1.live.log

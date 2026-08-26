@@ -1,0 +1,10 @@
+#!/bin/bash
+#PBS -N cgm_scale
+#PBS -P 11704243
+#PBS -l select=1:ncpus=4:mem=32gb
+#PBS -l walltime=00:15:00
+#PBS -q normal
+#PBS -j oe
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+python -u scripts/report/scale_vs_leak.py 2>&1 | tee logs/C10_scale.live.log

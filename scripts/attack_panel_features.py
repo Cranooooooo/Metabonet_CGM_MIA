@@ -71,7 +71,13 @@ def main():
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
 
     jobs = {p.stem: json.loads(p.read_text()) for p in (design / "jobs").glob("*.json")}
-    targets = sorted(n[len("include_"):] for n in jobs if n.startswith("include_"))
+    # loo/design.safe() writes include_DCLP3__138.json for target "DCLP3/138", so the
+    # filename gives "DCLP3__138" while `groups` below is keyed on the real id. On the
+    # study-id cohorts that crashes in training_set; had it resolved, every group would
+    # have been None and every `d.group == "outlier"` filter would return empty. Read the
+    # target out of the job, which is what it is there for.
+    targets = sorted(j["target"] for j in jobs.values()
+                     if j.get("role") == "include" and j.get("target"))
     if a.limit:
         targets = targets[:a.limit]
     groups = {j["target"]: j.get("group") for j in jobs.values() if j.get("target")}

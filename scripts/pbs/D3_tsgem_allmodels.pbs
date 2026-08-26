@@ -1,0 +1,35 @@
+#!/bin/bash
+#PBS -N cgm_tsgemall
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=220gb
+#PBS -l walltime=12:00:00
+#PBS -j oe
+#
+# Screen every model, not just base, on all ten quality metrics.
+#
+# WHY. The gate that decides whether a subject's gap is readable has been a single
+# discriminator statistic. But a model can fail in ways a discriminator does not see --
+# d1_c2's base scores discriminative 0.026 (clean) while its fdds is 0.1265 and its
+# predictive 0.1285, an order above the other cells: it learned two marginals and not
+# their coupling. If that failure mode can hit a base, it can hit an include, and the
+# gate would not notice.
+#
+# The reference for each include is ITS OWN training set (base's 475 plus that one
+# target), read from the design's job file -- not the cohort, and not base's set.
+#
+# A bad model is then one that deviates from the OTHER 26 models of its own cell, which
+# is a within-cell comparison and needs no absolute threshold.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+{
+set -euo pipefail
+for CELL in d1_c1 d1_c2 d7_c1; do
+  python -u scripts/eval_quality_tsgem.py \
+    --runs results/runs/matrix_$CELL/*/ \
+    --cohort data/cohort/matrix_$CELL \
+    --design results/matrix/design/rep1 \
+    --label "${CELL}_allmodels_st500" \
+    --out results/matrix/quality_tsgem/${CELL}_allmodels.json
+done
+echo "TSGEM-ALL OK"
+} 2>&1 | tee logs/D3_tsgem_all.live.log

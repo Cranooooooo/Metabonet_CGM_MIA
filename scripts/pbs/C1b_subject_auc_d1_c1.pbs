@@ -1,0 +1,19 @@
+#!/bin/bash
+#PBS -N cgm_sauc_d1c1
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:mem=220gb
+#PBS -l walltime=02:00:00
+#PBS -q normal
+#PBS -j oe
+# subject_auc.py appends "rep{r}" to --design itself, so it takes the PARENT of rep1
+# while run_attack.py takes rep1. Two conventions over one design tree; the first C1 run
+# hit results/matrix/design/rep1/rep1/design.json and died.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+python -u scripts/subject_auc.py \
+  --runs results/runs/matrix_d1_c1 \
+  --design results/matrix/design \
+  --cohort data/cohort/matrix_d1_c1 \
+  --replicates 1 \
+  --out results/matrix/subject_auc/d1_c1 2>&1 | tee logs/C1b_subject_auc.live.log

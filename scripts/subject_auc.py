@@ -130,7 +130,20 @@ def main():
     rows = []
     for r in reps:
         design = json.loads((Path(a.design) / f"rep{r}" / "design.json").read_text())
-        runs = Path("results/runs") / f"{a.runs}_rep{r}"
+        # --runs was a NAME that this line turned into results/runs/<name>_rep<N>. The
+        # matrix cells are single-replicate directories with no _repN suffix, and passing
+        # the path directly produced results/runs/results/runs/matrix_d1_c1_rep1. Accept
+        # either: an existing directory is used as-is, otherwise fall back to the
+        # historical naming so the published campaigns still resolve.
+        cand = Path(a.runs)
+        if cand.is_dir():
+            runs = cand
+        else:
+            runs = Path("results/runs") / f"{a.runs}_rep{r}"
+        if not runs.is_dir():
+            raise SystemExit(
+                f"no run directory at {runs}. Pass --runs as a path to the cell "
+                f"(results/runs/matrix_d1_c1) or as a campaign name with _repN dirs.")
         cache = {}
 
         # the base is the nonmember of every pair, so it is sliced once and kept; the
@@ -210,8 +223,10 @@ def main():
     arm_auc = float(u.statistic / (len(o) * len(c)))
     print(f"\nSECONDARY, EXPLORATORY -- outlier vs control on this new statistic:")
     print(f"  arm-level AUC-of-AUCs {arm_auc:.3f}, Mann-Whitney p {u.pvalue:.4f}")
-    print(f"  the frozen result stays AUC 0.680 from min x mean; this is a second\n"
-          f"  test on the same data and is reported as a decomposition, not a claim")
+    print(f"  the frozen primary statistic stays min x mean; this is a second test on\n"
+          f"  the same data and is reported as a decomposition, not a claim.\n"
+          f"  (This line used to quote 'AUC 0.680' unconditionally -- the dimts_h128\n"
+          f"  one-day figure -- for whatever --runs it was given.)")
 
     rho_all, p_all = stats.spearmanr(per_subject.auc, per_subject.n_windows)
     print(f"\nSpearman(AUC, n_windows) over all {len(per_subject)} subjects: "
@@ -230,8 +245,13 @@ def main():
     summary = dict(
         runs=a.runs, replicates=reps, n_subjects=int(len(per_subject)),
         statistic="per-subject Mann-Whitney AUC over windows, set_reduce=min",
+        # this string used to end "...its result (arm AUC 0.680) is unchanged", a
+        # literal from the dimts_h128 one-day campaign. The script takes --runs, so it
+        # shipped into results/subject_auc_d7_h256/summary.json -- whose own arm AUC is
+        # 0.940 -- and into 11 other campaigns' artefacts. A result belonging to a
+        # different run has no business inside this one's summary.
         note=("secondary/exploratory; the frozen primary statistic is min x mean and "
-              "its result (arm AUC 0.680) is unchanged by anything here"),
+              "its result is unchanged by anything here"),
         by_group={g: dict(n=int(len(d)), median=float(d.auc.median()),
                           mean=float(d.auc.mean()), max=float(d.auc.max()),
                           q1=float(np.percentile(d.auc, 25)),

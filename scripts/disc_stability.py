@@ -58,12 +58,31 @@ def main():
     a = ap.parse_args()
 
     X, sids, man = load_cohort(a.cohort)
-    if a.job_file:
-        job = json.loads(Path(a.job_file).read_text())
-        real, _ = training_set(X, sids, job["subjects"])
-    else:
-        real = X
-    print(f"[disc] real {real.shape} from {a.cohort}", flush=True)
+
+    def reference(run):
+        """The real half must be THIS run's training set, not one shared across --runs.
+
+        --runs is nargs="+" but --job-file was a single value resolved once, before the
+        loop. scripts/pbs/87_disc_stability.pbs passed design_d7_pilot/rep1 (553
+        subjects) for three runs, one of which -- cp_d7_contiguous_rep1 -- records
+        job_file design_multiday/d7_contiguous/rep1 (533 subjects). 38 reference subjects
+        were never seen by that model, and the 0.5100 it produced is the anchor the
+        report uses to license reading a high discriminator as "failed to fit". The
+        mismatch is silent: training_set only raises if a subject is missing from the
+        COHORT, and the pilot's subjects are a subset of the contiguous cohort's.
+        """
+        if a.job_file:
+            jf = Path(a.job_file)
+        else:
+            mp = Path(run) / "meta.json"
+            if not mp.exists():
+                return X, str(a.cohort)
+            jf = Path(json.loads(mp.read_text()).get("job_file", ""))
+            if not jf or not jf.exists():
+                return X, str(a.cohort)
+        job = json.loads(jf.read_text())
+        r, _ = training_set(X, sids, job["subjects"])
+        return r, str(jf)
 
     out = {}
     for run in a.runs:
@@ -71,6 +90,8 @@ def main():
         if not p.exists():
             print(f"[disc] {run}: no samples.npy, skipping", flush=True)
             continue
+        real, ref = reference(run)
+        print(f"[disc] {run}: real {real.shape} against {ref}", flush=True)
         synth = np.load(p)
         accs = []
         for i in range(a.restarts):
@@ -80,7 +101,11 @@ def main():
             print(f"[disc] {Path(run).parent.name}/{Path(run).name} "
                   f"init_seed={1000 + i}  acc={acc:.4f}", flush=True)
         v = np.array(accs)
+        # record what it was scored against: the old artefacts kept subsample_seed and
+        # n_synth but neither the cohort nor the job file, so a mismatch could not be
+        # audited after the fact
         out[run] = {"n_restarts": len(v), "accs": [float(x) for x in v],
+                    "cohort": str(a.cohort), "reference": ref, "n_real": int(len(real)),
                     "min": float(v.min()), "median": float(np.median(v)),
                     "max": float(v.max()), "spread": float(v.max() - v.min()),
                     "n_synth": int(len(synth)), "subsample_seed": a.seed}

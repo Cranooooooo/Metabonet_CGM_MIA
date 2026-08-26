@@ -1,0 +1,17 @@
+tsgen_metrics — third-party code notice
+=======================================
+
+tsgen_metrics/_vendor/ts2vec/
+    TS2Vec (https://github.com/zhihanyue/ts2vec), MIT License.
+    Vendored verbatim so that the Context-FID metric uses the official encoder.
+    Copyright (c) the TS2Vec authors. See the upstream repository for the full
+    MIT license text.
+
+The deterministic metrics in tsgen_metrics/statistical.py were aligned to the
+published reference implementations in:
+    - Diffusion-TS  (https://github.com/Y-debug-sys/Diffusion-TS), MIT License
+      — Utils/cross_correlation.py (CrossCorrelLoss).
+    - PaD-TS / DiM-TS reference eval (Li et al., 2025)
+      — eval_utils/MMD.py (VDS_Naive, BMMD_Naive, cross_correlation_distribution).
+These references are NOT redistributed here; only re-implementations validated to
+reproduce them (see validate_against_reference.py) are included.
