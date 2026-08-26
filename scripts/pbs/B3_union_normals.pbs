@@ -1,0 +1,12 @@
+#!/bin/bash
+#PBS -N cgm_union
+#PBS -P 11704243
+#PBS -l select=1:ncpus=4:mem=32gb
+#PBS -l walltime=00:15:00
+#PBS -j oe
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+python -u scripts/union_normals.py --outliers results/matrix/outliers \
+  --design results/matrix/design/rep1 \
+  --out results/matrix/outliers/union_normals.json 2>&1 | tee logs/B3_union.live.log

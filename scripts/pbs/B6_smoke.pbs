@@ -1,0 +1,27 @@
+#!/bin/bash
+#PBS -N cgm_smoke
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=128gb
+#PBS -l walltime=00:40:00
+#PBS -j oe
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+{
+set -euo pipefail
+python -u -m pytest tests -x -q 2>&1 | tail -25
+echo "--- import + shape-guard behaviour ---"
+python -u -c "
+import numpy as np
+from cgmoutlier.outliers.shape import cid_dtw
+a = np.random.RandomState(0).randn(3, 20, 1).astype(np.float32)
+b = np.random.RandomState(1).randn(4, 20, 1).astype(np.float32)
+print('  matching shapes ->', cid_dtw(a, b, band=3).shape)
+try:
+    cid_dtw(a, np.random.RandomState(2).randn(4, 12, 1).astype(np.float32), band=3)
+    print('  MISMATCH NOT CAUGHT -- guard failed')
+except ValueError as e:
+    print('  mismatch raises:', str(e)[:70])
+from cgmoutlier.attack.euclidean_features import compute_phi_matrix
+print('  euclidean_features imports (slow path no longer names a dead module)')
+"
+} 2>&1 | tee logs/B6_smoke.live.log

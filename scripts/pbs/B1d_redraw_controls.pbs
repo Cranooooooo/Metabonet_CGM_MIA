@@ -1,0 +1,48 @@
+#!/bin/bash
+#PBS -N cgm_mredraw
+#PBS -P 11704243
+#PBS -l select=1:ncpus=8:mem=64gb
+#PBS -l walltime=00:30:00
+#PBS -j oe
+#
+# Redraw the control arm from subjects no detector ever flagged.
+#
+# WHY. Targets are the INTERSECTION: flagged by the consensus in all four seeds. Controls
+# were drawn from "not a consensus outlier", which is the complement of a far looser set
+# -- so the two arms were screened at different strictness. On this cohort that admitted
+# Loop/1041, flagged 19 times out of 52 (13 methods x 4 seeds), against 28-47 for the
+# real targets and 0 for the clean pool. A control that is really an outlier makes BOTH
+# arms leak and shrinks the contrast, which for a study that has so far measured no
+# leakage is the expensive direction of error.
+#
+# The cohorts are untouched -- they are already block-matched and gated. Only the design
+# changes, and with it the background (a control that leaves the pool joins it).
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+{
+set -euo pipefail
+
+echo "=== 1. union of every method's top-5% over every seed ==="
+python -u scripts/union_normals.py --outliers results/matrix/outliers \
+  --out results/matrix/outliers/union_normals.json
+
+echo
+echo "=== 2. redraw the design, controls from the never-flagged pool ==="
+TARGETS=$(python -u scripts/pick_targets.py \
+  --stability results/matrix/outliers/stability.json \
+  --consensus results/matrix/outliers/seed2026/consensus.json \
+  --all --force Loop/1142)
+echo "targets: $TARGETS"
+rm -rf results/matrix/design/rep1
+python -u scripts/build_design.py --cohort data/cohort/matrix_d1_c1 \
+  --outliers "$TARGETS" --out results/matrix/design/rep1 \
+  --replicates 1 --n-candidates 1 \
+  --control-pool results/matrix/outliers/union_normals.json
+
+echo
+echo "=== 3. gate ==="
+python -u scripts/check_matrix_cells.py
+echo
+echo "PREP OK"
+} 2>&1 | tee logs/B1d_redraw.live.log

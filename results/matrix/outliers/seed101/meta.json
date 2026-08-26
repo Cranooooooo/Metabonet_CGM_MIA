@@ -13,28 +13,5 @@
     "n_probe": 2200,
     "dtw_per_subject": 30
   },
-  "C8": {
-    "sigma": 0.2486565262079239,
-    "n_ref": 4000,
-    "leave_self_out": false
-  },
-  "E14": {
-    "sigma": 0.24924391508102417,
-    "n_ref": 4000,
-    "leave_self_out": true
-  },
-  "encoder": {
-    "fitted": false,
-    "cache": "/home/users/industry/imperial/lcheng/workspace/Project_CGM/CGM-OutlierMIA-master/results/_encoder_cache/ts2vec_8e24fe6d0bb01e4f.pt",
-    "fingerprint": "8e24fe6d0bb01e4f",
-    "n_train": 5000,
-    "dims": 320,
-    "seed": 2026
-  },
-  "C9": {
-    "sigma": 0.10793472826480865,
-    "n_ref": 4000,
-    "leave_self_out": false
-  },
   "seed": 101
 }

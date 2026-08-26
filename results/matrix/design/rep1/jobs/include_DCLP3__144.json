@@ -1,7 +1,7 @@
 {
-  "name": "include_Loop__342",
+  "name": "include_DCLP3__144",
   "role": "include",
-  "target": "Loop/342",
+  "target": "DCLP3/144",
   "subjects": [
     "DCLP3/105",
     "DCLP3/115",
@@ -478,8 +478,8 @@
     "PEDAP/9",
     "PEDAP/91",
     "PEDAP/95",
-    "Loop/342"
+    "DCLP3/144"
   ],
-  "group": "outlier",
+  "group": "control",
   "n_subjects": 476
 }

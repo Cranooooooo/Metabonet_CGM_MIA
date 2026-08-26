@@ -1,0 +1,89 @@
+#!/bin/bash
+#PBS -N cgm_mrebuild
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=128gb
+#PBS -l walltime=01:00:00
+#PBS -j oe
+#
+# Rebuild the four matrix cells so they differ on T and C and nothing else.
+#
+# WHY. The matrix launched on 08-22 09:42 and was killed at 11:47 with two confounds a
+# membership-only pre-check could not see:
+#
+#   epochs    d1_c1 held 107,927 windows, d7_c1 held 6,674. Shared 100k steps x batch 64
+#             is 62.7 epochs against 1016.2. The repo's own prior result is that epochs
+#             move arm AUC from 0.680 to 0.940 at fixed T -- so a 16x epoch gap is not a
+#             nuisance, it is larger than the effect being measured.
+#   exposure  controls were matched on one-day counts and reused in every cell. In d7_c1
+#             outlier Loop/968 had 5 windows against its control's 31, and design.json
+#             reported the one-day figures (max gap 0.07, 0 over tolerance) for all four.
+#
+# HOW. Every cell keeps exactly the same (subject, day) blocks: the intersection of the
+# two seven-day cells' blocks, 6,072 over 506 subjects. A one-day cell matches on
+# days.npy, a seven-day cell on day_start.npy, so all four land on the same 6,072 windows
+# with the same per-subject counts and the same calendar days. Equal counts give equal
+# epochs; equal per-subject counts make control matching identical in every cell.
+#
+# WHAT THIS DOES NOT FIX, deliberately: a seven-day window holds seven days of signal and
+# a one-day window holds one, so the d7 cells see 7x the raw data. That cannot be removed
+# without unmatching the epochs -- you cannot hold windows AND days constant while
+# varying window length. It is what a longer window IS, and it is stated, not hidden.
+#
+#   qsub -o logs/B1c_rebuild.log scripts/pbs/B1c_rebuild_matched.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+{
+set -euo pipefail
+
+echo "=== 1. reference blocks: the intersection of the two seven-day cells ==="
+python -u - <<'PY'
+import numpy as np, csv, pathlib
+def blocks(c):
+    s = np.load(f'data/cohort/{c}/subject_ids.npy', allow_pickle=True).astype(str)
+    b = np.load(f'data/cohort/{c}/day_start.npy').astype('int64')
+    return set(zip(s.tolist(), b.tolist()))
+ref = sorted(blocks('matrix_d7_c1') & blocks('matrix_d7_c2'))
+subs = {s for s, _ in ref}
+assert len(subs) == 506, f"reference covers {len(subs)} subjects, expected 506"
+pathlib.Path('results/matrix').mkdir(parents=True, exist_ok=True)
+with open('results/matrix/reference_blocks.csv', 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['subject', 'day']); w.writerows(ref)
+print(f"  {len(ref):,} blocks over {len(subs)} subjects -> results/matrix/reference_blocks.csv")
+PY
+
+echo
+echo "=== 2. rebuild each cell on those blocks ==="
+for CELL in d1_c1 d1_c2 d7_c1 d7_c2; do
+  SRC=data/cohort/matrix_$CELL
+  NEW=data/cohort/matrix_$CELL.new
+  rm -rf "$NEW"
+  python -u scripts/build_cohort_matched.py \
+    --src "$SRC" --subjects results/matrix/final_subjects.txt \
+    --match-blocks results/matrix/reference_blocks.csv --out "$NEW"
+  # swap only after the build succeeded; set -e means we never reach this on failure
+  rm -rf "$SRC" && mv "$NEW" "$SRC"
+  echo "  swapped in $SRC"
+done
+
+echo
+echo "=== 3. redraw the design against the new counts ==="
+# the 13 targets are unchanged -- they are a property of the people, established on the
+# full record. What must change is the CONTROLS: they were matched on one-day day counts,
+# and the cells now hold 6,072 blocks, so the matching has to be re-derived here.
+TARGETS=$(python -u scripts/pick_targets.py \
+  --stability results/matrix/outliers/stability.json \
+  --consensus results/matrix/outliers/seed2026/consensus.json \
+  --all --force Loop/1142)
+echo "targets: $TARGETS"
+rm -rf results/matrix/design/rep1
+python -u scripts/build_design.py --cohort data/cohort/matrix_d1_c1 \
+  --outliers "$TARGETS" --out results/matrix/design/rep1 \
+  --replicates 1 --n-candidates 1
+
+echo
+echo "=== 4. gate: same subjects, same exposure, same epochs, controls matched ==="
+python -u scripts/check_matrix_cells.py
+echo
+echo "PREP OK"
+} 2>&1 | tee logs/B1c_rebuild.live.log

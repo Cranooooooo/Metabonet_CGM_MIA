@@ -9,20 +9,18 @@
     "2026": [
       "DCLP5/81",
       "DCLP3/91",
-      "DCLP5/52",
       "Loop/633",
+      "DCLP5/52",
       "Loop/100",
+      "Loop/1142",
+      "Loop/19",
+      "DCLP5/28",
+      "Loop/1153",
       "Loop/342",
       "Loop/467",
-      "Loop/19",
-      "Loop/1153",
-      "Loop/1142",
-      "Loop/1120",
       "Loop/727",
-      "Loop/256",
-      "Loop/884",
-      "Loop/968",
-      "DCLP5/28"
+      "Loop/1120",
+      "Loop/968"
     ],
     "7": [
       "DCLP3/91",
@@ -30,18 +28,18 @@
       "Loop/633",
       "DCLP5/52",
       "Loop/100",
-      "Loop/1153",
-      "DCLP5/28",
-      "Loop/727",
-      "Loop/342",
-      "Loop/19",
-      "Loop/467",
       "Loop/1142",
-      "DCLP3/19",
-      "Loop/968",
-      "Loop/1120",
+      "Loop/1153",
+      "Loop/342",
+      "Loop/467",
       "DCLP5/57",
-      "DCLP5/48"
+      "Loop/1120",
+      "Loop/19",
+      "Loop/727",
+      "Loop/968",
+      "DCLP3/19",
+      "DCLP5/28",
+      "Loop/884"
     ],
     "101": [
       "DCLP3/91",
@@ -49,33 +47,34 @@
       "DCLP5/81",
       "Loop/633",
       "Loop/100",
-      "Loop/342",
-      "Loop/467",
-      "Loop/19",
       "Loop/1142",
       "Loop/1120",
       "Loop/1153",
+      "Loop/342",
+      "Loop/467",
+      "Loop/19",
       "Loop/727",
-      "DCLP5/57",
+      "DCLP3/19",
+      "Loop/256",
       "Loop/884",
-      "Loop/968",
-      "DCLP5/28"
+      "Loop/968"
     ],
     "999": [
       "DCLP3/91",
       "DCLP5/81",
-      "Loop/633",
       "DCLP5/52",
+      "Loop/633",
       "Loop/100",
       "Loop/1142",
+      "Loop/1153",
+      "Loop/19",
       "Loop/342",
       "Loop/467",
       "Loop/1120",
-      "Loop/1153",
-      "Loop/19",
       "Loop/727",
-      "Loop/884",
-      "Loop/968"
+      "Loop/968",
+      "DCLP3/19",
+      "DCLP5/28"
     ]
   },
   "per_method": {
@@ -114,18 +113,18 @@
     "B5": {
       "n_seeds": 4,
       "cut_n": 25,
-      "median_rho": 0.4858,
-      "min_rho": -0.173,
-      "median_top_overlap": 0.5,
-      "min_top_overlap": 0.12
+      "median_rho": 0.8079,
+      "min_rho": 0.7772,
+      "median_top_overlap": 0.72,
+      "min_top_overlap": 0.6
     },
     "B6": {
       "n_seeds": 4,
       "cut_n": 25,
-      "median_rho": 0.3772,
-      "min_rho": 0.3211,
-      "median_top_overlap": 0.3,
-      "min_top_overlap": 0.24
+      "median_rho": 0.69,
+      "min_rho": 0.5963,
+      "median_top_overlap": 0.5,
+      "min_top_overlap": 0.2
     },
     "B7a": {
       "n_seeds": 4,
@@ -196,23 +195,22 @@
   "counts": {
     "DCLP5/81": 4,
     "DCLP3/91": 4,
-    "DCLP5/52": 4,
     "Loop/633": 4,
+    "DCLP5/52": 4,
     "Loop/100": 4,
+    "Loop/1142": 4,
+    "Loop/19": 4,
+    "DCLP5/28": 3,
+    "Loop/1153": 4,
     "Loop/342": 4,
     "Loop/467": 4,
-    "Loop/19": 4,
-    "Loop/1153": 4,
-    "Loop/1142": 4,
-    "Loop/1120": 4,
     "Loop/727": 4,
-    "Loop/256": 1,
-    "Loop/884": 3,
+    "Loop/1120": 4,
     "Loop/968": 4,
-    "DCLP5/28": 3,
-    "DCLP3/19": 1,
-    "DCLP5/57": 2,
-    "DCLP5/48": 1
+    "DCLP5/57": 1,
+    "DCLP3/19": 3,
+    "Loop/884": 2,
+    "Loop/256": 1
   },
   "always": [
     "DCLP3/91",
@@ -230,18 +228,17 @@
     "Loop/968"
   ],
   "sometimes": [
-    "Loop/884",
     "DCLP5/28",
-    "DCLP5/57",
-    "Loop/256",
     "DCLP3/19",
-    "DCLP5/48"
+    "Loop/884",
+    "DCLP5/57",
+    "Loop/256"
   ],
   "jaccard_to_first": {
     "2026": 1.0,
-    "7": 0.7368,
-    "101": 0.8824,
-    "999": 0.875
+    "7": 0.8235,
+    "101": 0.7647,
+    "999": 0.9333
   },
   "note": "`always` is the list to carry forward: a subject that survives every subsample is flagged by the cohort, not by the draw."
 }

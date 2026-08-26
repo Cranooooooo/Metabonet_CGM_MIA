@@ -21,6 +21,12 @@ def main():
     ap.add_argument("--stability", required=True)
     ap.add_argument("--consensus", required=True)
     ap.add_argument("--n", type=int, default=10)
+    ap.add_argument("--all", action="store_true",
+                    help="take every subject in `always`. The count is then a property "
+                         "of the cohort rather than a number someone picked, and a "
+                         "stable outlier left out is power thrown away for nothing -- "
+                         "the base is shared, so each extra target costs one include "
+                         "model and one matched control, and buys a wider arm.")
     ap.add_argument("--force", default=None)
     a = ap.parse_args()
 
@@ -28,16 +34,17 @@ def main():
     votes = json.loads(Path(a.consensus).read_text()).get("votes", {})
     ranked = sorted(always, key=lambda s: (-votes.get(s, 0), s))
 
+    n = len(ranked) if a.all else a.n
     pick = []
     if a.force and a.force in ranked:
         pick.append(a.force)
     elif a.force:
         print(f"[targets] WARNING: {a.force} is not in `always` and cannot be forced",
               file=sys.stderr)
-    pick += [s for s in ranked if s not in pick][:a.n - len(pick)]
+    pick += [s for s in ranked if s not in pick][:n - len(pick)]
 
-    if len(pick) < a.n:
-        print(f"[targets] only {len(pick)} stable outliers available, asked for {a.n}",
+    if len(pick) < n:
+        print(f"[targets] only {len(pick)} stable outliers available, asked for {n}",
               file=sys.stderr)
     print(f"[targets] {len(always)} stable; taking {len(pick)}", file=sys.stderr)
     for s in pick:

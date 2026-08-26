@@ -61,6 +61,18 @@ def main():
                          "deterministic greedy draw) and 8 with --replicates, because "
                          "k=1 returns the SAME controls every time and the replicates "
                          "would be fake. Read median_rel_gap to see what k cost")
+    ap.add_argument("--control-pool", default=None, metavar="JSON_OR_TXT",
+                    help="restrict controls to these subjects: either a newline-"
+                         "delimited list, or the union_normals.json written by "
+                         "scripts/union_normals.py (its `clean` key). Targets are the "
+                         "intersection across seeds, so without this the controls are "
+                         "screened at a much looser bar than the targets and a subject "
+                         "flagged by several methods can be drawn as a normal.")
+    ap.add_argument("--exclude-from-background", default=None, metavar="TXT",
+                    help="newline-delimited subjects to keep out of the base's training "
+                         "set as well as out of the control arm -- typically the "
+                         "borderline outliers the consensus flagged in some seeds but "
+                         "not all")
     a = ap.parse_args()
 
     _, sids, man = load(a.cohort)
@@ -95,12 +107,29 @@ def main():
         sys.exit("--n-candidates 1 returns the same controls for every replicate; the "
                  "replicates would differ only by training noise. Use k > 1.")
 
+    control_pool = None
+    if a.control_pool:
+        raw = Path(a.control_pool).read_text()
+        if a.control_pool.endswith(".json"):
+            control_pool = json.loads(raw)["clean"]
+        else:
+            control_pool = [l.strip() for l in raw.splitlines() if l.strip()]
+        print(f"control pool restricted to {len(control_pool)} subjects "
+              f"from {a.control_pool}")
+
+    xbg = []
+    if a.exclude_from_background:
+        xbg = [l.strip() for l in
+               Path(a.exclude_from_background).read_text().splitlines() if l.strip()]
+        print(f"excluding {len(xbg)} borderline subjects from the background too")
+
     subs = [str(s) for s in subs]
     used, made = [], []
     for r in range(1, a.replicates + 1):
         d = build(subs, outliers, days, seed=a.seed + r - 1, tol=a.tol,
                   symmetric=symmetric, n_candidates=k, exclude=used,
-                  borderline=borderline)
+                  borderline=borderline, control_pool=control_pool,
+                  exclude_from_background=xbg)
         out = save(d, a.out if a.replicates == 1 else Path(a.out) / f"rep{r}")
         used += list(d.controls)
         made.append((r, d, out))

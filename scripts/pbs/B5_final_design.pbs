@@ -1,0 +1,58 @@
+#!/bin/bash
+#PBS -N cgm_mfinal
+#PBS -P 11704243
+#PBS -l select=1:ncpus=8:mem=64gb
+#PBS -l walltime=00:30:00
+#PBS -j oe
+#
+# The design the campaign actually runs on. Three screens, all at the same strictness:
+#
+#   targets     consensus outlier in EVERY seed          -> stability.json['always'], 13
+#   background  drop anyone the consensus flagged in ANY seed. They are the same kind of
+#               person as the targets, and leaving them in means the base has already
+#               learned outlier-shaped behaviour from someone else before the target is
+#               added. Both arms share the background so this does not bias the contrast;
+#               it changes what the base -- the attacker's reference -- represents.
+#   controls    flagged by NO method in ANY seed. Drawing from "not a consensus outlier"
+#               is a far looser bar than the targets cleared, and it admitted Loop/1041
+#               with 19 method-flags of 52 against 28-47 for the real targets.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+{
+set -euo pipefail
+
+echo "########## 1. union audit, on the corrected B5/B6 ##########"
+python -u scripts/union_normals.py --outliers results/matrix/outliers \
+  --out results/matrix/outliers/union_normals.json
+
+echo
+echo "########## 2. borderline subjects, kept out of the background ##########"
+python -u -c "
+import json, pathlib
+s = json.load(open('results/matrix/outliers/stability.json'))
+b = sorted(s['sometimes'])
+pathlib.Path('results/matrix/borderline.txt').write_text('\n'.join(b) + '\n')
+print(f'  {len(b)} flagged by the consensus in some seeds but not all: {b}')
+"
+
+echo
+echo "########## 3. build ##########"
+TARGETS=$(python -u scripts/pick_targets.py \
+  --stability results/matrix/outliers/stability.json \
+  --consensus results/matrix/outliers/seed2026/consensus.json \
+  --all --force Loop/1142)
+echo "targets: $TARGETS"
+rm -rf results/matrix/design/rep1
+python -u scripts/build_design.py --cohort data/cohort/matrix_d1_c1 \
+  --outliers "$TARGETS" --out results/matrix/design/rep1 \
+  --replicates 1 --n-candidates 1 \
+  --control-pool results/matrix/outliers/union_normals.json \
+  --exclude-from-background results/matrix/borderline.txt
+
+echo
+echo "########## 4. gate ##########"
+python -u scripts/check_matrix_cells.py
+echo
+echo "PREP OK"
+} 2>&1 | tee logs/B5_final.live.log

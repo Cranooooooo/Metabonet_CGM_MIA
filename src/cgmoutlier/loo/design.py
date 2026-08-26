@@ -191,7 +191,8 @@ def match_controls(days: dict[str, int], outliers, pool, seed=2026, tol=0.15,
 
 
 def build(all_subjects, outliers, days, seed=2026, tol=0.15, n_controls=None,
-          symmetric=True, n_candidates=1, exclude=(), borderline=None):
+          symmetric=True, n_candidates=1, exclude=(), borderline=None,
+          control_pool=None, exclude_from_background=()):
     """-> Design. Pure bookkeeping: no data is read and no model is trained.
 
     `symmetric=True` draws the controls out of the pool before the base is built, so
@@ -201,21 +202,57 @@ def build(all_subjects, outliers, days, seed=2026, tol=0.15, n_controls=None,
     copy_paste validation design stays rebuildable.
 
     `borderline` is an optional {subject: n_seeds_flagged} map for subjects that some
-    outlier-detection seed flagged but not all. They are NOT removed from the control
-    pool: removing them would leave the controls a hand-picked "most normal" subset and
-    tighten the empirical null, which makes separation easier to find rather than
-    harder. They are recorded instead, so whether the drawn ones behave differently is
-    something the analysis can check rather than assume.
+    outlier-detection seed flagged but not all. By default they are NOT removed from the
+    control pool: removing them leaves the controls a hand-picked "most normal" subset
+    and tightens the empirical null, which makes separation easier to find rather than
+    harder. They are recorded instead.
+
+    `control_pool` overrides that default with an explicit list of eligible controls, and
+    the trade runs the other way. The targets are the INTERSECTION -- flagged by the
+    consensus in every seed -- so screening controls only against that same consensus is
+    asymmetric: a subject flagged by five of thirteen methods in all four seeds is not a
+    consensus outlier and can be drawn as a "normal". On the 506-subject matrix cohort
+    that is not hypothetical: `Loop/1041` carried 19 method-flags out of 52 and was drawn
+    as a control, against 28-47 for the actual targets and 0 for the clean pool.
+
+    Which way to go depends on the error you cannot afford. Leaving a real outlier in the
+    control arm makes BOTH arms leak and shrinks the contrast -- a false negative. Taking
+    only never-flagged controls tightens the null and inflates the contrast -- a false
+    positive. This study has so far measured no leakage at all, so a false negative is
+    the expensive direction, and passing `control_pool` is the right call here. It is an
+    argument to be stated in the paper, not a default to be assumed: whichever is used,
+    `matching["control_pool"]` records it.
     """
     all_subjects = [str(s) for s in all_subjects]
     outliers = [str(s) for s in outliers]
+    if exclude and n_candidates <= 1:
+        # `exclude` is only ever passed to draw a DIFFERENT replicate, and at k=1
+        # rng.integers(1) is always 0, so every seed returns the identical greedy draw.
+        # scripts/build_design.py guards this, but the guard lives in the script and any
+        # other caller of the library got fake replicates in silence.
+        raise ValueError(
+            "n_candidates=1 returns the same controls for every seed, so replicates "
+            "built this way would differ only by training noise. Use n_candidates > 1.")
     missing = set(outliers) - set(all_subjects)
     if missing:
         raise ValueError(f"outliers not in the cohort: {sorted(missing)}")
 
     normals = [s for s in all_subjects if s not in set(outliers)]
-    controls, report = match_controls(days, outliers, normals, seed=seed, tol=tol,
+    if control_pool is None:
+        pool, pool_note = normals, "every non-outlier subject"
+    else:
+        cp = set(map(str, control_pool)) - set(outliers)
+        pool = [s for s in normals if s in cp]
+        pool_note = f"restricted: {len(pool)} of {len(normals)} non-outliers eligible"
+        if len(pool) < len(outliers):
+            raise ValueError(
+                f"control pool holds {len(pool)} subjects for {len(outliers)} outliers")
+    controls, report = match_controls(days, outliers, pool, seed=seed, tol=tol,
                                       n_candidates=n_candidates, exclude=exclude)
+    report["control_pool"] = pool_note
+    report["n_control_pool"] = len(pool)
+    report["excluded_from_background"] = sorted(
+        set(map(str, exclude_from_background)) - set(controls) - set(outliers))
     if n_controls is not None:
         controls = controls[:n_controls]
 
@@ -223,7 +260,15 @@ def build(all_subjects, outliers, days, seed=2026, tol=0.15, n_controls=None,
         # the controls leave the background, so all 1 + 2n runs share one training set
         # apart from their own target
         drawn = set(controls)
-        background = [s for s in normals if s not in drawn]
+        # `exclude_from_background` drops subjects that are neither target nor control
+        # but are not really normal either -- on this cohort, the 6 the consensus flagged
+        # in some seeds but not all. They are the same kind of person as the targets, and
+        # leaving them in means the base model has already learned outlier-shaped
+        # behaviour from someone else before the target is added. Both arms share the
+        # background, so this does not bias the CONTRAST; it changes what the base
+        # represents, which is what an attacker's reference distribution is.
+        banned = set(map(str, exclude_from_background)) - drawn - set(outliers)
+        background = [s for s in normals if s not in drawn and s not in banned]
         jobs = [Job(name="base", role="base", target=None, subjects=background)]
         jobs += [Job(name=f"include_{safe(s)}", role="include", target=s,
                      group="outlier", subjects=background + [s]) for s in outliers]
