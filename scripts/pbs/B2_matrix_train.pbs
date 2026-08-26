@@ -45,7 +45,10 @@ IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
 export THREADS=$(( ${NCPUS:-16} / ${#ALLOC[@]} ))
 echo "cell $CELL  cohort $COH  shards ${SHARD_BASE}..$(( SHARD_BASE + ${#ALLOC[@]} - 1 )) of $N_SHARDS"
 python -c "import json;m=json.load(open('$COH/manifest.json'));print(f\"  {m['n_subjects']} subjects, {m['n_windows']:,} windows, T={m['T']}, C={m.get('C',len(m.get('channels',[1])))}\")"
-echo "  already done: $(find "$OUT" -name samples.npy 2>/dev/null | wc -l) / 21"
+# the denominator comes from the design, not a literal -- it was 21 after the design
+# became 27, so every log line understated the work by six models per cell
+NJOBS=$(grep -o '"n_jobs"[[:space:]]*:[[:space:]]*[0-9]\+' "$DSN/design.json" | grep -o '[0-9]\+$')
+echo "  already done: $(find "$OUT" -name samples.npy 2>/dev/null | wc -l) / ${NJOBS:-?}"
 
 pids=(); rc=0
 for i in "${!ALLOC[@]}"; do
@@ -61,5 +64,5 @@ for i in "${!pids[@]}"; do
     if wait "${pids[$i]}"; then echo "shard $(( SHARD_BASE + i )) OK"
     else echo "shard $(( SHARD_BASE + i )) FAILED"; rc=1; fi
 done
-echo "$CELL: $(find "$OUT" -name samples.npy 2>/dev/null | wc -l) / 21 models complete"
+echo "$CELL: $(find "$OUT" -name samples.npy 2>/dev/null | wc -l) / ${NJOBS:-?} models complete"
 exit $rc
