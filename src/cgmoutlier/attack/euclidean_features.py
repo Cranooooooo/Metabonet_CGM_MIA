@@ -14,7 +14,7 @@ The radius r_euc is calibrated dataset-wide as the ``r_euc_q``-th quantile of al
 real-vs-synthetic Euclidean distances (not per-real), matching the legacy phi.
 
 Optional elastic dims (dtw_min, dtw_ball, frechet_min) live behind
-``cheap_only=False`` and are computed by :mod:`m7mia.mia.slow_features` -- banded
+``cheap_only=False`` and are computed by :mod:`cgmoutlier.attack.elastic_features` -- banded
 DTW / discrete Frechet over the Euclidean top-M candidates. They were NaN stubs
 until 2026-08-04; see that module for what the band and the candidate cut do and
 do not guarantee.
@@ -142,7 +142,7 @@ def compute_phi_matrix(
         # Elastic dims. Deuc is handed over rather than recomputed: it is already the
         # cheap pass's output and it also picks the candidate set, so both feature
         # families rest on one distance basis.
-        from .slow_features import compute_slow_phi
+        from .elastic_features import compute_slow_phi
         slow, slow_names, _ = compute_slow_phi(
             reals, syns, Deuc=Deuc, band=dtw_band, n_cand=dtw_cand, r_dtw=r_dtw)
         names = names + list(slow_names)

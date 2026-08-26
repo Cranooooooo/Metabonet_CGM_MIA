@@ -98,18 +98,46 @@ def _sub(x: np.ndarray, n: int, rng) -> np.ndarray:
     return x[np.sort(rng.choice(len(x), size=n, replace=False))]
 
 
-def context_fid(real, synth, *, n=2000, seed=2026, device=0):
+def _trunc(x, k, rng):
+    """Cut to k WITHOUT taking a prefix.
+
+    `_sub` returns its subsample in ascending index order and windows.npy is ordered by
+    (id, day), so `x[:k]` keeps the alphabetically-first subjects rather than a sample of
+    the cohort. Latent while both sides hit the n=3000 cap -- every shipped
+    results/quality/*.json has n_real 176,445 and n_synth 12,000 -- and live the first
+    time a generator emits fewer than n samples, which is silent: n_eval records the
+    reduced k and nothing records WHICH windows.
+    """
+    if len(x) <= k:
+        return x
+    return x[np.sort(rng.choice(len(x), k, replace=False))]
+
+
+def context_fid(real, synth, *, n=2000, seed=2026, device=0, init_seed=None):
     """Frechet distance between TS2Vec representations of real and synthetic windows.
 
     TS2Vec is refit on this call's real subsample and discarded, which is how the
     published metric is defined; the refit is part of the definition, not an oversight.
+
+    SEEDING. This had exactly the defect PITFALLS section 16 records for
+    `discriminative_score`, in the metric next door, and it survived that fix.
+    `np.random.default_rng(seed)` covered only the subsample: TS2Vec builds its encoder
+    from torch's GLOBAL rng, shuffles through a DataLoader from the same, and -- in
+    vendor/DiM-TS/ts2vec/ts2vec.py -- takes its training crops from numpy's LEGACY global
+    rng, which `default_rng` does not touch. So the reading depended on how many models
+    had been scored earlier in the same process, and `eval_quality.py --runs A B C` scores
+    them in one process by design. Every global stream is now pinned.
     """
+    import torch
     TS2Vec, calculate_fid = _vendored_fid()
 
+    isd = seed if init_seed is None else init_seed
+    torch.manual_seed(isd)
+    np.random.seed(isd % (2 ** 32))          # ts2vec crops come from the LEGACY global rng
     rng = np.random.default_rng(seed)
     r, s = _sub(real, n, rng), _sub(synth, n, rng)
     k = min(len(r), len(s))
-    r, s = r[:k], s[:k]
+    r, s = _trunc(r, k, rng), _trunc(s, k, rng)
 
     m = TS2Vec(input_dims=r.shape[-1], device=device, batch_size=8, lr=0.001,
                output_dims=320, max_train_length=3000)
@@ -164,7 +192,7 @@ def discriminative_score(real, synth, *, n=3000, seed=2026, device="cuda",
     rng = np.random.default_rng(seed)
     r, s = _sub(real, n, rng), _sub(synth, n, rng)
     k = min(len(r), len(s))
-    r, s = r[:k], s[:k]
+    r, s = _trunc(r, k, rng), _trunc(s, k, rng)
 
     cut = int(0.8 * k)
     perm_r, perm_s = rng.permutation(k), rng.permutation(k)
@@ -207,6 +235,12 @@ def predictive_score(real, synth, *, n=3000, seed=2026, device="cuda",
     """
     import torch
 
+    # `discriminative_score` seeds torch globally and is called immediately before this
+    # by `evaluate`, so the net here HAPPENED to be reproducible -- by coincidence, not
+    # construction. `eval_quality.py --skip discriminative` removes the reseed and the
+    # coincidence with it, and the weights then come from whatever state TS2Vec's
+    # training left behind. Seed it here rather than rely on a neighbour.
+    torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
     r, s = _sub(real, n, rng), _sub(synth, n, rng)
     dev = torch.device(device)

@@ -63,12 +63,34 @@ class Manifest:
 
 
 def complete_days(df: pd.DataFrame, t: int = T) -> pd.DataFrame:
-    """(id, day) pairs where all `t` five-minute cells carry a CGM reading."""
+    """(id, day) pairs where all `t` five-minute cells carry a CGM reading.
+
+    `cnt >= t` was `>=`, which counts ROWS rather than distinct slots -- and 12.2% of
+    eligible (subject, day) pairs in the released parquet carry more than 288 rows
+    (logs/51_dupdays.log: 24,380 of 199,933, commonly 576 = every timestamp twice).
+    A duplicated day then passed as complete and `v[:T]` downstream took the first 288
+    ROWS, i.e. 12 hours at k=2, labelled and z-scored as a full day.
+
+    Duplicates are not benign here: per docs/DATA.md and PITFALLS section 13, 576-row days
+    arise because a bare `id` merges two different PEOPLE (1,291 ids -> 1,907
+    (source_file, id) pairs), so the repeated timestamps hold different glucose values.
+    The equal-adjacent-run check that found only 14 suspect windows is blind to exactly
+    that case, so 0.01% is a lower bound, not the incidence.
+
+    `== t` is the minimum correct rule for a row count. The stronger fix -- project onto
+    the 288-slot grid and keep the first row per slot -- lives in
+    scripts/build_cohort_multi.py, and docs/DATA.md describes it as though it applied
+    here too; it does not, and the published 875-subject cohort came through this path.
+    """
     d = df.copy()
     d["date"] = pd.to_datetime(d["date"])
     d["day"] = d["date"].dt.floor("D")
     cnt = d.groupby(["id", "day"])["CGM"].count()
-    return cnt[cnt >= t].reset_index()[["id", "day"]]
+    over = int((cnt > t).sum())
+    if over:
+        print(f"[cohort] {over:,} (id, day) pairs carry more than {t} rows and are "
+              f"EXCLUDED as duplicated, not silently truncated to the first {t}")
+    return cnt[cnt == t].reset_index()[["id", "day"]]
 
 
 def stratified_draw(n_days: pd.Series, n: int, seed: int, strata: int = 4) -> np.ndarray:

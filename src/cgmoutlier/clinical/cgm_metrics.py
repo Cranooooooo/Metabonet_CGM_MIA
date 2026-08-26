@@ -174,7 +174,15 @@ def grade(g):
     """GRADE (Hill 2007) = mean of 425·(log10(log10(BG_mmol)) + 0.16)², capped at 50.
     Returns (grade_mean, %hypo, %eu, %hyper) split by 70/180 mg/dL."""
     c = _clean(g)
-    mmol = c / MGDL_PER_MMOL
+    # _clean floors at 1.0 mg/dL so ln/log are defined, which is not enough here: GRADE
+    # needs log10(log10(mmol)), and mmol = mgdl / 18.018 is below 1 for any reading under
+    # 18.018 mg/dL, making the inner log negative and the outer NaN. np.clip(NaN,0,50)
+    # stays NaN, `tot <= 0` is False, and grade/grade_hypo/grade_hyper all return NaN --
+    # two of which are CLUSTER_REPS feeding A3. outliers/clinical.py then averages with
+    # groupby.mean(), which SKIPS NaN, so an affected subject is silently averaged over a
+    # different denominator. Unreachable on real CGM (this cohort floors near 40) but
+    # immediately reachable on generated samples.
+    mmol = np.clip(c / MGDL_PER_MMOL, 1.0 + 1e-12, None)
     gr = 425.0 * (np.log10(np.log10(mmol)) + 0.16) ** 2
     gr = np.clip(gr, 0.0, 50.0)
     tot = gr.sum()
@@ -211,7 +219,7 @@ def gri(g):
 
 def pgs(g, dt_min=5.0):
     """Personal Glycemic State (Hirsch 2017). APPROX of the published composite:
-    PGS = F(hypo) + F(hyper) + F(%out-of-range) + F(GVP), each F a published sub-score.
+    PGS = F(hypo) x F(hyper) x F(%out-of-range) x F(GVP), each F a published sub-score.
     NOTE: exact Hirsch sub-score breakpoints are reproduced from the paper's figures; treat
     as an approximation pending verification against the original PGS reference."""
     c = _clean(g)
@@ -219,7 +227,7 @@ def pgs(g, dt_min=5.0):
     hypo_t = pct_below(c, TH_LOW)
     hyper_t = pct_above(c, TH_HIGH)
     v = gvp(c, dt_min)
-    # published-style monotone sub-scores (capped); combined additively
+    # published-style monotone sub-scores (capped); combined MULTIPLICATIVELY (Hirsch's product form; the code is right and two earlier comments here said 'additively', which differs by more than an order of magnitude in range: 4-20 additive against 1-625 multiplicative)
     f_hypo = min(1.0 + hypo_t / 5.0, 5.0)
     f_hyper = min(1.0 + hyper_t / 20.0, 5.0)
     f_out = min(1.0 + (100.0 - tir) / 20.0, 5.0)

@@ -52,6 +52,17 @@ def cid_dtw(A, B, band=12, threads=4):
     set_num_threads(threads)
     from ..attack.elastic_features import _banded_dtw
 
+    A, B = _as3d(A), _as3d(B)
+    # _banded_dtw is @njit with no bounds checking: it takes T from `a` alone and reads
+    # b[j-1, c] for j up to T, so a shorter or narrower B is read past its buffer and
+    # returns a finite garbage cost with no exception. This function feeds B5/B6, which
+    # vote in the consensus that defines the study's targets -- a silently wrong distance
+    # here changes who is an outlier.
+    if A.shape[1:] != B.shape[1:]:
+        raise ValueError(
+            f"cid_dtw needs matching (T, C): A is {A.shape[1:]}, B is {B.shape[1:]}. "
+            f"numba would read past the end of B rather than raise.")
+
     @njit(parallel=True, cache=True, fastmath=True)
     def _run(A_, B_, band_, cA, cB):
         n, m = A_.shape[0], B_.shape[0]
@@ -65,7 +76,6 @@ def cid_dtw(A, B, band=12, threads=4):
                 out[i, j] = d * (hi / (lo + 1e-9))
         return out
 
-    A, B = _as3d(A), _as3d(B)
     return _run(A, B, band, _ce(A), _ce(B))
 
 
@@ -117,7 +127,15 @@ def B5_B6(cur, sids, dtw_per_subject=30, key="B5_B6", seed=SEED, verbose=True):
         print(f"  B5/B6: {W.shape[0]} windows x {W.shape[2]} channels after a "
               f"per-subject cap of {dtw_per_subject}", flush=True)
     med, meta = glucotype_medoids(W, key=key + ".probe", seed=seed, verbose=verbose)
-    Dwm = cid_dtw(W, cur[med])
+    # `med` indexes W, not cur: glucotype_medoids draws its probe with
+    # `r.choice(W.shape[0], ...)` and returns `pix[...]`, so every value is < len(W).
+    # This read `cur[med]` until 2026-08-22, which on the published run meant three
+    # windows taken from the first 26,250 rows of a 182,597-row array ordered by
+    # (id, day) -- i.e. three days belonging to whichever low-id subjects happened to
+    # sit at those offsets, not the glucotype medoids. No IndexError, no shape mismatch,
+    # and B5/B6 came out plausible: a positive mean distance and a share vector summing
+    # to 1. Two of the thirteen consensus votes were scored against arbitrary windows.
+    Dwm = cid_dtw(W, W[med])
     dmin, nearest = Dwm.min(1), Dwm.argmin(1)
     b5 = np.array([dmin[wsid == s].mean() for s in subs])
     share = np.stack([np.bincount(nearest[wsid == s], minlength=3) / max(1, (wsid == s).sum())

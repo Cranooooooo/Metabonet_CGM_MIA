@@ -87,11 +87,19 @@ def test_run_writes_a_readable_sample_file(tmp_path, monkeypatch, cohort):
 
 def test_run_skips_a_finished_job(tmp_path, cohort):
     """A requeued job must cost only what it had not done (49 jobs, 1 slot/queue)."""
+    import hashlib
     from cgmoutlier.loo import train as T
 
     out = tmp_path / "runs"
     (out / "base").mkdir(parents=True)
     np.save(out / "base" / "samples.npy", np.zeros((1, 4, 1), np.float32))
+    # a genuinely finished job writes meta.json too. This fixture used to create only
+    # samples.npy, which is the state a job KILLED between the two writes leaves behind
+    # -- run() now refuses that rather than adopting a sample file it cannot attribute
+    # to any design, so the fixture has to describe a real completion.
+    fp = hashlib.sha1("a".encode()).hexdigest()[:16]
+    (out / "base" / "meta.json").write_text(json.dumps(
+        dict(job="base", subjects_sha1=fp, n_subjects=1)))
     job = tmp_path / "base.json"
     job.write_text(json.dumps(dict(name="base", role="base", target=None,
                                    subjects=["a"], n_subjects=1)))
@@ -100,6 +108,26 @@ def test_run_skips_a_finished_job(tmp_path, cohort):
     T.load_cohort = lambda *a, **k: called.append(1)      # must never be reached
     assert T.run(job, "unused", out, verbose=False) == out / "base"
     assert not called
+
+
+def test_run_refuses_samples_with_no_meta(tmp_path, cohort):
+    """samples.npy with no meta.json cannot be attributed to a design, so it is not 'done'.
+
+    This is the state a walltime kill or an OOM leaves: run() renames samples.npy into
+    place and writes meta.json after it. The old guard read `m.get(...)` off an empty
+    dict, found None on both branches, fell through and printed "already done, skipping".
+    """
+    import pytest
+    from cgmoutlier.loo import train as T
+
+    out = tmp_path / "runs"
+    (out / "base").mkdir(parents=True)
+    np.save(out / "base" / "samples.npy", np.zeros((1, 4, 1), np.float32))
+    job = tmp_path / "base.json"
+    job.write_text(json.dumps(dict(name="base", role="base", target=None,
+                                   subjects=["a"], n_subjects=1)))
+    with pytest.raises(ValueError, match="no way to tell which design"):
+        T.run(job, "unused", out, verbose=False)
 
 
 class _Restorable:

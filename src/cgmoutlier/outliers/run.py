@@ -78,8 +78,36 @@ def run(cohort, out, only=None, dtw_per_subject=30, device="cuda", seed=SEED,
         if verbose:
             print(f"  -> {key}", flush=True)
 
+    want_subs = set(map(str, subs))
+
     def todo(k):
-        return k in want and not (out / f"{k}.parquet").exists()
+        """True if k still has to be computed -- and a stale file is NOT 'done'.
+
+        This used to be `not (out / f"{k}.parquet").exists()`, i.e. any file with the
+        right name counted as this run's answer. The clinical cache twenty lines below
+        already guards the same failure (PITFALLS section 17, 2026-08-19); the per-method
+        parquets did not. Re-pointing `--cohort` at a directory that already held a full
+        set silently computed nothing, wrote a fresh meta.json naming the new cohort, and
+        handed consensus() thirteen score files for a different set of people.
+        """
+        if k not in want:
+            return False
+        f = out / f"{k}.parquet"
+        if not f.exists():
+            return True
+        try:
+            have = set(map(str, pd.read_parquet(f)["id"]))
+        except Exception as e:
+            print(f"  {k}.parquet is unreadable ({e}); recomputing")
+            return True
+        if have != want_subs:
+            raise SystemExit(
+                f"{f} scores {len(have)} subjects and this cohort has {len(want_subs)} "
+                f"({len(want_subs - have)} absent from the file, "
+                f"{len(have - want_subs)} extra). It belongs to another cohort. A score "
+                f"file records nothing about which cohort produced it, so this cannot be "
+                f"detected downstream -- delete the directory or point --out elsewhere.")
+        return False
 
     if want & {"A1", "A2", "A3", "A4"}:
         # Group A depends only on the CGM channel, so a one-channel and a three-channel
@@ -174,10 +202,23 @@ def consensus(scores_dir, top_pct=5.0, min_methods=7, exclude=CONTROLS,
             f"  in {d}\n"
             f"  A vote of >={min_methods} means something different against a different\n"
             f"  denominator. Finish the run, or pass expect={len(cand)} deliberately.")
+    # every method must score the same people, or `cut` is sized off the union of two
+    # different subject sets and the 5% bar moves for all thirteen at once
+    sizes = {k: len(S[k]) for k in cand}
+    if len(set(sizes.values())) > 1:
+        raise SystemExit(f"methods score different numbers of subjects: {sizes}. The "
+                         f"top-{top_pct}% cut would be sized off their union.")
     cut = max(1, int(len(df) * top_pct / 100))
     top = {k: set(df[k].nlargest(cut).index) for k in cand}
-    cnt = pd.Series({i: sum(i in top[k] for k in cand) for i in set().union(*top.values())})
-    sel = cnt[cnt >= min_methods].sort_values(ascending=False)
+    # `set().union(...)` iterates a set of STRING ids, and str hashing is randomised per
+    # process, so the index order -- and therefore the tie order after sort_values, which
+    # defaults to a non-stable quicksort -- differed between runs on identical inputs.
+    # Votes tie heavily (6 subjects at 8 votes, 3 at 10 on this cohort), and build_design
+    # consumes `outliers` as an ordered list, so two identical consensus runs could hand
+    # match_controls a different order and draw a different control set.
+    everyone = sorted(set().union(*top.values()))
+    cnt = pd.Series({i: sum(i in top[k] for k in cand) for i in everyone})
+    sel = cnt[cnt >= min_methods].sort_values(ascending=False, kind="stable")
     return dict(
         outliers=[str(i) for i in sel.index],
         n_candidates=len(cand), candidates=cand, cut_pct=top_pct, cut_n=cut,

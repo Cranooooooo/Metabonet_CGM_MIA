@@ -206,7 +206,19 @@ def run(job_file, cohort, out, generator="copy_paste", params=None, K=None,
         # records nothing about the design that produced it, which is exactly why
         # designs are never rebuilt in place either.
         prev = out / "meta.json"
-        m = json.loads(prev.read_text()) if prev.exists() else {}
+        if not prev.exists():
+            # samples.npy is renamed into place at the end of run(), meta.json is written
+            # AFTER it, so a kill in that window (walltime, OOM) leaves samples with no
+            # meta -- and this guard then found `was is None` in both branches, fell
+            # through, and skipped. The requeue would accept a sample file it could not
+            # attribute to any design, which is the failure the comment above says
+            # nothing downstream could see.
+            raise ValueError(
+                f"{done} exists but {prev} does not, so there is no way to tell which "
+                f"design wrote it. Most likely the job was killed between the two writes. "
+                f"Delete {out} and let it recompute rather than trusting an unattributable "
+                f"sample file.")
+        m = json.loads(prev.read_text())
         was, want = m.get("subjects_sha1"), fp
         if was is None:                       # written before fingerprints existed
             was, want = m.get("n_subjects"), job["n_subjects"]
