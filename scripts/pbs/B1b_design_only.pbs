@@ -1,0 +1,34 @@
+#!/bin/bash
+#PBS -N cgm_mdesign
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=64gb
+#PBS -l walltime=00:30:00
+#PBS -j oe
+#
+# Rebuild the shared design with EVERY stable outlier, not a round number.
+#
+# The first design took 10 of the 13 the consensus found, carried over from the earlier
+# pilots. There was no reason for it. The base is shared, so each extra target costs one
+# include model and one matched control -- six models per cell -- and buys a 13 v 13 arm
+# instead of 10 v 10, which in this n range is the difference that matters.
+#
+# It is not free: adding targets shrinks the background from 486 to 480, so the base
+# trains on a different set and the eight models already finished are void. At 8 of 84
+# that is 98 GPU.h, and worth paying now rather than discovering the arm was needlessly
+# narrow after five days.
+#
+#   qsub -o logs/B1b_design_only.log scripts/pbs/B1b_design_only.pbs             # -> qdev
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+{
+  TARGETS=$(python -u scripts/pick_targets.py \
+    --stability results/matrix/outliers/stability.json \
+    --consensus results/matrix/outliers/seed2026/consensus.json \
+    --all --force Loop/1142)
+  echo "targets: $TARGETS"
+  python -u scripts/build_design.py --cohort data/cohort/matrix_d1_c1 \
+    --outliers "$TARGETS" --out results/matrix/design/rep1 \
+    --replicates 1 --n-candidates 1
+  python -u scripts/check_matrix_cells.py
+} 2>&1 | tee logs/B1b_design_only.live.log

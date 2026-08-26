@@ -52,3 +52,11 @@ results/_refactor_check/
 # Scaffolding for the matrix build: superseded the moment the four-way
 # intersection is known, and rebuilt by scripts/pbs/B1_matrix_prep.pbs.
 data/cohort/_stage1_*/
+
+# Runtime state, not source: the watchdog's flock file and the copies taken of
+# matrix_status.sh / watchdog.sh / launch_matrix.sh before they were rewritten. Git
+# history is the backup; a second one in the tree just goes stale.
+logs/.watchdog.lock
+logs/.maintenance
+logs/.watchdog_relaunched
+logs/archive/

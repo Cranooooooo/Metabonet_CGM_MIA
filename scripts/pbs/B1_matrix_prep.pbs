@@ -60,7 +60,7 @@ S=results/matrix/common_subjects.txt
   TARGETS=$(python -u scripts/pick_targets.py \
     --stability results/matrix/outliers/stability.json \
     --consensus results/matrix/outliers/seed2026/consensus.json \
-    --n 10 --force Loop/1142)
+    --all --force Loop/1142)
   echo "targets: $TARGETS"
   python -u scripts/build_design.py --cohort data/cohort/matrix_d1_c1 \
     --outliers "$TARGETS" --out results/matrix/design/rep1 \
