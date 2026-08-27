@@ -1,0 +1,21 @@
+{
+ "results/runs/matrix_d1_c1_st100/base": {
+  "correlational": 7.218300031771226e-14,
+  "mdd": 0.0023106654184335738,
+  "acd": 0.17381765662894233,
+  "skewness_diff": 0.024962395197165737,
+  "kurtosis_diff": 0.12252160110880528,
+  "vds": 0.0027566850185394287,
+  "fdds": 0.0,
+  "context_fid": 0.10208961720499088,
+  "discriminative": 0.0037499964237213135,
+  "predictive": 0.011692997969686985,
+  "run": "results/runs/matrix_d1_c1_st100/base",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2026,
+  "label": "d1_c1_st100"
+ }
+}

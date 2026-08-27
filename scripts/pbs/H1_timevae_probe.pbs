@@ -1,0 +1,39 @@
+#!/bin/bash
+#PBS -N cgm_tvae
+#PBS -P 11704243
+#PBS -l select=1:ncpus=48:ngpus=3:mem=330gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+#
+# TimeVAE on d1_c1, base only, as a timing and quality probe before committing 27 models.
+#
+# MATCHED ON EPOCHS, NOT STEPS. DiM-TS took 100,000 optimizer steps at batch 64 over
+# 5,741 windows, which is 1,115 epochs. TimeVAE's interface is max_epochs, so 1,115 is
+# what makes the two budgets the same number of passes over the same data. Matching
+# "steps" would compare a diffusion model's 100k against a VAE's ~89k and mean nothing.
+#
+# WHY BASE ONLY FIRST. The MIA question needs 27 models, but if TimeVAE's samples do not
+# clear the quality gate then none of those 27 would be readable -- and a VAE is expected
+# to produce blurrier output than a diffusion model, so this is a real risk rather than a
+# formality. One model answers it, and also gives a measured cost for the other 26
+# instead of another estimate from me.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+{
+set -euo pipefail
+t0=$SECONDS
+python -u scripts/run_loo.py --design results/matrix/design/rep1 \
+  --cohort data/cohort/matrix_d1_c1 --out results/runs/tvae_d1_c1 \
+  --job base --generator timevae \
+  --params '{"latent_dim": 8, "hidden_layer_sizes": [50,100,200], "max_epochs": 1115, "batch_size": 64}'
+echo "=== TimeVAE base 训练+采样 用时 $(( (SECONDS-t0)/60 )) 分钟"
+
+python -u scripts/eval_quality_tsgem.py --runs results/runs/tvae_d1_c1/base \
+  --cohort data/cohort/matrix_d1_c1 --design results/matrix/design/rep1 \
+  --label tvae_d1_c1_base --out results/matrix/quality_tsgem/tvae_d1_c1.json
+python -u scripts/disc_stability.py --runs results/runs/tvae_d1_c1/base \
+  --cohort data/cohort/matrix_d1_c1 --restarts 8 \
+  --out results/matrix/quality/tvae_d1_c1/disc_stability.json
+echo "TVAE OK"
+} 2>&1 | tee logs/H1_tvae.live.log

@@ -1,0 +1,81 @@
+#!/bin/bash
+#PBS -N cgm_d7sweep
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:ngpus=4:mem=440gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+#
+# Leakage and generation quality as a function of training length, on the two one-day
+# cells. No retraining: every model already banked a checkpoint every 10,000 steps, so
+# this is a sampling job.
+#
+#   milestone   2     3     4     6     8    10
+#   steps      20k   30k   40k   60k   80k  100k
+#   epochs     223   334   446   669   892  1115
+#
+# WHY 200 DENOISING STEPS. Measured, not assumed: at 200 the 8-restart discriminator on
+# base reads 0.524/0.010 for d1_c1 and 0.579/0.052 for d1_c2, against 0.531/0.005 and
+# 0.553/0.060 at 500 -- indistinguishable. At 100 d1_c2 fails (0.607/0.091) and at 50
+# both fail badly (0.705/0.174, 0.721/0.233). The seven-day cells fail at every reduced
+# budget, which is why they are not in this sweep.
+#
+# Milestone 10 is resampled at 200 too, even though 500-step samples exist. Every point
+# on a curve must share one sampling budget; the existing 500-step set stays as the
+# absolute number for the paper and is not mixed in here.
+#
+# ORDER. Milestone by milestone, attack immediately after each, so the curve fills in
+# from the first point rather than after twelve hours. If this is killed at walltime the
+# completed milestones are already analysed.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+{
+set -uo pipefail
+IFS=',' read -ra GPU <<< "${CUDA_VISIBLE_DEVICES:-0}"; NG=${#GPU[@]}
+DSN=results/matrix/design/rep1
+for MS in 3 4; do
+  for CELL in d7_c1; do
+    OUT=results/runs/sweep_${CELL}_ms${MS}
+    mkdir -p "$OUT"
+    i=0; FAIL=0; declare -a pids names
+    for RUN in results/runs/matrix_$CELL/*/; do
+      NAME=$(basename "$RUN")
+      [ -f "$OUT/$NAME/samples.npy" ] && continue
+      slot=$(( i % NG ))
+      ( export CUDA_VISIBLE_DEVICES="${GPU[$slot]}"
+        python -u scripts/resample.py --from-run "$RUN" \
+          --job-file "$DSN/jobs/$NAME.json" --cohort "data/cohort/matrix_$CELL" \
+          --out "$OUT/$NAME" --sampling-timesteps 500 --milestone "$MS" \
+          --params '{"sample_batch": 100}'
+      ) >> "logs/G2_${CELL}_ms${MS}_slot${slot}.log" 2>&1 &
+      pids[$slot]=$!; names[$slot]="$NAME"; i=$((i+1))
+      if [ $(( i % NG )) -eq 0 ]; then
+        for s in "${!pids[@]}"; do wait "${pids[$s]}" || { echo "FAILED ${names[$s]} ms$MS"; FAIL=1; }; done
+        pids=(); names=()
+      fi
+    done
+    for s in "${!pids[@]}"; do wait "${pids[$s]}" || { echo "FAILED ${names[$s]} ms$MS"; FAIL=1; }; done
+    pids=(); names=()
+    n=$(find -L "$OUT" -name samples.npy | grep -c . )
+    echo "=== $CELL ms$MS : $n / 27 resampled  (fail=$FAIL)"
+    [ "$n" -eq 27 ] || { echo "  INCOMPLETE, skipping analysis for $CELL ms$MS"; continue; }
+
+    python -u scripts/run_attack.py --design "$DSN" --cohort "data/cohort/matrix_$CELL" \
+      --runs "$OUT" --out "results/matrix/sweep/attack/${CELL}_ms${MS}" --generator dimts \
+      2>&1 | tail -12
+    python -u scripts/subject_auc.py --runs "$OUT" --design results/matrix/design \
+      --cohort "data/cohort/matrix_$CELL" --replicates 1 \
+      --out "results/matrix/sweep/subject_auc/${CELL}_ms${MS}" 2>&1 | tail -3
+    python -u scripts/eval_quality_tsgem.py --runs "$OUT/base" \
+      --cohort "data/cohort/matrix_$CELL" --design "$DSN" --label "${CELL}_ms${MS}" \
+      --out "results/matrix/sweep/quality_tsgem/${CELL}_ms${MS}.json" 2>&1 | tail -3
+    python -u scripts/disc_stability.py --runs "$OUT"/*/ \
+      --cohort "data/cohort/matrix_$CELL" --restarts 8 \
+      --out "results/matrix/sweep/quality/${CELL}_ms${MS}.json" 2>&1 | tail -3
+    echo "=== $CELL ms$MS analysed"
+  done
+done
+echo "SWEEP OK"
+} 2>&1 | tee logs/G2_epoch_sweep.live.log

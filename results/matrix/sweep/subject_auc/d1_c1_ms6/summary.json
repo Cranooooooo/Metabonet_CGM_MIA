@@ -1,0 +1,35 @@
+{
+  "runs": "results/runs/sweep_d1_c1_ms6",
+  "replicates": [
+    1
+  ],
+  "n_subjects": 26,
+  "statistic": "per-subject Mann-Whitney AUC over windows, set_reduce=min",
+  "note": "secondary/exploratory; the frozen primary statistic is min x mean and its result is unchanged by anything here",
+  "by_group": {
+    "outlier": {
+      "n": 13,
+      "median": 0.7239583333333334,
+      "mean": 0.6765599860942959,
+      "max": 0.96,
+      "q1": 0.5454545454545454,
+      "q3": 0.8,
+      "n_over_0_55": 9
+    },
+    "control": {
+      "n": 13,
+      "median": 0.52,
+      "mean": 0.5356163922078411,
+      "max": 0.75,
+      "q1": 0.48,
+      "q3": 0.5555555555555556,
+      "n_over_0_55": 4
+    }
+  },
+  "exploratory_arm_auc_of_aucs": 0.7899408284023669,
+  "exploratory_arm_p": 0.0063919299842589705,
+  "spearman_auc_vs_n_windows": {
+    "rho": -0.22325882556229965,
+    "p": 0.27293692335030295
+  }
+}

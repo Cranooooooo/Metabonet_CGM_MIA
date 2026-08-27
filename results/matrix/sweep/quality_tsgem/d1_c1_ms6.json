@@ -1,0 +1,21 @@
+{
+ "results/runs/sweep_d1_c1_ms6/base": {
+  "correlational": 5.487092262039065e-14,
+  "mdd": 0.0018923582554342862,
+  "acd": 0.11792459650631959,
+  "skewness_diff": 0.02274089848762621,
+  "kurtosis_diff": 0.15579361806455871,
+  "vds": 0.002117951555798451,
+  "fdds": 0.0,
+  "context_fid": 0.07225469710290766,
+  "discriminative": 0.019999980926513672,
+  "predictive": 0.011790613777935504,
+  "run": "results/runs/sweep_d1_c1_ms6/base",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2026,
+  "label": "d1_c1_ms6"
+ }
+}

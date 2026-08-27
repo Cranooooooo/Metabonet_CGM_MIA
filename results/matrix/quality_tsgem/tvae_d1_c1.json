@@ -1,0 +1,21 @@
+{
+ "results/runs/tvae_d1_c1/base": {
+  "correlational": 1.7889023595785147e-13,
+  "mdd": 0.009305808396916007,
+  "acd": 0.9131045927607458,
+  "skewness_diff": 0.03818247164774428,
+  "kurtosis_diff": 0.1261659805601353,
+  "vds": 0.009755051073928675,
+  "fdds": 0.0,
+  "context_fid": 0.8556325779272853,
+  "discriminative": 0.07249999046325684,
+  "predictive": 0.011844728127121925,
+  "run": "results/runs/tvae_d1_c1/base",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2026,
+  "label": "tvae_d1_c1_base"
+ }
+}

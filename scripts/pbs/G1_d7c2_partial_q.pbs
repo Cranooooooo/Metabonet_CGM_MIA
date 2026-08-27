@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -N cgm_d7c2q
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=220gb
+#PBS -l walltime=06:00:00
+#PBS -j oe
+# Partial quality gate on d7_c2 while it is still training. d7_c1 is already the worst
+# fitting cell (disc max median 0.6675, context_fid 0.3313) and d7_c2 is seven days AND
+# two channels, so if its base is worse still, the cell's leakage numbers are discounted
+# from the start. Three days earlier than waiting for all 27.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+{
+set -euo pipefail
+python -u scripts/eval_quality_tsgem.py --runs results/runs/matrix_d7_c2/base \
+  --cohort data/cohort/matrix_d7_c2 --design results/matrix/design/rep1 \
+  --label d7_c2_partial --out results/matrix/quality_tsgem/d7_c2_st500.json
+python -u scripts/disc_stability.py --runs results/runs/matrix_d7_c2/*/ \
+  --cohort data/cohort/matrix_d7_c2 --restarts 8 \
+  --out results/matrix/quality/d7_c2_partial/disc_stability.json
+echo "D7C2Q OK"
+} 2>&1 | tee logs/G1_d7c2_q.live.log
