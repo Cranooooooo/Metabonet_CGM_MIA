@@ -7,11 +7,6 @@ generative baselines, localise where it comes from, and design a generator — f
 matching with a time-series editing stage — that lowers it **without paying for it in
 generation quality**.
 
-The claim "no quality cost" is only meaningful on a **quality–risk frontier**. A single
-ranking would let a reviewer answer that our model is simply worse and therefore safer.
-The deliverable is therefore a frontier plot, and the contribution is being *off* it, not
-sliding *along* it.
-
 ---
 
 ## Step 1 — Establish that the risk exists
@@ -82,7 +77,10 @@ quality against membership risk.
 Two reasons, and the second is not obvious:
 
 1. **A frontier is what makes the contribution legible.** "Better privacy" and "same
-   quality" are one claim, not two, and only a frontier states it.
+   quality" are one claim, not two, and only a frontier states it. Against a ranking, a
+   reviewer can answer that our model is simply worse and therefore safer — and be right,
+   because a ranking cannot distinguish moving *off* the frontier from sliding *along*
+   it. That distinction is the contribution.
 2. **Single points are not comparable across baselines.** Step 3b shows risk is an
    **inverted U in training length** — 0.840 at 30k steps, 0.515 at 100k. Comparing
    models at one arbitrary budget compares each one at a random position on its own
