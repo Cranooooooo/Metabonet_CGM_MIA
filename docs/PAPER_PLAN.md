@@ -150,33 +150,42 @@ Separate the effects of training length, window length and number of channels. A
 has to act where the risk is produced, and if training length dominates then simply
 training less is the cheapest possible defence — one our model has to beat.
 
-**Result. Risk rises and then collapses as training continues.**
+**Result. Two different quantities move in opposite directions, and conflating them is
+easy.** *Risk* is whether an individual can be identified — the per-patient AUC.
+*Contrast* is whether outliers are identified more than normals — the arm AUC, which is
+what the study's original hypothesis was about. Training more raises risk and destroys
+contrast.
 
-| training steps | epochs | median AUC, outliers | median AUC, normals | outliers with AUC > 0.55 | normals with AUC > 0.55 | arm AUC | Context-FID |
-|---|---|---|---|---|---|---|---|
-| 20,000 | 223 | 0.562 | 0.554 | 8 of 13 | 7 of 13 | 0.633 | 0.060 |
-| **30,000** | **334** | 0.625 | 0.517 | 9 of 13 | **2 of 13** | **0.840** | 0.061 |
-| 40,000 | 446 | 0.625 | 0.520 | 10 of 13 | 2 of 13 | 0.757 | 0.065 |
-| 60,000 | 669 | 0.724 | 0.520 | 9 of 13 | 4 of 13 | 0.680 | 0.072 |
-| 80,000 | 892 | 0.688 | 0.571 | 11 of 13 | 10 of 13 | 0.550 | 0.074 |
-| **100,000 (what we ran)** | **1,115** | 0.679 | 0.633 | 9 of 13 | **13 of 13** | **0.515** | 0.083 |
+| training steps | epochs | **RISK**: patients with AUC > 0.55 | **RISK**: highest AUC | **CONTRAST**: arm AUC | Context-FID |
+|---|---|---|---|---|---|
+| 20,000 | 223 | 15 of 26 | 0.688 | 0.633 | 0.060 |
+| 30,000 | 334 | **11 of 26** | 0.747 | **0.840** | 0.061 |
+| 40,000 | 446 | 12 of 26 | 0.800 | 0.757 | 0.065 |
+| 60,000 | 669 | 13 of 26 | 0.960 | 0.680 | 0.072 |
+| 80,000 | 892 | 21 of 26 | 0.940 | 0.550 | 0.074 |
+| **100,000 (what we ran)** | **1,115** | **22 of 26** | 0.960 | **0.515** | 0.083 |
 
-*Same columns as Step 1. The 20,000-step row is below convergence and is excluded from
-the trend.*
+*The 20,000-step row is below convergence and is excluded from the trend. Breaking the
+26 patients into the two groups shows why contrast collapses:*
 
-**The outlier group barely changes. The normal group goes from 2 of 13 exposed to all
-13.** Over-training does not expose outliers further — it starts exposing everyone, and
-what disappears is the *contrast* between the groups.
+| training steps | outliers with AUC > 0.55 | normals with AUC > 0.55 |
+|---|---|---|
+| 30,000 | 9 of 13 | **2 of 13** |
+| 100,000 | 9 of 13 | **13 of 13** |
 
-Two consequences:
+**The outlier group does not change. The normal group goes from 2 of 13 to 13 of 13.**
+Over-training does not expose outliers further — it starts exposing everyone, which is
+what destroys the contrast while raising the risk.
 
-- **Our main experiment ran roughly three times past the point of maximum contrast.** The
-  headline numbers in Step 1 therefore understate how distinguishable outliers can be.
-- **Training less preserves the contrast but not the absolute risk** — even at the peak,
-  9 of 13 outliers are still identifiable. That gap is where our model has to live.
+Three consequences:
 
-Generation quality degrades over the same range, so over-training is not a
-privacy-for-quality trade: it costs both.
+- **Our main experiment ran roughly three times past the point of maximum contrast**, so
+  the Step 1 numbers understate how distinguishable outliers can be.
+- **Between 30,000 and 100,000 steps, training longer is worse on every axis measured** —
+  more patients at risk, less contrast, and worse generation quality. There is no
+  trade-off in this range, only waste.
+- **Early stopping is therefore a real defence**, halving the number of patients at risk.
+  Our model has to beat it, not merely beat the over-trained endpoint.
 
 ### 3c — What about a patient leaks — **designed, not started**
 
@@ -218,13 +227,18 @@ Figure 4 (which kind of information carries the leak)
 **Why this combination.** Flow matching generates in far fewer steps than diffusion, which
 is what makes measuring a whole training trajectory affordable for every baseline.
 Editing is applied after generation, so its cost in quality is directly measurable and
-controllable — unlike defences that inject noise during training, where it is neither.
+controllable, and it can be tuned after the generator is trained rather than requiring a
+retrain per setting.
 
 **Required comparisons.**
 
-1. **Against simply training less**, which Step 3b shows is already an effective defence.
-2. **Against DP-SGD**, the standard privacy baseline.
-3. **Off the frontier, not along it** — this is the whole claim.
+1. **Against simply training less**, which Step 3b shows halves the number of patients at
+   risk. This is the comparison that matters: it is free, it is obvious, and a reviewer
+   will ask for it.
+2. **Against the baselines at their own best operating point**, not at a fixed budget —
+   otherwise we would be beating models that are themselves over-trained.
+3. **At equal generation quality**, so the claim is breaking the trade-off rather than
+   moving along it.
 
 ---
 
