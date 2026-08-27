@@ -78,14 +78,21 @@ Six generators, each on all four conditions, each measured across its whole trai
 trajectory rather than at a single endpoint, plotted as generation quality against privacy
 risk. Two reasons for that shape, and the second is not obvious:
 
-1. **A ranking cannot tell a better model from a worse one.** Plot every generator as a
-   point — quality on one axis, privacy risk on the other — and the best points trace a
-   Pareto frontier: the lowest risk currently achievable at each level of quality.
-   Reducing risk by giving up quality moves *along* that frontier, and anything does it:
-   train fewer steps, shrink the model, add noise. Reducing risk *at the same quality*
-   moves the frontier itself. A ranking reports one number and so cannot distinguish
-   them, which leaves a reviewer free to answer that our model is simply worse — and
-   they would have no way to be shown otherwise. Moving the frontier is the claim.
+1. **Privacy and generation quality trade off against each other, and the contribution is
+   to break that trade-off.** Plotting every generator as a point — quality on one axis,
+   privacy risk on the other — should trace a curve: better privacy currently costs
+   quality. Buying privacy with quality moves *along* the curve, and anything does it —
+   train fewer steps, shrink the model, add noise. Achieving lower risk *at the same
+   quality* moves the curve itself, and that is the claim. A ranking reports one number
+   and cannot distinguish the two, so it leaves a reviewer free to answer that our model
+   is simply worse.
+
+   Note that the curve itself is a hypothesis at this point: we have one generator
+   measured, so Step 2's first job is to establish that the trade-off exists and is
+   monotone before anything can be said about breaking it. If it turns out not to exist —
+   if some architecture is both better and safer — that is a more interesting result,
+   because it would mean existing methods are merely unoptimised rather than up against
+   something fundamental.
 2. **Single points are not comparable across baselines.** Step 3b shows risk rises and
    then falls with training length. Comparing models at one fixed budget compares each at
    an arbitrary point on its own trajectory. The comparable quantity is each model's
