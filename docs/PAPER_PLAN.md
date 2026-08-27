@@ -32,21 +32,30 @@ built to close the alternative explanations a reviewer would reach for:
 Four conditions, identical in every respect except the two variables under study — how
 long a window the generator produces, and how many signals it produces at once.
 
-| condition | window | signals | arm AUC | p | most exposed patient |
-|---|---|---|---|---|---|
-| `d1_c1` | 1 day | glucose | 0.562 | 0.304 | 0.960 |
-| `d1_c2` | 1 day | + insulin | 0.698 | 0.045 | 1.000 |
-| `d7_c1` | 7 days | glucose | 0.627 | 0.141 | 1.000 |
-| `d7_c2` | 7 days | + insulin | *training* | | |
+| condition | window | signals | **how identifiable is a typical outlier** | **a typical normal patient** | **outliers at risk** | **normals at risk** | **do outliers stand out** | **generation quality** |
+|---|---|---|---|---|---|---|---|---|
+| `d1_c1` | 1 day | glucose | 0.80 | 0.64 | 11 of 13 | **13 of 13** | 0.56 | 0.095 |
+| `d1_c2` | 1 day | + insulin | 0.60 | 0.52 | 10 of 13 | **5 of 13** | **0.70** | 0.160 |
+| `d7_c1` | 7 days | glucose | 0.76 | 0.68 | 13 of 13 | **12 of 13** | 0.63 | 0.331 |
+| `d7_c2` | 7 days | + insulin | *training* | | | | | |
 
-*Arm AUC asks whether outliers are exposed more than matched normal patients; 0.5 means
-no difference. The last column is the single most identifiable patient in that condition.*
+**How to read the columns.**
+*Identifiability* is per patient: the chance an attacker correctly decides whether that
+patient was used, where 0.5 is a coin flip. The two medians are the typical outlier and
+the typical normal patient. *At risk* counts how many of the 13 in each group exceed 0.55,
+i.e. are identifiable at all. *Do outliers stand out* compares the two groups as a whole —
+0.5 means outliers and normals are equally exposed, and it is the number the study's
+original hypothesis was about. *Generation quality* is Context-FID, lower is better; it is
+reported for the reference model of each condition and is a gate, not a trade-off (Tip 5).
 
 ### Finding
 
-**The risk is real, and at this training length it is not selective.** In every finished
-condition the test for "is anyone exposed at all" is highly significant for outliers *and*
-for normal patients alike. At least one patient is identified with certainty.
+**The risk is real, and at this training length it is not selective.** Read the two
+"at risk" columns: in the glucose-only conditions almost every *normal* patient is
+identifiable too — 13 of 13 and 12 of 13. At least one patient is identified with
+certainty. Adding the second signal is the one thing that changes this: it pushes normal
+patients back down to 5 of 13 while leaving outliers where they were, which is why that
+condition is the only one where outliers clearly stand out.
 
 The hypothesis we began with — that outliers are the ones at risk — does **not** hold at
 the training length we used. Step 3b explains why, and the explanation turns out to be
@@ -129,14 +138,17 @@ training less is the cheapest possible defence — one our model has to beat.
 
 **Result. Risk rises and then collapses as training continues.**
 
-| training | arm AUC | outliers exposed | normal patients exposed |
-|---|---|---|---|
-| short | 0.63 | 8 of 13 | 7 of 13 |
-| **early-middle** | **0.84** | 9 of 13 | **2 of 13** |
-| middle | 0.76 | 10 of 13 | 2 of 13 |
-| long | 0.68 | 9 of 13 | 4 of 13 |
-| longer | 0.55 | 11 of 13 | 10 of 13 |
-| **full (what we ran)** | **0.51** | 9 of 13 | **13 of 13** |
+| training | typical outlier | typical normal | outliers at risk | normals at risk | do outliers stand out | generation quality |
+|---|---|---|---|---|---|---|
+| shortest | 0.56 | 0.55 | 8 of 13 | 7 of 13 | 0.63 | 0.060 |
+| **early-middle** | 0.63 | 0.52 | 9 of 13 | **2 of 13** | **0.84** | 0.061 |
+| middle | 0.63 | 0.52 | 10 of 13 | 2 of 13 | 0.76 | 0.065 |
+| long | 0.72 | 0.52 | 9 of 13 | 4 of 13 | 0.68 | 0.072 |
+| longer | 0.69 | 0.57 | 11 of 13 | 10 of 13 | 0.55 | 0.074 |
+| **full (what we ran)** | 0.68 | 0.63 | 9 of 13 | **13 of 13** | **0.51** | 0.083 |
+
+*Same columns as Step 1. The shortest row is below convergence — its generator has not
+finished learning — and is read as such.*
 
 **The outlier group barely changes. The normal group goes from 2 of 13 exposed to all
 13.** Over-training does not expose outliers further — it starts exposing everyone, and
