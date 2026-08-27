@@ -46,8 +46,8 @@ Four conditions, identical except for the two variables under study: **window le
 **Columns.** *Median AUC* is per patient — the chance an attacker correctly decides
 whether that patient was used; 0.5 is a coin flip. The attack scores a patient by the
 distance from their real records to the nearest synthetic sample, with and without them in
-the training set. *> 0.55* counts how many of the 13 in
-each group are identifiable at all. *Arm AUC* compares the two groups as a whole and is
+the training set. *AUC > 0.55* counts how many of the 13 in each
+group are identifiable at all. *Arm AUC* compares the two groups as a whole and is
 what the study's original hypothesis was about; 0.5 means outliers and normals are equally
 exposed. *Context-FID* is generation quality, lower is better, measured on each
 condition's reference model. For scale: the values below run 0.095 to 0.331, and the one
