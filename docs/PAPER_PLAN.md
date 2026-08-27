@@ -78,9 +78,14 @@ Six generators, each on all four conditions, each measured across its whole trai
 trajectory rather than at a single endpoint, plotted as generation quality against privacy
 risk. Two reasons for that shape, and the second is not obvious:
 
-1. **A Pareto frontier separates the two claims a ranking conflates.** A model that
-   ranks safer may simply be worse; only a frontier distinguishes moving *off* it from
-   sliding *along* it, and moving off it is the contribution.
+1. **A ranking cannot tell a better model from a worse one.** Plot every generator as a
+   point — quality on one axis, privacy risk on the other — and the best points trace a
+   Pareto frontier: the lowest risk currently achievable at each level of quality.
+   Reducing risk by giving up quality moves *along* that frontier, and anything does it:
+   train fewer steps, shrink the model, add noise. Reducing risk *at the same quality*
+   moves the frontier itself. A ranking reports one number and so cannot distinguish
+   them, which leaves a reviewer free to answer that our model is simply worse — and
+   they would have no way to be shown otherwise. Moving the frontier is the claim.
 2. **Single points are not comparable across baselines.** Step 3b shows risk rises and
    then falls with training length. Comparing models at one fixed budget compares each at
    an arbitrary point on its own trajectory. The comparable quantity is each model's
