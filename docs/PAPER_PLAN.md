@@ -11,256 +11,211 @@ generation quality**.
 
 ## Step 1 — Establish that the risk exists
 
-Prove that membership in a generator's training set can be inferred from its released
-samples. Everything downstream is conditional on this, so the design has to close each
-escape route a reviewer would reach for:
+Show that you can tell, from a generator's released synthetic data, whether a particular
+patient was in its training set. Everything downstream depends on this, so the design is
+built to close the alternative explanations a reviewer would reach for:
 
-- **Symmetric pairing.** Controls are drawn *out* of the background before the base is
-  built, so every pair is `(background + target)` against `(background)` and both arms
-  share one base. A per-run offset enters both arms with the same sign and cancels.
-- **A frozen statistic.** `min × mean` was fixed in `configs/experiment.yaml` before any
-  result was seen. Six grid cells exist; choosing the best one after the fact is not a
-  measurement. On `d1_c1` the frozen cell reads 0.562 while `mean × mean` reads 0.651 —
-  the difference between a null and a headline.
-- **Controls matched on exposure.** Each control has *exactly* the same window count as
-  its outlier (maximum relative gap 0.000), so "people with longer records are easier to
-  identify" cannot explain the contrast.
-- **Symmetric screening.** Targets are the intersection over four detector seeds (13
-  subjects). Controls come from the 390 subjects **no method flagged in any seed**. The
-  background drops anyone flagged in any seed. Screening targets strictly while screening
-  controls loosely would put outliers in the control arm — the error that makes both arms
-  leak and hides the effect.
+- **Both arms are compared against the same reference model.** Any quirk of that
+  particular training run then affects both arms equally and drops out of the comparison.
+- **The attack statistic was fixed before we saw any result.** Several reasonable choices
+  exist and they do not agree; picking the flattering one afterwards would not be a
+  measurement.
+- **Each control patient has exactly as much data as the outlier they are matched to.**
+  So "patients with longer records are easier to identify" cannot explain the result.
+- **Outliers and controls are screened equally strictly.** Outliers are the patients
+  every detector flagged under every random seed; controls are drawn only from patients
+  no detector ever flagged. Screening one side loosely would put outliers into the
+  control group and hide the effect.
 
-### Status: 3 of 4 cells complete, `d7_c2` due 08-30
+### Status: 3 of 4 conditions complete, the fourth finishes 08-30
 
-All four cells hold the same 506 subjects and the same 6,072 `(subject, day)` blocks,
-h=256, 100,000 steps, 1,054 epochs. Only window length and channel count vary.
+Four conditions, identical in every respect except the two variables under study — how
+long a window the generator produces, and how many signals it produces at once.
 
-| cell | window | channels | arm AUC | p | `p_within` out / norm | max per-subject AUC | >0.55 out / norm |
-|---|---|---|---|---|---|---|---|
-| `d1_c1` | 1 day | CGM | 0.562 | 0.304 | 1.2e-04 / 1.2e-04 | 0.960 | 11/13 · 13/13 |
-| `d1_c2` | 1 day | +basal/kg | 0.698 | 0.045 | 1.2e-04 / 1.7e-03 | 1.000 | 10/13 · 5/13 |
-| `d7_c1` | 7 days | CGM | 0.627 | 0.141 | 1.2e-04 / 2.4e-04 | 1.000 | 13/13 · 12/13 |
-| `d7_c2` | 7 days | +basal/kg | *training* | | | | |
+| condition | window | signals | arm AUC | p | most exposed patient |
+|---|---|---|---|---|---|
+| `d1_c1` | 1 day | glucose | 0.562 | 0.304 | 0.960 |
+| `d1_c2` | 1 day | + insulin | 0.698 | 0.045 | 1.000 |
+| `d7_c1` | 7 days | glucose | 0.627 | 0.141 | 1.000 |
+| `d7_c2` | 7 days | + insulin | *training* | | |
+
+*Arm AUC asks whether outliers are exposed more than matched normal patients; 0.5 means
+no difference. The last column is the single most identifiable patient in that condition.*
 
 ### Finding
 
-**The risk is real and it is not selective at convergence.** `p_within` is on the order
-of 1e-4 in *both* arms of every finished cell: adding any subject moves the generator
-toward that subject. One subject reaches a per-subject AUC of **1.000** — identified with
-certainty.
+**The risk is real, and at this training length it is not selective.** In every finished
+condition the test for "is anyone exposed at all" is highly significant for outliers *and*
+for normal patients alike. At least one patient is identified with certainty.
 
-The prior hypothesis that outliers are preferentially exposed does **not** hold at this
-training budget; only `d1_c2` clears p < 0.05 on the arm contrast. Step 3b explains why.
+The hypothesis we began with — that outliers are the ones at risk — does **not** hold at
+the training length we used. Step 3b explains why, and the explanation turns out to be
+the most interesting result so far.
 
 ### Deliverables
 
-Table 1 (design) · Table 2 (four cells) · Figure 1 (per-subject AUC, outlier vs control)
+Table 1 (design) · Table 2 (four conditions) · Figure 1 (per-patient risk, outliers vs
+controls)
 
 ---
 
 ## Step 2 — The risk–quality frontier across baselines
 
-Six generators × four cells × a full training-length curve each, plotted as generation
-quality against membership risk. Two reasons for that shape, and the second is not
-obvious:
+Six generators, each on all four conditions, each measured across its whole training
+trajectory rather than at one endpoint, plotted as generation quality against privacy
+risk. Two reasons for that shape, and the second is not obvious:
 
 1. **A frontier is what makes the contribution legible.** "Better privacy" and "same
-   quality" are one claim, not two, and only a frontier states it. Against a ranking, a
-   reviewer can answer that our model is simply worse and therefore safer — and be right,
-   because a ranking cannot distinguish moving *off* the frontier from sliding *along*
-   it. That distinction is the contribution.
-2. **Single points are not comparable across baselines.** Step 3b shows risk is an
-   **inverted U in training length** — 0.840 at 30k steps, 0.515 at 100k. Comparing
-   models at one arbitrary budget compares each one at a random position on its own
-   curve. The comparable quantity is **peak risk**, which requires the curve.
+   quality" are one claim, not two. Against a plain ranking a reviewer can answer that
+   our model is simply worse and therefore safer — and be right, because a ranking cannot
+   distinguish moving *off* the frontier from sliding *along* it. That distinction is the
+   contribution.
+2. **Single points are not comparable across baselines.** Step 3b shows risk rises and
+   then falls with training length. Comparing models at one fixed budget compares each at
+   an arbitrary point on its own trajectory. The comparable quantity is each model's
+   **peak** risk, which requires the trajectory.
 
 ### Status
 
 | generator | state |
 |---|---|
-| DiM-TS | 4 cells + a 12-point training-length curve — **complete** |
-| copy_paste | positive control; ceiling of 0.816 measured, not assumed |
-| TimeVAE | 1 base model; **fails the quality gate** — restart max 0.963, spread 0.461, context-FID 0.856 (9× DiM-TS). Trained in 9 minutes |
-| PaD-TS, Diffusion-TS, DiffWave, FourierDiffusion, IG-FM | *wait for Step 2 prerequisites* |
+| DiM-TS | all four conditions plus a full training trajectory — **complete** |
+| copy-paste | positive control: a generator that simply replays training data |
+| TimeVAE | **fails the quality gate.** Its samples are easily told from real data, and its Context-FID is 9× DiM-TS. Ruled out after one model |
+| PaD-TS, Diffusion-TS, DiffWave, FourierDiffusion, IG-FM | not started |
 
-### Two blockers, both prerequisites rather than options
+### Two prerequisites
 
-1. **Only DiM-TS can resample from an intermediate checkpoint.** `GeneratorBase` has no
-   `resample` in its interface; the other five generators cannot produce a
-   training-length curve at all. Checkpoint-and-resample support has to be added to each.
-2. **Per-model cost is unmeasured and varies by 30×.** TimeVAE trains in 9 minutes,
-   DiM-TS in 4.6 hours. **Each baseline gets one base model measured first**, which is
-   how TimeVAE was ruled out in 9 minutes rather than 124 GPU-hours.
+1. **Only DiM-TS can currently produce samples from a partly-trained model.** The other
+   five would need that capability added before any training trajectory can be measured.
+2. **Training cost varies about thirtyfold between architectures** — nine minutes per
+   model for the fastest, nearly five hours for DiM-TS. Each baseline therefore gets one
+   model measured before we commit to the full set. That is how TimeVAE was ruled out in
+   minutes rather than days.
 
-A baseline whose base fails the quality gate stops there. That is a result — *this
-architecture cannot produce usable CGM windows at this data scale* — not a gap.
+A baseline whose first model fails the quality gate stops there. That is itself a result
+— *this architecture cannot produce usable CGM data at this scale* — not a gap.
 
 ### Cost
 
-At DiM-TS's measured per-model times (4.6 / 7.9 / 22.9 / 26.0 h for the four cells),
-one baseline over all four cells is **1,658 GPU-hours**; five baselines is **8,289**, and
-the sampling for six training-length curves adds **2,640**. Roughly **10,900 GPU-hours**,
-or 28 days at 16 cards. This is an upper bound set by the most expensive architecture;
-the per-baseline probes in blocker 2 exist to bring it down.
+Extrapolating from measured times, the full plan is roughly **11,000 GPU-hours**, about a
+month on the hardware we have. This is an upper bound set by the slowest architecture;
+the single-model probes above exist to bring it down.
 
 ### Deliverables
 
-Figure 2 (frontier: context-FID against peak arm AUC, one curve per baseline) ·
-Table 3 (peak location and peak risk per baseline)
+Figure 2 (frontier: quality against peak risk, one trajectory per baseline) · Table 3
+(where each baseline peaks, and how high)
 
 ---
 
 ## Step 3 — Localise the leak
 
-### 3a — Which subjects — **complete**
+### 3a — Which patients — **complete**
 
-Identify which individuals are repeatedly exposed, and show it is not sampling noise.
-This is the step from *risk exists* to *risk is predictable*: if a different set of people
-leaked each time, there would be nothing for a defence to act on.
+Identify which individuals are repeatedly exposed, and show it is not chance. This is the
+step from *risk exists* to *risk is predictable*: if a different set of patients leaked
+each time, a defence would have nothing to act on.
 
-**Result.** The **same six outliers** occupy the top of both `d1_c1` and `d1_c2` —
-independently trained models, different channel counts, different seeds. Over all 26
-targets, **Spearman ρ = +0.608, p = 0.001**.
+**Result.** The **same six patients** are the most exposed in two independently trained
+conditions, with different signals and different random seeds. Across all 26 tested
+patients the two rankings agree strongly (Spearman ρ = 0.61, p = 0.001).
 
-### 3b — Which conditions amplify it — **complete**
+### 3b — What amplifies it — **complete**
 
-Separate the effects of training length, window length and channel count. A defence has
-to act where the risk is produced, and if training length dominates then early stopping is
-the cheapest possible defence — one our model has to beat.
+Separate the effects of training length, window length and number of signals. A defence
+has to act where the risk is produced, and if training length dominates then simply
+training less is the cheapest possible defence — one our model has to beat.
 
-**Result.** Training length is the strongest variable, and the mechanism is the opposite
-of what we expected:
+**Result. Risk rises and then collapses as training continues.**
 
-| steps | arm AUC | p | outlier > 0.55 | control > 0.55 |
-|---|---|---|---|---|
-| 20,000 | 0.633 | 0.130 | 8/13 | 7/13 |
-| **30,000** | **0.840** | **0.002** | 9/13 | **2/13** |
-| 40,000 | 0.757 | 0.014 | 10/13 | 2/13 |
-| 60,000 | 0.681 | 0.062 | 9/13 | 4/13 |
-| 80,000 | 0.550 | 0.341 | 11/13 | 10/13 |
-| 100,000 | 0.515 | 0.459 | 9/13 | **13/13** |
+| training | arm AUC | outliers exposed | normal patients exposed |
+|---|---|---|---|
+| short | 0.63 | 8 of 13 | 7 of 13 |
+| **early-middle** | **0.84** | 9 of 13 | **2 of 13** |
+| middle | 0.76 | 10 of 13 | 2 of 13 |
+| long | 0.68 | 9 of 13 | 4 of 13 |
+| longer | 0.55 | 11 of 13 | 10 of 13 |
+| **full (what we ran)** | **0.51** | 9 of 13 | **13 of 13** |
 
-*(`d1_c1`; the 20,000-step row is below convergence — restart max 0.647 — and is read as
-such.)*
+**The outlier group barely changes. The normal group goes from 2 of 13 exposed to all
+13.** Over-training does not expose outliers further — it starts exposing everyone, and
+what disappears is the *contrast* between the groups.
 
-**The outlier arm barely moves. The control arm goes from 2/13 to 13/13.** Over-training
-does not expose outliers further; it starts exposing everyone, and the contrast is what
-disappears.
+Two consequences:
 
-This has a direct consequence for Step 4: **early stopping preserves the contrast but not
-the absolute risk** — at 30k steps 9 of 13 outliers still exceed 0.55. That gap is where
-our model has to live.
+- **Our main experiment ran roughly three times past the point of maximum contrast.** The
+  headline numbers in Step 1 therefore understate how distinguishable outliers can be.
+- **Training less preserves the contrast but not the absolute risk** — even at the peak,
+  9 of 13 outliers are still identifiable. That gap is where our model has to live.
 
-Generation quality degrades over the same range (context-FID 0.060 → 0.083), so
-over-training is not a privacy-for-quality trade: it costs both.
+Generation quality degrades over the same range, so over-training is not a
+privacy-for-quality trade: it costs both.
 
-### 3c — Which of a person's information leaks — **designed, not started**
+### 3c — What about a patient leaks — **designed, not started**
 
-For the individuals located in 3a, determine *what* was memorised — which hours of the
-day, and which kind of structure. This is the bridge to Step 4: the proposed defence is
-time-series editing, and **editing needs to know what to edit**. If the leak is a
-characteristic overnight hypoglycaemic excursion the module edits that; if it is overall
-variability, that is a different operation entirely. Without 3c the editing module is
-guesswork.
+For the patients identified in 3a, determine *what* was memorised: which hours of the
+day, and what kind of structure. This is the bridge to Step 4 — the proposed defence
+edits the time series, and **editing needs to know what to edit**. If the leak is a
+characteristic overnight low, the module edits that; if it is overall variability, that
+is a different operation. Without 3c the editing module is guesswork.
 
-#### Design — both questions answered with the **frozen statistic**, not a new attack
+Two analyses, both reusing the attack from Step 1 rather than introducing a new one, so
+that what we localise corresponds to the number we report:
 
-A separately-trained attack would produce a localisation that does not correspond to the
-number reported in Step 1.
+- **Which hours.** Split the reported distance across the time axis, giving a
+  curve over the day whose total is exactly the quantity reported in Step 1.
+- **What kind of structure.** Recompute the same attack after transformations that each
+  destroy one kind of information — timing, absolute level, fine detail, variability. If
+  the leak survives when all timing is destroyed, it is distributional and editing must
+  change the distribution; if it needs the original timing, it is tied to specific events
+  and editing can be local. Each outcome maps to a different editing operation.
 
-**(i) Where in time — an exact decomposition.**
+Both are plotted **alongside the control patients**, because any distance measure rises
+where glucose is most variable — after meals, for instance — whether or not anyone is
+being identified. Only where outliers exceed controls is there leakage.
 
-The frozen statistic is `d(t, S) = mean_i ( min_k ‖R_i − S_k‖ / √F )`, and Euclidean
-distance is additive over the time axis:
-
-```
-‖R_i − S_k‖² = Σ_h (R_i[h] − S_k[h])²
-```
-
-So: take the nearest neighbours exactly as the attack does — `k*_in = argmin` over
-`include_t`'s samples, `k*_out` over `base`'s — then hold them fixed and split the squared
-distance per timestep. Reporting `mean_i (c_out[i,h] − c_in[i,h])` against `h` gives a
-curve whose sum **is** the quantity reported in Step 1. It is a decomposition, not an
-approximation.
-
-**(ii) What kind of structure — the same statistic in transformed spaces.**
-
-Rather than `attack/panel.py`, whose ten features compare *attack strength* rather than
-*information type* — and whose pooled protocol carries a known LOSO bias — recompute
-`min × mean` in five spaces:
-
-| transform | preserves | destroys |
-|---|---|---|
-| raw | everything | — |
-| first difference | rate of change, variability | absolute level |
-| sorted values | the distribution of glucose values | all timing |
-| hourly means (288 → 24) | coarse shape | fine structure |
-| per-window z-score | shape | level and scale |
-
-If the gap survives on **sorted values**, the leak is distributional and editing must
-change the distribution. If it needs the **raw** space, it is tied to specific events at
-specific times and editing can be local. If it survives on **first differences**, it is a
-dynamics signature. Each row maps onto a different editing operation.
-
-#### The control that keeps this honest
-
-A time curve will rise wherever glucose is most variable — post-prandial excursions
-inflate every distance, membership or not. So **the control arm's curve is plotted
-alongside**. Only where the outlier curve exceeds the control curve is there leakage;
-where both rise together, it is variance. The same applies to the transform table: the
-readable quantity is the **difference between the arms' gaps**, not either gap alone.
-
-#### Cost
-
-No new training. Distance recomputation on existing samples: one full attack takes ~10
-minutes, so five transforms plus the time decomposition is roughly **1 CPU-hour per
-cell**.
+This needs no new training, only re-analysis of data we already have: about an hour.
 
 ### Deliverables
 
-Figure 3 (hour-of-day gap curves for the six most-exposed subjects, with the control
-arm) · Figure 4 (arm-difference by transform space)
+Figure 3 (hour-of-day leakage for the six most exposed patients, against controls) ·
+Figure 4 (which kind of information carries the leak)
 
 ---
 
 ## Step 4 — Our generator
 
-*Wait for Steps 2–3.*
+*Waiting on Steps 2 and 3.*
 
-**Proposal.** Flow-matching backbone plus a time-series editing stage.
+**Proposal.** A flow-matching backbone with a time-series editing stage.
 
-**Why the combination is defensible** (to be argued in the paper):
-
-- Flow matching samples iteratively but in far fewer steps than diffusion, which is what
-  makes a per-baseline training-length curve affordable at all.
-- Editing is **post hoc**, so its quality cost is directly measurable and controllable.
-  DP-SGD-style defences inject noise during training, where the quality cost is neither.
+**Why this combination.** Flow matching generates in far fewer steps than diffusion, which
+is what makes measuring a whole training trajectory affordable for every baseline.
+Editing is applied after generation, so its cost in quality is directly measurable and
+controllable — unlike defences that inject noise during training, where it is neither.
 
 **Required comparisons.**
 
-1. **Against early stopping.** 30,000 steps already pushes controls to 2/13. The editing
-   module has to beat *training less*, or the obvious question goes unanswered.
-2. **Against DP-SGD**, as the standard defence baseline.
+1. **Against simply training less**, which Step 3b shows is already an effective defence.
+2. **Against DP-SGD**, the standard privacy baseline.
 3. **Off the frontier, not along it** — this is the whole claim.
 
 ---
 
 ## Limitations to state explicitly
 
-1. **One replicate.** The 13 targets share a single base model, so their gaps are
-   correlated and every p-value here is a **screen, not a test**. Three replicates are
-   required before submission. This is the most serious outstanding gap.
-2. **The main campaign trained 3.3× past peak contrast.** Under the framing adopted here
-   this becomes a finding rather than a defect, but it must be stated as the reason the
-   headline cell numbers are lower than the peak.
-3. **Capacity is not matched between window lengths.** Counting checkpoints: `d1_c1` has
-   10,511,511 parameters at T=288 and `d7_c1` has 12,282,711 at T=2016 — 7× the sequence
-   for 16.9% more parameters, all of it in two positional embeddings and the input/output
-   projections, with a byte-identical backbone. Per timestep that is 36,498 against
-   6,093. The window-length effect therefore has a capacity effect inside it and the two
-   cannot be separated without varying the architecture, which introduces a third
-   variable.
+1. **One replicate.** All 13 outliers in a condition share a single reference model, so
+   their measurements are correlated and the effective sample size is one, not 13. Every
+   p-value above is therefore a **screen, not a test**. Three replicates are required
+   before submission. This is the most serious outstanding gap.
+2. **The main experiment trained past the point of maximum contrast.** Under the framing
+   we have adopted this becomes a finding rather than a defect, but it must be stated as
+   the reason the headline numbers are lower than the peak.
+3. **Model capacity is not matched across window lengths.** The seven-day generator has
+   seven times the sequence to model and only marginally more capacity to do it with, so
+   the window-length effect has a capacity effect inside it. Separating them would require
+   changing the architecture, which introduces a third variable.
 
 ---
 
@@ -268,11 +223,11 @@ arm) · Figure 4 (arm-difference by transform space)
 
 | # | task | cost | blocks |
 |---|---|---|---|
-| 1 | Add checkpoint + resample to five generators | ~2 days engineering | Step 2 |
-| 2 | One base model per baseline: measure cost and quality | ~1 day | may remove baselines from Step 2 |
-| 3 | **Step 3c localisation** | ~1 CPU-hour per cell, no training | Step 4's design |
-| 4 | Step 2 full matrix | up to 28 days, less after (2) | Figure 2 |
-| 5 | Replicates 2 and 3 | parallel with (4) | every p-value |
+| 1 | Give five generators the ability to sample from a partly-trained model | ~2 days | Step 2 |
+| 2 | One model per baseline: measure cost and quality | ~1 day | may remove baselines from Step 2 |
+| 3 | **Step 3c localisation** | ~1 hour, no training | Step 4's design |
+| 4 | Step 2 full matrix | up to a month, less after (2) | Figure 2 |
+| 5 | Replicates 2 and 3 | in parallel with (4) | every p-value |
 
 Task 3 needs no new compute and directly determines what the editing module in Step 4
 operates on. It should run first.
@@ -281,32 +236,25 @@ operates on. It should run first.
 
 ## Tips for reading and maintaining this document
 
-1. **It is a living document.** Every number in it is read from an artefact under
-   `results/` and checked against that artefact before the document is committed. Nothing
-   here is typed from memory or carried over from an earlier draft.
+1. **It is a living document.** Every number in it is read from a result file and checked
+   against that file before the document is committed — nothing is typed from memory.
 
-2. **Not-yet-measured is written as not-yet-measured.** Where a quantity has not been
-   computed the row says *wait* or *training*, never an estimate. Cost projections are
-   the one exception and are labelled as extrapolations from measured per-model times.
+2. **Not-yet-measured is written as not-yet-measured**, never filled in with an estimate.
+   Cost projections are the one exception and are labelled as extrapolations.
 
-3. **Read the discriminator as a maximum over restarts, with its spread.** A single
-   discriminative accuracy is one draw of a lower bound, and the draws are bimodal
-   wherever a separable feature exists — the classifier either finds it or does not. A
-   tight cluster at 0.53 and a cluster spanning 0.50–0.84 can have similar medians and
-   mean opposite things. `docs/PITFALLS.md` §16 and §18 record two occasions when a
-   single-run reading gave the wrong answer, once in the wrong direction entirely.
+3. **Every p-value here is a screen, not a test**, until we have replicates. See
+   Limitation 1 — this applies to every p in every table above.
 
-4. **Every p-value here is a screen, not a test, until replicates exist.** The 13 targets
-   in a cell share one base model, so their gaps are correlated and the effective
-   independent unit is the replicate, not the target. This is stated in Limitations and
-   applies to every p in every table above.
+4. **A statistic chosen after seeing the result is not a measurement.** The attack was
+   fixed in advance. Where a different reasonable choice would give a higher number, the
+   pre-registered one is what we report.
 
-5. **A statistic chosen after seeing the result is not a measurement.** `min × mean` was
-   frozen in `configs/experiment.yaml` before any result existed. Where a non-frozen grid
-   cell reads higher — `mean × mean` gives 0.651 against the frozen 0.562 on `d1_c1` —
-   the frozen number is the one reported.
+5. **Quality is a gate, not a second metric to trade against.** A privacy number from a
+   generator whose output is obviously fake answers nothing, so quality is established
+   first and risk is read only for models that pass. This is why TimeVAE has no risk
+   number.
 
-6. **Quality is a gate, not a co-equal metric.** An MIA number from a generator whose
-   samples fail the quality gate answers nothing, so quality is established first and the
-   leakage numbers are read only for models that pass. This is why TimeVAE has no MIA
-   entry.
+6. **Judging whether synthetic data is distinguishable takes several attempts, not one.**
+   A classifier trained once may or may not find the tell; we train it repeatedly and read
+   the best attempt and the spread. A single run has twice given us the wrong answer, once
+   in the wrong direction entirely.
