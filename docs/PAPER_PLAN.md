@@ -34,9 +34,9 @@ long a window the generator produces, and how many signals it produces at once.
 
 | condition | window | signals | **how identifiable is a typical outlier** | **a typical normal patient** | **outliers at risk** | **normals at risk** | **do outliers stand out** | **generation quality** |
 |---|---|---|---|---|---|---|---|---|
-| `d1_c1` | 1 day | glucose | 0.80 | 0.64 | 11 of 13 | **13 of 13** | 0.56 | 0.095 |
-| `d1_c2` | 1 day | + insulin | 0.60 | 0.52 | 10 of 13 | **5 of 13** | **0.70** | 0.160 |
-| `d7_c1` | 7 days | glucose | 0.76 | 0.68 | 13 of 13 | **12 of 13** | 0.63 | 0.331 |
+| `d1_c1` | 1 day | glucose | 0.800 | 0.635 | 11 of 13 | **13 of 13** | 0.562 | 0.095 |
+| `d1_c2` | 1 day | + insulin | 0.600 | 0.520 | 10 of 13 | **5 of 13** | **0.698** | 0.160 |
+| `d7_c1` | 7 days | glucose | 0.760 | 0.679 | 13 of 13 | **12 of 13** | 0.627 | 0.331 |
 | `d7_c2` | 7 days | + insulin | *training* | | | | | |
 
 **How to read the columns.**
@@ -140,12 +140,12 @@ training less is the cheapest possible defence — one our model has to beat.
 
 | training | typical outlier | typical normal | outliers at risk | normals at risk | do outliers stand out | generation quality |
 |---|---|---|---|---|---|---|
-| shortest | 0.56 | 0.55 | 8 of 13 | 7 of 13 | 0.63 | 0.060 |
-| **early-middle** | 0.63 | 0.52 | 9 of 13 | **2 of 13** | **0.84** | 0.061 |
-| middle | 0.63 | 0.52 | 10 of 13 | 2 of 13 | 0.76 | 0.065 |
-| long | 0.72 | 0.52 | 9 of 13 | 4 of 13 | 0.68 | 0.072 |
-| longer | 0.69 | 0.57 | 11 of 13 | 10 of 13 | 0.55 | 0.074 |
-| **full (what we ran)** | 0.68 | 0.63 | 9 of 13 | **13 of 13** | **0.51** | 0.083 |
+| shortest | 0.562 | 0.554 | 8 of 13 | 7 of 13 | 0.633 | 0.060 |
+| **early-middle** | 0.625 | 0.517 | 9 of 13 | **2 of 13** | **0.840** | 0.061 |
+| middle | 0.625 | 0.520 | 10 of 13 | 2 of 13 | 0.757 | 0.065 |
+| long | 0.724 | 0.520 | 9 of 13 | 4 of 13 | 0.680 | 0.072 |
+| longer | 0.688 | 0.571 | 11 of 13 | 10 of 13 | 0.550 | 0.074 |
+| **full (what we ran)** | 0.679 | 0.633 | 9 of 13 | **13 of 13** | **0.515** | 0.083 |
 
 *Same columns as Step 1. The shortest row is below convergence — its generator has not
 finished learning — and is read as such.*
