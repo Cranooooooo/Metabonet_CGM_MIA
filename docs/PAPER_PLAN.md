@@ -11,15 +11,9 @@ generation quality**.
 
 ## Step 1 — Establish that the risk exists
 
-### What it does
-
-Prove, on a design that admits no alternative explanation, that membership in a
-generator's training set can be inferred from its released samples.
-
-### Why it has to come first, and why it has to be this strict
-
-Everything downstream is conditional on the risk being real. The design therefore has to
-close each escape route a reviewer would reach for:
+Prove that membership in a generator's training set can be inferred from its released
+samples. Everything downstream is conditional on this, so the design has to close each
+escape route a reviewer would reach for:
 
 - **Symmetric pairing.** Controls are drawn *out* of the background before the base is
   built, so every pair is `(background + target)` against `(background)` and both arms
@@ -67,14 +61,9 @@ Table 1 (design) · Table 2 (four cells) · Figure 1 (per-subject AUC, outlier v
 
 ## Step 2 — The risk–quality frontier across baselines
 
-### What it does
-
 Six generators × four cells × a full training-length curve each, plotted as generation
-quality against membership risk.
-
-### Why a frontier, and why a curve per baseline
-
-Two reasons, and the second is not obvious:
+quality against membership risk. Two reasons for that shape, and the second is not
+obvious:
 
 1. **A frontier is what makes the contribution legible.** "Better privacy" and "same
    quality" are one claim, not two, and only a frontier states it. Against a ranking, a
@@ -126,11 +115,9 @@ Table 3 (peak location and peak risk per baseline)
 
 ### 3a — Which subjects — **complete**
 
-**What it does.** Identify which individuals are repeatedly exposed, and show it is not
-sampling noise.
-
-**Why.** This is the step from *risk exists* to *risk is predictable*. If a different set
-of people leaked each time, there would be nothing for a defence to act on.
+Identify which individuals are repeatedly exposed, and show it is not sampling noise.
+This is the step from *risk exists* to *risk is predictable*: if a different set of people
+leaked each time, there would be nothing for a defence to act on.
 
 **Result.** The **same six outliers** occupy the top of both `d1_c1` and `d1_c2` —
 independently trained models, different channel counts, different seeds. Over all 26
@@ -138,11 +125,9 @@ targets, **Spearman ρ = +0.608, p = 0.001**.
 
 ### 3b — Which conditions amplify it — **complete**
 
-**What it does.** Separate the effects of training length, window length and channel
-count.
-
-**Why.** A defence has to act where the risk is produced. If training length dominates,
-early stopping is the cheapest possible defence and our model has to beat it.
+Separate the effects of training length, window length and channel count. A defence has
+to act where the risk is produced, and if training length dominates then early stopping is
+the cheapest possible defence — one our model has to beat.
 
 **Result.** Training length is the strongest variable, and the mechanism is the opposite
 of what we expected:
@@ -172,13 +157,12 @@ over-training is not a privacy-for-quality trade: it costs both.
 
 ### 3c — Which of a person's information leaks — **designed, not started**
 
-**What it does.** For the individuals located in 3a, determine *what* was memorised —
-which hours of the day, and which kind of structure.
-
-**Why this is the bridge to Step 4.** The proposed defence is time-series editing.
-**Editing needs to know what to edit.** If the leak is a characteristic overnight
-hypoglycaemic excursion, the module edits that; if it is overall variability, that is a
-different operation entirely. Without 3c the editing module is guesswork.
+For the individuals located in 3a, determine *what* was memorised — which hours of the
+day, and which kind of structure. This is the bridge to Step 4: the proposed defence is
+time-series editing, and **editing needs to know what to edit**. If the leak is a
+characteristic overnight hypoglycaemic excursion the module edits that; if it is overall
+variability, that is a different operation entirely. Without 3c the editing module is
+guesswork.
 
 #### Design — both questions answered with the **frozen statistic**, not a new attack
 
