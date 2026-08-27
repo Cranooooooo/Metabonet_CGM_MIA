@@ -1,8 +1,5 @@
 # Paper plan — membership-inference risk in CGM synthesis, and a generator that reduces it
 
-*Living document. Numbers are read from artefacts on disk; anything not yet measured says
-so rather than being estimated.*
-
 ## Thesis
 
 Synthetic CGM data carries membership-inference risk. We quantify that risk across
@@ -297,3 +294,37 @@ arm) · Figure 4 (arm-difference by transform space)
 
 Task 3 needs no new compute and directly determines what the editing module in Step 4
 operates on. It should run first.
+
+---
+
+## Tips for reading and maintaining this document
+
+1. **It is a living document.** Every number in it is read from an artefact under
+   `results/` and checked against that artefact before the document is committed. Nothing
+   here is typed from memory or carried over from an earlier draft.
+
+2. **Not-yet-measured is written as not-yet-measured.** Where a quantity has not been
+   computed the row says *wait* or *training*, never an estimate. Cost projections are
+   the one exception and are labelled as extrapolations from measured per-model times.
+
+3. **Read the discriminator as a maximum over restarts, with its spread.** A single
+   discriminative accuracy is one draw of a lower bound, and the draws are bimodal
+   wherever a separable feature exists — the classifier either finds it or does not. A
+   tight cluster at 0.53 and a cluster spanning 0.50–0.84 can have similar medians and
+   mean opposite things. `docs/PITFALLS.md` §16 and §18 record two occasions when a
+   single-run reading gave the wrong answer, once in the wrong direction entirely.
+
+4. **Every p-value here is a screen, not a test, until replicates exist.** The 13 targets
+   in a cell share one base model, so their gaps are correlated and the effective
+   independent unit is the replicate, not the target. This is stated in Limitations and
+   applies to every p in every table above.
+
+5. **A statistic chosen after seeing the result is not a measurement.** `min × mean` was
+   frozen in `configs/experiment.yaml` before any result existed. Where a non-frozen grid
+   cell reads higher — `mean × mean` gives 0.651 against the frozen 0.562 on `d1_c1` —
+   the frozen number is the one reported.
+
+6. **Quality is a gate, not a co-equal metric.** An MIA number from a generator whose
+   samples fail the quality gate answers nothing, so quality is established first and the
+   leakage numbers are read only for models that pass. This is why TimeVAE has no MIA
+   entry.
