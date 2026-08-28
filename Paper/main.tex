@@ -1,0 +1,161 @@
+%% IEEE Journal of Biomedical and Health Informatics (JBHI)
+%% Built on the official IEEEtran journal template (bare_jrnl.tex, Michael Shell).
+%% NOT COMPILED: there is no LaTeX toolchain on the machine this was written on.
+%% Sections I-II are drafted; III onward are stubs. See docs/PAPER_PLAN.md.
+\documentclass[journal]{IEEEtran}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+\graphicspath{{figs/}}
+
+\begin{document}
+
+\title{Membership Inference in Synthetic Continuous Glucose\\
+Monitoring Data: Who Leaks, When, and Why\\
+Training Longer Makes It Worse}
+
+\author{Anonymous Author,~\IEEEmembership{Student Member,~IEEE,}
+        and~Anonymous Author,~\IEEEmembership{Member,~IEEE}%
+\thanks{Manuscript received XX XXXX; revised XX XXXX.}}
+
+\markboth{IEEE Journal of Biomedical and Health Informatics,~Vol.~XX, No.~X, XXXX~2026}%
+{Author \MakeLowercase{\textit{et al.}}: Membership Inference in Synthetic CGM Data}
+
+\maketitle
+
+\begin{abstract}
+Sharing continuous glucose monitoring (CGM) data is constrained by privacy regulation,
+and synthetic data from deep generative models is increasingly proposed as the remedy.
+Whether that remedy holds has not been tested systematically for physiological time
+series. We audit membership-inference risk on synthetic CGM data across 506 patients,
+comparing 13 outlier patients against 13 controls matched exactly on record length,
+under a $2\times2$ design that varies window length (one day, seven days) and channel
+count (glucose alone, glucose with insulin). Three findings follow. First, the risk is
+real but not selective: in the single-channel conditions almost every control patient is
+identifiable as well as almost every outlier, and one patient is identified with
+certainty. Second, risk and outlier--control contrast move in opposite directions as
+training proceeds; contrast peaks early and then collapses, not because outliers become
+safe but because controls catch up, so an audit performed at convergence understates how
+distinguishable individuals are. Third, the leak is distributional rather than temporal:
+an attack that destroys all timing information by sorting each window is stronger than
+one that does not, which localises the exposed quantity to the distribution of glucose
+values a patient produces rather than to when their glycaemic events occur. We then
+propose a generator that acts on this localisation. The results bear directly on how
+synthetic CGM datasets should be produced and audited before release.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Continuous glucose monitoring, synthetic data, membership inference, generative models,
+privacy, data sharing.
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+\IEEEPARstart{C}{ontinuous} glucose monitoring produces some of the densest longitudinal
+physiological records in routine care: a reading every five minutes, sustained for
+months, across large cohorts. Those records support work on glycaemic phenotyping,
+closed-loop control and risk prediction, and almost none of it can be shared freely. The
+constraint is not technical but regulatory and ethical, and it applies most tightly to
+exactly the records that are most informative --- long, continuous, individual traces.
+
+Synthetic data is the standard proposed remedy. A generative model is trained on the
+real cohort, and its samples are released in place of the records. The appeal is that
+the released data is not anyone's data. That argument is not a guarantee: generative
+models retain information about their training sets, and a sample that resembles no
+single patient in aggregate may still carry enough of one patient's structure to reveal
+that they were used. This paper asks whether that happens for CGM, and if so, to whom
+and through what.
+
+Three gaps motivate the study.
+
+\emph{Physiological time series are under-examined.} Membership inference against
+generative models has been studied mostly on images and on tabular records, and neither
+transfers cleanly. An image is a single sample; a patient contributes a set of windows
+whose number varies between individuals, and that count is itself a confound --- a
+patient with a longer record has more chances for one of their days to sit close to a
+released sample, whether or not they were used in training. Tabular attacks assume
+exchangeable rows, which consecutive days of one person are not.
+
+\emph{The assumption that outliers are the population at risk has not been tested.} It
+is intuitive and widely repeated: unusual individuals are memorised, typical ones are
+absorbed into the population model. Privacy analyses accordingly focus on worst-case
+individuals. Whether the typical patient is meaningfully safer is an empirical question
+that, to our knowledge, has not been answered for physiological time series.
+
+\emph{Privacy is evaluated at a single operating point.} An audit trains a generator,
+samples from it, and reports one number. Training length is a free parameter of that
+procedure, and no reason has been given why the value chosen for a quality-oriented
+pipeline should also be the value at which privacy is worst, or at which a leak is
+easiest to detect.
+
+The contributions of this paper are as follows.
+
+\begin{itemize}
+\item A systematic membership-inference audit of synthetic CGM generation over a
+$2\times2$ design in window length and channel count on a 506-patient cohort, with a
+design constructed so that record length, statistic selection, per-run variation and
+asymmetric screening cannot explain the result.
+\item The finding that risk and outlier--control contrast are not monotone in training
+length and move in opposite directions, with the mechanism identified: the control group
+catches up rather than the outlier group receding.
+\item A localisation of the leak in both time and information type, obtained by
+decomposing the attack statistic itself rather than by training a separate probe, which
+identifies the distribution of glucose values --- not the timing of glycaemic events ---
+as the exposed quantity.
+\item A generator whose editing stage acts on that localised quantity, evaluated against
+both generation quality and membership risk.
+\end{itemize}
+
+\section{Related Work}
+
+\subsection{Generative Models for Physiological Time Series}
+
+Deep generative modelling of clinical time series has moved from recurrent adversarial
+models to diffusion and flow-based ones, with recent work reporting fidelity sufficient
+for downstream training. Evaluation in this literature is dominated by fidelity and
+utility: discriminative and predictive scores, distributional distances, and
+task-transfer accuracy. Privacy, where reported, is usually a nearest-neighbour distance
+summary rather than an attack, which measures how close the released data is to the
+training set on average but not whether a specific patient can be identified.
+
+\subsection{Membership Inference Against Generative Models}
+
+Membership inference asks whether a given record was in a model's training set. Against
+generative models the attacker typically has only samples, and the standard family of
+attacks scores a candidate by its distance to the nearest released sample. The
+literature is largely image-based, with a smaller body on tabular health records. Two
+methodological points from that work carry over and we adopt both: an attack statistic
+must be fixed before results are seen, because plausible alternatives disagree; and a
+positive control with a known ceiling is needed to establish that the pipeline can
+detect membership at all.
+
+\subsection{Privacy Evaluation of Synthetic Health Data}
+
+Frameworks for evaluating synthetic health data increasingly pair fidelity metrics with
+a privacy component, commonly a distance-to-closest-record statistic and sometimes an
+attack. Two limitations recur. Reported numbers come from one training configuration, so
+the trajectory is invisible. And where an attack is used, the control group is often
+drawn as any record not in the flagged set, which is a much looser screen than the one
+applied to the flagged group; if the two arms are screened at different strictness,
+records of the flagged kind end up among the controls, both arms leak, and the contrast
+the audit is trying to measure is suppressed. Our design screens both arms at matched
+strictness for this reason.
+
+\section{Study Design}
+% Attack statistic; symmetric pairing; outlier and control selection; quality gate.
+
+\section{The Proposed Generator}
+% From docs/MODEL_DESIGN.md -- MAVEN backbone, privacy-driven editing stage.
+
+\section{Experiments}
+\section{Results}
+\section{Discussion}
+\section{Conclusion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}
