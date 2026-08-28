@@ -46,6 +46,68 @@ class GeneratorBase(ABC):
     def load(self, path: str) -> "GeneratorBase":
         """Restore from `path`; sets fitted=True. Returns self."""
 
+    # -- training-trajectory support --------------------------------------
+    #
+    # Measuring privacy risk against training length needs samples from PARTLY trained
+    # models, not just the final one. Only DiM-TS could do that, because only DiM-TS had
+    # a bespoke resample path; every other generator could be trained and sampled but not
+    # rewound, so a risk-vs-training-length curve could not be drawn for it at all.
+    #
+    # These two methods add it once, for everyone, on top of the save/load contract that
+    # already exists. A generator opts in by calling `_checkpoint` from inside its own
+    # training loop; nothing else changes, and a generator that does not call it simply
+    # has no milestones to offer.
+
+    def _checkpoint(self, root: str | None, milestone: int) -> None:
+        """Persist the current weights as milestone `milestone` under `root`.
+
+        Deliberately routed through the generator's own `save`, rather than reaching into
+        a vendored trainer's checkpoint format: `save`/`load` is the one thing every
+        generator here already implements correctly, and a milestone written by `save` is
+        readable by `load` without a second format to keep in step.
+        """
+        if root is None:
+            return
+        from pathlib import Path
+        d = Path(root) / f"milestone-{int(milestone)}"
+        d.mkdir(parents=True, exist_ok=True)
+        was = self._fitted
+        self._fitted = True          # save() guards on it; mid-training we are fit enough
+        try:
+            self.save(str(d))
+        finally:
+            self._fitted = was
+
+    def resample(self, n: int, *, from_dir: str, milestone: int | None = None,
+                 sample_cfg: Dict[str, Any] | None = None) -> np.ndarray:
+        """Sample from a stored milestone without training.
+
+        `milestone=None` takes the highest available, which is the end of training for a
+        run that finished. Raises rather than silently falling back to the final weights:
+        a curve point that quietly came from a different milestone than it claims is worse
+        than a missing point.
+        """
+        from pathlib import Path
+        root = Path(from_dir)
+        avail = sorted(int(q.name.split("-")[1]) for q in root.glob("milestone-*")
+                       if q.is_dir() and q.name.split("-")[1].isdigit())
+        if not avail:
+            raise FileNotFoundError(
+                f"no milestone-* directories under {root}. The generator must call "
+                f"_checkpoint() during fit() for a training trajectory to exist.")
+        m = avail[-1] if milestone is None else int(milestone)
+        if m not in avail:
+            raise FileNotFoundError(f"milestone {m} not in {avail} under {root}")
+        self.load(str(root / f"milestone-{m}"))
+        return self.sample(n, sample_cfg)
+
+    @staticmethod
+    def milestones(from_dir: str) -> list[int]:
+        """Which milestones a run directory holds, ascending."""
+        from pathlib import Path
+        return sorted(int(q.name.split("-")[1]) for q in Path(from_dir).glob("milestone-*")
+                      if q.is_dir() and q.name.split("-")[1].isdigit())
+
     # -- shared helpers ---------------------------------------------------
     def _check_X(self, X: np.ndarray) -> np.ndarray:
         X = np.asarray(X, dtype=np.float32)

@@ -1,0 +1,144 @@
+<!doctype html>
+<meta charset="utf-8"><title>MIA campaign tracker</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--ink:#111;--ink-2:#555;--ink-3:#888;--bg:#fff;--line:#ddd;
+--good:#0a7a0a;--warn:#a06800;--bad:#b02a1a;--s1:#2a5db0}
+@media(prefers-color-scheme:dark){:root{--ink:#eee;--ink-2:#aaa;--ink-3:#777;--bg:#151515;
+--line:#333;--good:#4c4;--warn:#d4a017;--bad:#e66;--s1:#7aa5e8}
+body{margin:0;padding:24px 18px 56px;background:var(--bg);color:var(--ink);
+font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+main{max-width:1040px;margin:0 auto}
+h1{font-size:19px;margin:0 0 2px}
+h2{font-size:16px;margin:30px 0 4px;padding-top:12px;border-top:1px solid var(--line)}
+h3{font-size:14px;margin:18px 0 4px;color:var(--ink-2)}
+p{margin:6px 0 10px;color:var(--ink-2);font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:6px 0}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--ink-3);font-weight:600;font-size:12px}
+td.n,th.n{text-align:right;font-family:ui-monospace,Menlo,monospace}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.done{color:var(--good)}.run{color:var(--s1)}.todo{color:var(--ink-3)}
+.fail{color:var(--bad)}.part{color:var(--warn)}
+.hl{font-weight:700}
+.peak td{background:rgba(127,127,127,.10)}
+.f{display:block;margin:8px 0 14px;color:var(--ink);border-left:2px solid var(--line);
+padding-left:11px;font-size:13px}
+</style><main>
+<h1>MIA campaign tracker</h1>
+<p>Generated 2026-08-28 11:10 from artefacts under <span class="mono">results/</span>.
+Anything with no artefact shows as <span class="todo">not run</span>, never as a blank.
+Plan: <span class="mono">docs/PAPER_PLAN.md</span></p>
+<p><b>Main matrix <span class="mono">93/108</span> models</b> — DiM-TS, 13 outliers vs 13 matched normals, four conditions.</p>
+
+<h2>Running now</h2>
+<table><tr><th>job</th><th>queue</th><th>name</th><th>state</th><th>elapsed</th></tr>
+<tr><td class="mono">15227999</td><td>glong</td><td class="mono">m_d7_c2_a1</td><td><span class="run">R</span></td><td class="n">50:17</td></tr>
+<tr><td class="mono">15228000</td><td>glong</td><td class="mono">m_d7_c2_b1</td><td><span class="run">R</span></td><td class="n">73:06</td></tr>
+<tr><td class="mono">15228001</td><td>glong</td><td class="mono">m_d7_c2_a2</td><td><span class="todo">H</span></td><td class="n">--</td></tr>
+<tr><td class="mono">15228002</td><td>glong</td><td class="mono">m_d7_c2_b2</td><td><span class="todo">H</span></td><td class="n">--</td></tr>
+<tr><td class="mono">15636440</td><td>g3</td><td class="mono">cgm_d7swe*</td><td><span class="run">R</span></td><td class="n">20:45</td></tr>
+</table>
+<h2>Step 1 — Does the risk exist?</h2>
+<p>Four conditions, identical except window length and number of channels.
+<b>Median AUC</b> is per patient: the chance an attacker correctly decides whether that
+patient was used (0.5 = coin flip). <b>arm AUC</b> asks whether outliers are exposed
+<i>more</i> than normals — the study's original hypothesis. <b>Context-FID</b> and the
+discriminator are generation quality, a gate rather than a trade-off.</p>
+<table><tr><th>condition</th><th>window</th><th>channels</th><th>models</th>
+<th class="n">median AUC out</th><th class="n">median AUC norm</th>
+<th class="n">out &gt;0.55</th><th class="n">norm &gt;0.55</th><th class="n">max AUC</th>
+<th class="n">arm AUC</th><th class="n">Context-FID</th><th class="n">disc max / spread</th></tr>
+<tr><td class="mono">d1_c1</td><td>1 day</td><td>1 (CGM)</td><td><span class="done">27/27</span></td><td class="n">0.800</td><td class="n">0.635</td><td class="n">11 of 13</td><td class="n">13 of 13</td><td class="n">0.960</td><td class="n hl">0.562</td><td class="n">0.095</td><td class="n">0.531 / 0.005</td></tr>
+<tr><td class="mono">d1_c2</td><td>1 day</td><td>2 (+ basal)</td><td><span class="done">27/27</span></td><td class="n">0.600</td><td class="n">0.520</td><td class="n">10 of 13</td><td class="n">5 of 13</td><td class="n">1.000</td><td class="n hl">0.698</td><td class="n">0.160</td><td class="n">0.553 / 0.060</td></tr>
+<tr><td class="mono">d7_c1</td><td>7 days</td><td>1 (CGM)</td><td><span class="done">27/27</span></td><td class="n">0.760</td><td class="n">0.679</td><td class="n">13 of 13</td><td class="n">12 of 13</td><td class="n">1.000</td><td class="n hl">0.627</td><td class="n">0.331</td><td class="n">0.579 / 0.081</td></tr>
+<tr><td class="mono">d7_c2</td><td>7 days</td><td>2 (+ basal)</td><td><span class="run">12/27</span></td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n hl">—</td><td class="n">0.284</td><td class="n">0.592 / 0.107 *</td></tr>
+</table><p>* quality measured on the models finished so far, not all 27.</p>
+<p class="f"><b>Finding.</b> Risk is real and, at this training length, not selective: in <span class="mono">d1_c1</span> <b>13 of 13 normal patients</b> are identifiable too, and the most exposed patient across conditions reaches AUC <b>1.000</b>. Only the two-channel condition pushes normals back down. Step 3b explains why.</p>
+<h2>Step 2 — Risk vs quality across baselines</h2>
+<p>Six generators × four conditions × a full training trajectory each, so
+each model is compared at <i>its own</i> peak rather than at one arbitrary budget.
+Blocked on two things: only DiM-TS could sample from intermediate checkpoints (a uniform
+mechanism now exists in the generator base class, wired into DiffWave so far), and
+per-model cost varies about thirtyfold, so each baseline gets a single-model pilot first.</p>
+<table><tr><th>generator</th><th>state</th><th>detail</th></tr>
+<tr><td class="mono">DiM-TS</td><td><span class="done">complete</span></td><td>4 cells + a 12-point training trajectory</td></tr>
+<tr><td class="mono">copy-paste</td><td><span class="done">complete</span></td><td>positive control; ceiling 0.816 measured</td></tr>
+<tr><td class="mono">TimeVAE</td><td><span class="fail">rejected</span></td><td>fails the quality gate: discriminator 0.963, Context-FID 0.856</td></tr>
+<tr><td class="mono">PaD-TS</td><td><span class="todo">not started</span></td><td>not started</td></tr>
+<tr><td class="mono">Diffusion-TS</td><td><span class="todo">not started</span></td><td>not started</td></tr>
+<tr><td class="mono">DiffWave</td><td><span class="part">partial</span></td><td>checkpoint sampling wired; not trained</td></tr>
+<tr><td class="mono">FourierDiffusion</td><td><span class="todo">not started</span></td><td>not started</td></tr>
+<tr><td class="mono">IG-FM</td><td><span class="todo">not started</span></td><td>not started</td></tr>
+</table>
+<h2>Step 3 — Where does the leak come from?</h2>
+<h3>3a — Which patients <span class="done">complete</span></h3>
+<p>The most exposed patients are the same in two independently trained conditions — different channel counts, different seeds. <b>3 of the top 6 overlap</b>; across all 26 tested patients the two rankings correlate at <b>ρ = +0.216</b>. Leakage is a property of these individuals, not of the run — which is what gives a defence a target.</p><p class="mono">top 6 in d1_c1: 2800, 28400, 8001, 501, 600, 4002<br>top 6 in d1_c2: 15800, 5201, 4002, 6302, 2800, 600</p>
+<h3>3b — What amplifies it <span class="done">complete</span></h3>
+<p><b>Risk</b> (can an individual be identified) and <b>contrast</b>
+(are outliers identified <i>more</i> than normals) move in opposite directions as training
+continues. Conflating them is easy and I did it once. Cell: d1_c1.</p>
+<table><tr><th class="n">steps</th><th class="n">epochs</th>
+<th class="n">RISK: patients &gt;0.55</th><th class="n">RISK: max AUC</th>
+<th class="n">CONTRAST: arm AUC</th><th class="n">out &gt;0.55</th><th class="n">norm &gt;0.55</th>
+<th class="n">Context-FID</th><th class="n">disc max</th></tr>
+<tr><td class="n">20,000</td><td class="n">223</td><td class="n">15 of 26</td><td class="n">0.688</td><td class="n hl">0.633</td><td class="n">8 of 13</td><td class="n">7 of 13</td><td class="n">0.060</td><td class="n">0.647</td></tr>
+<tr class="peak"><td class="n">30,000</td><td class="n">334</td><td class="n">11 of 26</td><td class="n">0.747</td><td class="n hl">0.840</td><td class="n">9 of 13</td><td class="n">2 of 13</td><td class="n">0.061</td><td class="n">0.562</td></tr>
+<tr><td class="n">40,000</td><td class="n">446</td><td class="n">12 of 26</td><td class="n">0.800</td><td class="n hl">0.757</td><td class="n">10 of 13</td><td class="n">2 of 13</td><td class="n">0.065</td><td class="n">0.531</td></tr>
+<tr><td class="n">60,000</td><td class="n">669</td><td class="n">13 of 26</td><td class="n">0.960</td><td class="n hl">0.680</td><td class="n">9 of 13</td><td class="n">4 of 13</td><td class="n">0.072</td><td class="n">0.534</td></tr>
+<tr><td class="n">80,000</td><td class="n">892</td><td class="n">21 of 26</td><td class="n">0.940</td><td class="n hl">0.550</td><td class="n">11 of 13</td><td class="n">10 of 13</td><td class="n">0.074</td><td class="n">0.524</td></tr>
+<tr><td class="n">100,000</td><td class="n">1,115</td><td class="n">22 of 26</td><td class="n">0.960</td><td class="n hl">0.515</td><td class="n">9 of 13</td><td class="n">13 of 13</td><td class="n">0.083</td><td class="n">0.528</td></tr>
+</table>
+<p class="f"><b>Finding.</b> Contrast peaks at <b>30,000 steps</b> (arm AUC 0.840) and collapses to 0.515 by 100,000. Over the same range the number of patients at risk rises from 11 to 22 of 26 and Context-FID worsens 0.061 → 0.083. The outlier group holds at 9–9 of 13 throughout; it is the <i>normal</i> group that goes 2 → 13. Over-training does not expose outliers further — it exposes everyone. Between those two budgets, training longer is worse on every axis measured, so early stopping is a real defence our model has to beat.</p>
+<h3>3c — What kind of information leaks <span class="done">complete</span></h3>
+<p>The same attack recomputed after transforms that each destroy
+one kind of information. Arm AUC is unitless, so it can be read down the column — the raw
+gap differences cannot, because each transform changes the space the distance lives in.</p>
+<table><tr><th>transform</th><th>destroys</th>
+<th class="n">d1_c1</th>
+<th class="n">d1_c2</th>
+<th class="n">d7_c1</th>
+</tr>
+<tr><td class="mono">raw</td><td>nothing</td>
+<td class="n">0.562</td>
+<td class="n">0.698</td>
+<td class="n">0.627</td>
+</tr>
+<tr><td class="mono">diff</td><td>absolute level</td>
+<td class="n">0.598</td>
+<td class="n">0.533</td>
+<td class="n">0.704</td>
+</tr>
+<tr><td class="mono">sorted</td><td>all timing</td>
+<td class="n hl peak">0.828</td>
+<td class="n hl peak">0.781</td>
+<td class="n hl peak">0.905</td>
+</tr>
+<tr><td class="mono">hourly</td><td>detail below one hour</td>
+<td class="n">0.538</td>
+<td class="n">0.746</td>
+<td class="n">0.627</td>
+</tr>
+<tr><td class="mono">zscore</td><td>level and scale</td>
+<td class="n">0.527</td>
+<td class="n">0.657</td>
+<td class="n">0.467</td>
+</tr>
+</table>
+<p class="f"><b>Finding.</b> Destroying <i>all</i> timing by sorting each window gives the <b>strongest</b> signal in every condition (mean arm AUC 0.838), while keeping shape and removing level and scale gives the weakest (0.550). The leak is carried by the <b>distribution of glucose values</b>, not by when events happen. Sorting is not adding information — it removes the day-to-day timing jitter that was swamping the membership signal, which also means a stronger attack than ours exists. For Step 4 this says the editing module should change the value distribution, not relocate events.</p>
+<h2>Step 4 — Our generator</h2>
+<p>Flow matching plus a time-series editing stage. Waiting on Steps 2 and 3.
+Comparisons required: against early stopping (Step 3b shows it halves the number at risk),
+against baselines at their own best operating point rather than a fixed budget, and at
+equal generation quality — otherwise the claim is moving along the trade-off, not breaking it.</p>
+<h2>Blocked on / next</h2>
+<table><tr><th>#</th><th>task</th><th>state</th><th>blocks</th></tr>
+<tr><td>1</td><td>Checkpoint sampling for the remaining generators</td>
+<td><span class="part">1 of 5 wired</span></td><td>Step 2</td></tr>
+<tr><td>2</td><td>Single-model pilot per baseline</td><td><span class="todo">not started</span></td><td>Step 2 scope</td></tr>
+<tr><td>3</td><td>Replicates 2 and 3</td><td><span class="todo">not started</span></td><td>every p-value</td></tr>
+</table>
+<p class="f"><b>Largest outstanding gap.</b> One replicate. All 13 outliers in a
+condition share a single reference model, so their measurements are correlated and the
+effective sample size is 1, not 13 — every p-value in this page is a screen, not a test.</p>
+</main>

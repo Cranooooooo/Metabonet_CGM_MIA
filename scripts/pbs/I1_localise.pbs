@@ -1,0 +1,19 @@
+#!/bin/bash
+#PBS -N cgm_loc
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=440gb
+#PBS -l walltime=06:00:00
+#PBS -q normal
+#PBS -j oe
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+{
+set -euo pipefail
+for CELL in d1_c1 d1_c2 d7_c1; do
+  echo "########## $CELL ##########"
+  python -u scripts/localise_leak.py --design results/matrix/design/rep1 \
+    --cohort data/cohort/matrix_$CELL --runs results/runs/matrix_$CELL \
+    --out results/matrix/localise/$CELL
+done
+echo "LOC OK"
+} 2>&1 | tee logs/I1_localise.live.log

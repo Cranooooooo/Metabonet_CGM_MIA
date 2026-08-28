@@ -129,7 +129,15 @@ class DiffWaveGenerator(GeneratorBase):
         opt = torch.optim.Adam(net.parameters(), lr=lr)
         mse = nn.MSELoss()
 
+        # A milestone every `save_cycle` iterations, so risk can be measured against
+        # training length without retraining once per point. `ckpt_root=None` (the
+        # default) keeps the old behaviour exactly: no extra writes, no extra cost.
+        save_cycle = int(cfg.get("save_cycle", 0))
+        ckpt_root = cfg.get("ckpt_root")
+
         net.train()
+        self._net = net                      # _checkpoint saves through self.save
+        self._diffusion_hp = diffusion_hp
         n_iter = 0
         while n_iter < total_iters:
             for (x,) in loader:
@@ -141,9 +149,9 @@ class DiffWaveGenerator(GeneratorBase):
                 loss.backward()
                 opt.step()
                 n_iter += 1
+                if save_cycle and ckpt_root and n_iter % save_cycle == 0:
+                    self._checkpoint(ckpt_root, n_iter // save_cycle)
 
-        self._net = net
-        self._diffusion_hp = diffusion_hp
         self._fitted = True
         return self
 
