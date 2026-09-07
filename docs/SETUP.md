@@ -16,6 +16,10 @@ make outliers   # the real 875-subject cohort, ~40 min, CPU
 
 No download is needed for any of that. The cohort is in the repository.
 
+To run the experiments rather than just install the package, continue in
+`docs/RUNNING_BASELINES.md` — the design, the equal-budget protocol, the quality
+gate, per-model costs, and the traps that have already cost time here.
+
 ## `PYTHONNOUSERSITE=1` is not optional
 
 A numpy in `~/.local/lib/python3.10/site-packages` takes priority over your conda
