@@ -1,0 +1,24 @@
+{
+ "results/runs/maven100k_d1_c1/base": {
+  "n_restarts": 8,
+  "accs": [
+   1.0,
+   1.0,
+   0.9983333349227905,
+   0.9983333349227905,
+   0.9983333349227905,
+   0.9950000047683716,
+   1.0,
+   0.7250000238418579
+  ],
+  "cohort": "data/cohort/matrix_d1_c1",
+  "reference": "results/matrix/design/rep1/jobs/base.json",
+  "n_real": 5741,
+  "min": 0.7250000238418579,
+  "median": 0.9983333349227905,
+  "max": 1.0,
+  "spread": 0.2749999761581421,
+  "n_synth": 5741,
+  "subsample_seed": 2026
+ }
+}

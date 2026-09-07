@@ -1,0 +1,50 @@
+{
+ "run": "results/runs/igfm_curve_d1_c1/base",
+ "cohort": "data/cohort/matrix_d1_c1",
+ "K": 5741,
+ "job_seed": 3742878366,
+ "milestones": [
+  2000,
+  4000,
+  6000,
+  8000,
+  12000,
+  16000,
+  20000,
+  25000
+ ],
+ "rows": [
+  {
+   "milestone": 2000,
+   "sample_seconds": 829.68
+  },
+  {
+   "milestone": 4000,
+   "sample_seconds": 829.54
+  },
+  {
+   "milestone": 6000,
+   "sample_seconds": 829.54
+  },
+  {
+   "milestone": 8000,
+   "sample_seconds": 829.52
+  },
+  {
+   "milestone": 12000,
+   "sample_seconds": 829.52
+  },
+  {
+   "milestone": 16000,
+   "sample_seconds": 829.55
+  },
+  {
+   "milestone": 20000,
+   "sample_seconds": 829.58
+  },
+  {
+   "milestone": 25000,
+   "sample_seconds": 829.55
+  }
+ ]
+}

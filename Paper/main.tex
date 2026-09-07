@@ -148,7 +148,257 @@ strictness for this reason.
 % Attack statistic; symmetric pairing; outlier and control selection; quality gate.
 
 \section{The Proposed Generator}
-% From docs/MODEL_DESIGN.md -- MAVEN backbone, privacy-driven editing stage.
+
+The generator has two parts: a flow-matching backbone that generates in an exactly
+invertible transform space with a frequency-domain view, inherited from an existing
+multi-view generator we refer to as MAVEN and reconfigured for CGM; and an editing stage
+applied after the views are combined, which is ours and exists only for privacy. One premise
+carries the design: the attack reads a \emph{tail} property of the released set --- the
+distance from a real window to its \emph{nearest} synthetic neighbour --- whereas every
+fidelity metric we report reads a \emph{bulk} property, so moving the tail while leaving the
+bulk in place is not a point further along a trade-off curve.
+
+\subsection{Backbone, inherited}
+
+A window $x\in\mathbb{R}^{T\times C}$ is lifted by two maps $\Phi_A,\Phi_B$ into
+two-dimensional token sequences: a \emph{gather} map from time onto grid cells, and a
+short-time Fourier transform retaining real and imaginary parts with each frequency bin
+affinely normalised. Both are exactly invertible and, critically, \emph{linear}; a
+magnitude-only spectrogram would be neither. Linearity is load-bearing, because
+$\Phi((1-t)x_0+tx_1)=(1-t)\Phi(x_0)+t\Phi(x_1)$ makes the linear flow-matching path exact in
+transform space: with $x_1\sim\mathcal{N}(0,I)$ drawn in the time domain,
+\begin{equation}
+z_t = (1-t)\,\Phi(x_0)+t\,\Phi(x_1), \qquad v^{\star}=\Phi(x_1)-\Phi(x_0),
+\label{eq:fmpath}
+\end{equation}
+and each view is trained by mean-squared error between a predicted velocity
+$v_\theta(z_t,t)$ and the target $v^{\star}$. That network is a Transformer over transform
+tokens with a sinusoidal embedding of the flow time, under an exponential moving average;
+sampling integrates the ODE by explicit Euler from $t=1$ to $t=0$, both views from the
+\emph{same} time-domain noise draw so that their outputs are paired views of one sample, and
+the decoded windows are then combined. All of this is inherited unchanged, and any
+substituted view must keep invertibility and linearity.
+
+\subsection{Reconfiguring the backbone for CGM}
+\label{ssec:cgm}
+
+MAVEN's published configuration targets benchmarks of 6 to 59 channels at $T=64$ to $256$,
+whereas our cohort is $C\in\{1,2\}$ at $T\in\{288,2016\}$ sampled every five minutes with a
+known exact daily period. Four changes follow, each licensed by a fact rather than a
+preference. Three reuse a transform or a flag the backbone already implements; the fourth,
+noted where it occurs, does not.
+\emph{(i)} At seven days the gather view becomes a day fold: $2016=7\times288$, so the map
+from cell $(r,c)$ to time index $288r+c$ is exactly invertible with no padding, and puts day
+index on one axis and time of day on the other. It also halves the sequence the velocity
+network attends over, $4024$ delay-embedding tokens at $T=2016$ against $2016$; measured
+peak memory falls from $7.9$ to $4.0$\,GB at a micro-batch of 64, and attention cost falls
+with the square. We state this as an efficiency argument and not a feasibility one: both
+views train on a 40\,GB device, because the attention implementation does not materialise
+the token-by-token matrix and memory is therefore linear in the token count rather than
+quadratic. Upstream reaches the fold only as the alternative to the
+spectral view and only for a period its own heuristic estimates, which is clamped to $67$ at
+this length; ours is a day, known a priori, and is supplied directly. \emph{(ii)} The spectral view is retuned
+from minutes to hours, its parameters fixed by pilot, because upstream's 16-sample window is
+80 minutes at five-minute sampling and collapses the postprandial limb, the overnight drift
+and the circadian component into the DC bin --- the band our transform sweep implicates,
+since $z$-scoring each window, which destroys level and slow scale while preserving shape,
+gives the \emph{weakest} attack in every condition (arm AUC $0.527/0.657/0.467$).
+\emph{(iii)} MAVEN reports a Context-FID that plateaus with training and names its own
+narrowing trunk as the suspected cause; Context-FID is our quality gate, so we commit to
+running that ablation and adopting the winner, rather than asserting a fix for a plateau
+nobody has reproduced on CGM data. \emph{(iv)} Two views are used rather than four, the
+coarse--fine pair being redundant after the above.
+
+The view combiner is treated separately, being the most direct route from training data into
+a released sample. Upstream it is a learned low-rank residual editor, conditioned on the
+per-cell mean, standard deviation and median of each sample's 16 nearest real \emph{training}
+windows, whose shared channel basis exists to preserve cross-channel correlation --- a
+rationale that is vacuous at $C=1$ and thin at $C=2$. We therefore combine, at both channel
+counts, with the learned per-channel mixing weight the backbone already provides, and keep
+the retrieval editor as a measured ablation. This pairing is ours rather than a setting:
+upstream implements the mixing weight in the training script \emph{without} the masked
+objective, and the masked objective in a script that emits one output per view and defers
+combination to the retrieval editor. Each part is upstream code; running them together is
+not an upstream configuration. That weight is not independent of the training
+set, its logit being fitted against real batches; but its whole dependence on the training
+data is $C$ global scalars, against a retrieval channel evaluated per sample, and only the
+latter can carry an individual window's statistics into an individual released sample. Where
+the editor is ablated, its index is built on a disjoint reference split of patients the
+backbone never trains on.
+
+A fifth change is of a different kind, and it is the one place where the published
+configuration does not survive the move to CGM. MAVEN's defining addition over its own base
+generator is a masked-imputation pass, whose stated purpose is to force the network to
+represent $p(\mathrm{channel}_j\mid\mathrm{other\ channels})$ --- the weakness identified on
+the high-channel benchmarks. The mask is drawn per channel across all tokens, so at $C=1$ it
+is one coin flip per window: with probability equal to the drawn ratio the only channel is
+masked, the network sees no observed values and is conditioned on its own detached prior,
+which is self-distillation rather than imputation; otherwise nothing is masked and the loss,
+normalised by a masked-cell count clamped below at one, is identically zero. Averaged over
+the ratio's prior the task is an identically-zero loss on roughly 60\% of draws and
+self-distillation on the rest, and it cannot learn inter-channel structure because a
+one-channel dataset has no channel pairs.
+
+We remove the degeneracy rather than the mechanism, by masking image cells rather than whole
+channels: the mask becomes an independent Bernoulli draw per (token, channel) at the same
+ratio, so at $C=1$ a random 20--60\% of a window's tokens are hidden and predicted from the
+rest. The masked fraction is then that same 20--60\% on every draw instead of all-or-nothing,
+and the objective takes the same form at both channel counts. At $C=2$ it \emph{subsumes} the
+published one, since a cell masked in one channel may be predicted from the observed cell in
+the other at the same token, and whole-channel masking is the degenerate corner of the same
+distribution. It is also the missingness CGM exhibits: sensors drop individual readings, not
+an entire modality for a whole window. Each view draws its own mask in its own image space,
+so nothing is required to transfer between the gather and spectral views; and the change is
+confined to training, the sampling path conditioning on an all-zero mask, so the released
+pipeline is identical either way.
+
+One consequence must be stated rather than assumed away. An objective that reconstructs
+masked content from 40--80\% real observed context is closer to autoencoding than
+unconditional generation is, and could raise memorisation rather than lower it. We therefore
+ablate the pass at both channel counts and report it through the same attack, so that its
+privacy cost, if any, is measured on the axis this paper is about rather than argued.
+
+\subsection{What the edit has to move}
+
+The attack was fixed in advance: for a subject $s$ with real windows $R_s$ and released set
+$S$,
+\begin{equation}
+d(s,S)\;=\;\frac{1}{|R_s|}\sum_{i}\;\min_{k}\;
+\frac{\lVert R_s[i]-S[k]\rVert_2}{\sqrt{TC}},
+\label{eq:attack}
+\end{equation}
+and the score is the gap $d(s,S_{\text{base}})-d(s,S_{\text{member}})$. Its scale is small
+--- the median gap is 2.5--4.9\% of the median nearest-neighbour distance at the
+checkpoint of maximum contrast --- and its direction dictates the mechanism. The attack becomes
+\emph{stronger}, not weaker, when all timing is destroyed: on per-channel sorted windows the
+arm AUC rises from $0.562/0.698/0.627$ to $0.828/0.781/0.905$ across the three completed
+conditions, all at $p<0.01$. We lead with the arm AUC because it is rank-based and
+pre-registered, so it requires neither a normalisation nor an aggregation convention. A
+relative-gap reading of the same comparison was computed twice, under different matching
+subsamples and aggregations; the two agree on the nearest-neighbour distances to within 5\%
+and on the direction of the effect but not on either arm's percentage, and an early reading
+that the control arm's quantile-space gap was exactly zero did not survive recomputation ---
+it is $+1.7\%$. We do not build on that percentage.
+
+Sorting is the right coordinate for an exact reason: it returns the window's empirical
+quantile function per channel, and $\lVert\operatorname{sort}x-\operatorname{sort}y\rVert_2 =
+\sqrt{T}\,W_2(\mu_x,\mu_y)$ for the two windows' empirical value distributions, so the
+leaking quantity is a Wasserstein-2 distance between per-window value distributions. This
+reconciles the result with the hour-of-day decomposition rather than opposing it: a patient's
+extreme values are realised in the morning, so it is the values that are memorised and the
+hour is where they occur. Sorting can only contract distances, so a quantile-space margin
+certifies a floor on the attack's own raw-space distance; but the sorted distance is
+0.19--0.21 of the raw one here, so that certificate excludes the copy-paste regime and
+nothing finer, and we claim no formal privacy guarantee.
+
+\subsection{Why the edit is directed}
+\label{ssec:directed}
+
+To raise a nearest-neighbour distance from $d_0$ to $d_0+g$, an edit directed along the line
+joining the real window to its nearest released sample needs $\lVert\Delta\rVert=g$, whereas
+an isotropic perturbation needs
+\begin{equation}
+\lVert\Delta\rVert_{\text{iso}}=\sqrt{(d_0+g)^2-d_0^2}\;\approx\;\sqrt{2d_0g},
+\label{eq:directed}
+\end{equation}
+because distance adds in quadrature. The ratio $\sqrt{2d_0/g}$ is arithmetic on the measured
+$d_0$ and $g$ of the checkpoint sweep, and at the checkpoint of maximum contrast --- the
+operating point at which we argue these quantities should be read --- it is $9.0$, $8.8$ and
+$6.4$ in the three conditions: for the same privacy gain, a directed edit needs six to nine
+times less perturbation than an isotropic one. This is the argument against defences that
+spend their budget isotropically, such as additive output noise, DP-SGD gradient noise or
+sampling-time dropout, which sit on the existing risk--quality curve by construction and cost
+a retrain per operating point; it is why we add no training-time privacy mechanism.
+
+Three qualifications belong with that figure. If distortion is second order in
+$\lVert\Delta\rVert$, the same gain costs the square of the ratio, some 40 to 80 times less
+fidelity --- but that is a prediction, not a result, and it is tested by sweeping the edit's
+scale and reading the exponent of the fidelity degradation. We do not assume second-order
+behaviour, since a generic displacement has a non-zero mean in embedding space and would cost
+linearly; we engineer it, through the barycentric construction below. Second,
+$\sqrt{2d_0/g}$ \emph{decreases} in $g$, falling to $3.4$ at the seven-day condition's
+40k-step checkpoint, so the design is most advantaged in the regime a well-trained,
+early-stopped generator is already in. Third, the argument is first order in one nearest
+neighbour: after the edit another released sample may become the nearest, capping the gain
+near the first-to-second nearest-neighbour spacing. That spacing is measurable on samples
+already in hand, without training, and is the cheapest falsification of the proposal, so we
+measure it first.
+
+\subsection{Rank-preserving quantile editing}
+% NAME PROVISIONAL: RQE (Rank-preserving Quantile Editing), per MODEL_DESIGN.md 2.6,
+% superseding the earlier working name QuantileShift. Recorded there as a preference, not
+% a finding. Settle before Results, where renaming stops being free.
+
+For each channel $c$ of a sample $x$, let $\pi_c=\operatorname{argsort}x[:,c]$ under a
+deterministic tie-break and $q_c=\operatorname{sort}x[:,c]$, an exact invertible
+decomposition with $x[t,c]=q_c[\operatorname{rank}_c(t)]$. We edit $q_c$ by a monotone map
+and reassemble with the original permutation, so every rank statistic survives exactly: the
+time of the peak and of the nadir, the ordering of every pair of timepoints, the rank
+autocorrelation at every lag, and the Spearman cross-channel correlation. Nothing moves in
+time --- we edit the axis our measurements say carries an individually attributable signal,
+and leave alone the axis they say does not.
+
+The first of the edit's two terms moves a sample off any single training window's quantile
+vector along the data manifold. Let $\mathcal{N}(x)$ be the $m$ nearest \emph{generated}
+samples of $x$ in quantile space, an index over the released set and never over real data,
+and with $w\sim\mathrm{Dirichlet}(\alpha\mathbf{1}_m)$ set $\tilde q=\sum_j w_jq_j$. In one
+dimension the Wasserstein-2 barycentre of a set of distributions is exactly the weighted
+average of their quantile functions, so $\tilde q$ is a genuine barycentre of nearby
+generated value distributions, monotone by construction. Mixing contracts second moments,
+which a per-level affine recalibration corrects with constants fitted in closed form on the
+released set; this is the step that removes the first-order distortion term.
+
+The second term is the privacy displacement. Against an index over the training windows'
+quantile vectors, for a sample whose nearest training quantile vector is $q^{R}$,
+\begin{equation}
+q'\;=\;\tilde q+\eta\,\rho(u)\odot\frac{\tilde q-q^{R}}{\lVert\tilde q-q^{R}\rVert},
+\label{eq:repel}
+\end{equation}
+where $\rho$ allocates margin over quantile level and $\eta$ is one global scalar in the
+units of the gap $g$, making $\eta\approx g$ the natural starting point; monotonicity is
+enforced by an isotonic projection whose activation rate is logged, its firing meaning $\eta$
+is too large for that sample. We take $\rho$ uniform: our decomposition of the sorted-space
+excess over quantile bands does find the top band enriched in all three conditions, which is
+why $\rho$ exists at all, but it was computed under the superseded subsample above and its
+stability is not established, so it licenses no particular shape. A fitted profile is an
+extension gated on that check, with uniform $\rho$ as its control. Per window, the repulsion
+is scaled by the window's local isolation in quantile space --- computable from the training
+set alone, with no attack run and no membership labels --- so that an outlier's isolated
+extreme days take most of the margin and the crowded bulk almost none. This is the capability
+early stopping cannot have, training length being a global knob while our audit finds
+exposure to be a stable property of particular individuals. It is equally the origin of the
+design's most specific attack surface, since a repulsive channel carves a low-density region
+around each protected window, so we report an adaptive local-density statistic beside the
+frozen one; and it means the released pipeline is not retrieval-free, but queries a
+training-set index per sample as the upstream editor does, to push away rather than to pull
+toward.
+
+Finally, $\eta$ is calibrated rather than maximised. The statistic is signed and the
+pre-registered test one-sided, so over-editing makes $d_{\text{in}}>d_{\text{out}}$, drives
+the one-sided AUC toward zero, and yields a perfect distinguisher for an attacker who knows a
+defence is deployed. We therefore reserve a calibration split of patients the backbone never
+trains on, form the nearest-neighbour distances from the released set to the training windows
+and to the held-out windows respectively, and choose $\eta$ to minimise a two-sample
+divergence between those distributions subject to a fidelity budget --- targeting exactly the
+quantity the attack reads, at zero from both sides rather than as far as it will go. The
+diagnostic that this succeeded requires the two-sided $|\mathrm{AUC}-0.5|$ beside the
+one-sided pre-registered value, since a one-sided reading cannot distinguish calibration to
+zero from overshoot into inversion. That reporting change amends a pre-registered protocol
+and is declared here as pending; the frozen one-sided statistic is reported unchanged in any
+case.
+
+Because the stage is post-hoc and deterministic given $\eta$, a grid of $\eta$ applied to one
+released set traces the whole risk--fidelity curve at no additional training cost, and a
+configuration flag recovers the unedited release from the same training run and the same
+noise draw. Two quantities it would be natural to quote alongside are not measured and are
+not presented as results. From reading the upstream implementation, the existing editor's own
+per-cell displacement appears to be of the same order as the membership signal $g$, which
+would mean the editing stage already operates at the right scale; that is an estimate from
+code, settled by one comparison once the backbone runs. And we expect the editor's
+training-set retrieval to \emph{increase} the measured gap, which is why we move its corpus
+to a reference split --- but no experiment here has tested that, and the three-way comparison
+that would, between training retrieval, reference-split retrieval and the unfused branch, is
+part of the experimental plan.
 
 \section{Experiments}
 \section{Results}

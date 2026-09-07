@@ -1,0 +1,24 @@
+{
+ "results/runs/igfm_priv_d1_c1/base": {
+  "n_restarts": 8,
+  "accs": [
+   0.49666666984558105,
+   0.49916666746139526,
+   0.5,
+   0.4983333349227905,
+   0.5,
+   0.4983333349227905,
+   0.4975000023841858,
+   0.4975000023841858
+  ],
+  "cohort": "data/cohort/matrix_d1_c1",
+  "reference": "results/matrix/design/rep1/jobs/base.json",
+  "n_real": 5741,
+  "min": 0.49666666984558105,
+  "median": 0.4983333349227905,
+  "max": 0.5,
+  "spread": 0.0033333301544189453,
+  "n_synth": 5741,
+  "subsample_seed": 2026
+ }
+}

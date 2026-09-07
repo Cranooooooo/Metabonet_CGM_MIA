@@ -1,0 +1,35 @@
+{
+  "runs": "results/runs/cp_matrix_d7_c2",
+  "replicates": [
+    1
+  ],
+  "n_subjects": 26,
+  "statistic": "per-subject Mann-Whitney AUC over windows, set_reduce=min",
+  "note": "secondary/exploratory; the frozen primary statistic is min x mean and its result is unchanged by anything here",
+  "by_group": {
+    "outlier": {
+      "n": 13,
+      "median": 0.9030470914127424,
+      "mean": 0.876810085423856,
+      "max": 1.0,
+      "q1": 0.8289930555555556,
+      "q3": 0.94,
+      "n_over_0_55": 13
+    },
+    "control": {
+      "n": 13,
+      "median": 0.8046875,
+      "mean": 0.7951090326960887,
+      "max": 0.9070247933884298,
+      "q1": 0.74,
+      "q3": 0.8767313019390581,
+      "n_over_0_55": 13
+    }
+  },
+  "exploratory_arm_auc_of_aucs": 0.7396449704142012,
+  "exploratory_arm_p": 0.02006856806576062,
+  "spearman_auc_vs_n_windows": {
+    "rho": 0.338719647162232,
+    "p": 0.090522158872501
+  }
+}

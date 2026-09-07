@@ -1,0 +1,21 @@
+{
+ "results/runs/bl_diffusion_ts_d1_c2/base": {
+  "correlational": 0.003941524817618039,
+  "mdd": 0.05068511963417943,
+  "acd": 0.8691373486188688,
+  "skewness_diff": 0.2960186895075371,
+  "kurtosis_diff": 2.9728541650290072,
+  "vds": 0.07842326226333778,
+  "fdds": 0.2956307331720988,
+  "context_fid": 2.0575687923182895,
+  "discriminative": 0.08249998092651367,
+  "predictive": 0.134461008310318,
+  "run": "results/runs/bl_diffusion_ts_d1_c2/base",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2026,
+  "label": "bl_diffusion_ts_d1_c2"
+ }
+}

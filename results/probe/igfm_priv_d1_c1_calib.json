@@ -1,0 +1,65 @@
+{
+ "cohort": "data/cohort/matrix_d1_c1",
+ "N": 5741,
+ "T": 288,
+ "C": 1,
+ "params": {
+  "hidden": 144,
+  "level_dims": 48,
+  "order_dims": 48,
+  "steps": 25000,
+  "sampling_steps": 500,
+  "save_every": 2000,
+  "keep_checkpoints": 2,
+  "coord_mask": true,
+  "p_block": 0.35,
+  "p_level": 0.25,
+  "iso_weight": false
+ },
+ "short": 8,
+ "long": 24,
+ "target_iters": 25000,
+ "target_n": 5741,
+ "attempts": [
+  {
+   "micro": 32,
+   "accum": 8,
+   "ok": true,
+   "t_short": 30.45,
+   "t_long": 15.18,
+   "sec_per_iter": -0.9542,
+   "fixed_overhead_s": 38.08,
+   "peak_alloc_gib": 3.03,
+   "peak_reserved_gib": 3.21,
+   "projected_fit_hours": -6.63,
+   "sample": {
+    "sample_batch": 64,
+    "n": 64,
+    "seconds": 9.33,
+    "peak_reserved_gib": 0.52,
+    "projected_hours": 0.23
+   },
+   "projected_total_hours": -6.4
+  }
+ ],
+ "recommended": {
+  "micro": 32,
+  "accum": 8,
+  "ok": true,
+  "t_short": 30.45,
+  "t_long": 15.18,
+  "sec_per_iter": -0.9542,
+  "fixed_overhead_s": 38.08,
+  "peak_alloc_gib": 3.03,
+  "peak_reserved_gib": 3.21,
+  "projected_fit_hours": -6.63,
+  "sample": {
+   "sample_batch": 64,
+   "n": 64,
+   "seconds": 9.33,
+   "peak_reserved_gib": 0.52,
+   "projected_hours": 0.23
+  },
+  "projected_total_hours": -6.4
+ }
+}

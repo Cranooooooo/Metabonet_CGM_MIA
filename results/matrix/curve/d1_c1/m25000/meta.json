@@ -1,0 +1,36 @@
+{
+ "job": "base",
+ "role": "base",
+ "milestone": 25000,
+ "from_checkpoint": "results/runs/igfm_curve_d1_c1/base/iter-25000.pt",
+ "K": 5741,
+ "T": 288,
+ "C": 1,
+ "generator": "igfm",
+ "params": {
+  "hidden": 144,
+  "level_dims": 48,
+  "order_dims": 48,
+  "steps": 25000,
+  "sampling_steps": 500,
+  "save_every": 2000,
+  "keep_checkpoints": 20,
+  "coord_mask": true,
+  "p_block": 0.35,
+  "p_level": 0.25,
+  "iso_weight": false,
+  "micro_batch": 32,
+  "n_samples": 5741,
+  "workdir": "results/runs/igfm_curve_d1_c1/base"
+ },
+ "job_seed": 3742878366,
+ "cohort": "data/cohort/matrix_d1_c1",
+ "subjects_sha1": "8cf77b7732b8fe79",
+ "sample_seconds": 829.55,
+ "sample_range": [
+  -0.6210627555847168,
+  1.3723952770233154
+ ],
+ "bit_reproducible": false,
+ "note": "budget-curve point from a restored checkpoint (scripts/igfm_budget_curve.py), NOT a campaign model. The draw is seeded per milestone so the 8 points are paired, but it is not the draw the campaign made -- training advances the RNG before it samples."
+}

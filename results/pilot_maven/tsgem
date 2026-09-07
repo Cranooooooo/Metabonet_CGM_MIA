@@ -1,0 +1,21 @@
+{
+ "results/runs/pilot_maven_d1_c1/base": {
+  "correlational": 1.2935208459907698e-13,
+  "mdd": 0.006113547733886467,
+  "acd": 0.2781763961766391,
+  "skewness_diff": 0.41672264361411876,
+  "kurtosis_diff": 0.9116686714394352,
+  "vds": 0.012948436352113882,
+  "fdds": 0.0,
+  "context_fid": 0.22555645653664347,
+  "discriminative": 0.005000025033950806,
+  "predictive": 0.01229530018568039,
+  "run": "results/runs/pilot_maven_d1_c1/base",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2026,
+  "label": null
+ }
+}

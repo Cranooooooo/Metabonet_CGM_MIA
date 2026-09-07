@@ -1,0 +1,55 @@
+[
+  {
+    "generator": "diffusion_ts",
+    "error": "OutOfMemoryError: CUDA out of memory. Tried to allocate 15.50 GiB. GPU 0 has a total capacity of 39.49 GiB of which 6.90 GiB is free. Including non-PyTorch memory, this process has 32.58 GiB memory in use. Of the allocated memory 20.33 GiB is allocated by PyTorch, and 11.74 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+  },
+  {
+    "generator": "fourier_diff",
+    "error": "OutOfMemoryError: CUDA out of memory. Tried to allocate 46.51 GiB. GPU 0 has a total capacity of 39.49 GiB of which 22.38 GiB is free. Including non-PyTorch memory, this process has 17.11 GiB memory in use. Of the allocated memory 16.12 GiB is allocated by PyTorch, and 488.16 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+  },
+  {
+    "generator": "diffwave",
+    "n_train": 5741,
+    "T": 2016,
+    "C": 1,
+    "params": 2718977,
+    "train_budget": {
+      "total_iters": 200,
+      "batch_size": 8
+    },
+    "sample_budget": {
+      "sample_batch": 128
+    },
+    "fit_seconds": 3.4,
+    "train_rate": {
+      "unit": "total_iters",
+      "per_unit_seconds": 0.0163,
+      "setup_seconds": 0.2,
+      "points": [
+        [
+          50,
+          0.9736900329589844
+        ],
+        [
+          200,
+          3.4202802181243896
+        ]
+      ]
+    },
+    "n_sampled": 512,
+    "sample_seconds": 36.0,
+    "seconds_per_sample": 0.07026,
+    "hours_for_K": 0.11,
+    "hours_for_49_models_sampling_only": 5.5,
+    "sample_shape": [
+      512,
+      2016,
+      1
+    ],
+    "sample_nan_frac": 0.0,
+    "sample_range": [
+      -1.3116718530654907,
+      1.477579116821289
+    ]
+  }
+]

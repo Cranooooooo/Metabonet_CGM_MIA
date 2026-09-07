@@ -68,3 +68,39 @@ attack:
   #                     confound the control matching exists to remove.
   #   subject_reduce=q10 passes, but with a larger |rho| (0.15 vs 0.12) and a smaller
   #                     effect-over-spread (0.18 vs 0.21) than the choice above.
+
+# ─── Quality gate ─────────────────────────────────────────────────────────────
+# REGISTERED 2026-08-28, BEFORE our generator was implemented or trained. The
+# reason for the date: a privacy number is meaningless unless the generator is
+# usable, and pure noise scores perfectly on every privacy statistic we have.
+# Fixing the bar after seeing our own model's quality would be selecting the test,
+# exactly as choosing the attack statistic on the outcome would be.
+quality:
+  gate_on: [context_fid, discriminative]
+  # context_fid  — the distributional metric; the one MAVEN itself reports.
+  # discriminative — read as the MAX over 8 restarts plus the spread, never a
+  #                  single fit (scripts/disc_stability.py explains why).
+  bar: no_worse_than_dimts_base
+  # RELATIVE, not absolute, and deliberately so: "beat the baseline" is then the
+  # definition of passing rather than a threshold we chose. Same cell, same
+  # checkpoint, same sampling_timesteps, same subsample seed.
+  reference:                # DiM-TS base, st500, results/matrix/quality_tsgem/
+    d1_c1: {context_fid: 0.0948, discriminative: 0.0238}
+    d1_c2: {context_fid: 0.1590, discriminative: 0.0263}
+    d7_c1: {context_fid: 0.3256, discriminative: 0.0062}
+    d7_c2: null             # pending; d7_c2 completes ~2026-08-30
+  anchors:
+    upper: copy_paste       # perfect fidelity, maximal leak. Bootstrap risk
+                            # ceiling 0.816 = 0.632*1.0 + 0.368*0.5, measured.
+    lower: gaussian_noise   # perfect privacy, zero utility. NOT YET MEASURED --
+                            # it exists to show the metrics have range at the
+                            # useless end, so that "our privacy improved" cannot
+                            # be read without seeing what noise scores.
+  order: quality_first
+  # Quality is computed and reported BEFORE any privacy statistic for the same
+  # model, and a model failing the gate is reported as failing it -- its privacy
+  # number is not quoted as an achievement.
+  on_gate_failure: report_the_gap
+  # If no edit strength reaches AUC 0.5 while still passing the gate, that is a
+  # negative result about our method and is reported as one, with the achieved
+  # (AUC, quality) pair. It is not resolved by relaxing the bar.

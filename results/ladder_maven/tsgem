@@ -1,0 +1,21 @@
+{
+ "results/runs/ladder_maven_d1_c1/base": {
+  "correlational": 7.991015256910336e-14,
+  "mdd": 0.006489663888611608,
+  "acd": 0.24741143537110685,
+  "skewness_diff": 0.4677827657518965,
+  "kurtosis_diff": 0.9510807171326882,
+  "vds": 0.019061787674824398,
+  "fdds": 0.0,
+  "context_fid": 0.2720672102306717,
+  "discriminative": 0.007499992847442627,
+  "predictive": 0.013154595755040646,
+  "run": "results/runs/ladder_maven_d1_c1/base",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2026,
+  "label": null
+ }
+}

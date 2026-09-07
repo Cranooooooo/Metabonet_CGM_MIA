@@ -536,3 +536,161 @@ discriminator's max median moved 0.12-0.18 absolute. They also degrade UNEVENLY 
 cells -- 1.84x for the seven-day cell against 1.21x and 1.13x for the one-day cells --
 so a cross-cell comparison at a reduced budget confounds window length with sampling
 budget even when every cell individually still looks acceptable.
+
+## 19. ⚠️ Silent: generation quality is scored against the model's OWN training set, so a perfect memoriser wins the gate
+
+`scripts/eval_quality.py:56` picks the reference set as
+
+```python
+real, _ = training_set(X, sids, job["subjects"])
+```
+
+and its docstring says so deliberately: "a model is scored against the distribution it
+was asked to reproduce rather than against the whole cohort". Every fidelity number in
+this repo -- `context_fid`, `discriminative`, `predictive`, and all ten `tsgen_metrics`
+columns -- is computed against the generator's own training windows. `eval_quality_tsgem.py`
+does the same.
+
+The consequence is not subtle and it does not need data to see: **a generator that
+replays its training set verbatim is, on a distributional distance to that same training
+set, exactly right.** The gate cannot separate "models the distribution well" from
+"memorised it".
+
+Measured. **Read the caveat under the table before quoting it** -- amended 2026-08-30
+after the panel exposed that this comparison is weaker than first written:
+
+| | Context-FID |
+|---|---|
+| `copy_paste` -- replays training windows verbatim | **0.070** |
+| DiM-TS d7_c1 @ 30k | 0.131 |
+| DiM-TS d7_c1 @ 60k | 0.287 |
+| DiM-TS d7_c1 @ 100k | 0.331 |
+
+The positive control for the *attack* -- the thing that memorises by construction, the
+thing whose whole purpose is to be maximally unsafe -- **appears to win the quality gate
+by 2 to 5x against the generator we are actually using.**
+
+> **CAVEAT, and it is bigger than the "nearly matched size" the first draft admitted.
+> These two numbers are not on the same cohort.** `copy_paste` was scored on
+> `metabonet_sid_c1_d7_contiguous` (573 subjects, 5,925 windows); DiM-TS on
+> `matrix_d7_c1` (506 subjects, 5,741 windows, block-matched subsample). Similar size is
+> not the same reference. The one-day `copy_paste` is worse still -- scored against
+> `metabonet875` at 179,084 windows, not comparable at all, which is why only the
+> seven-day cell could be shown anywhere.
+>
+> **The mechanism does not depend on the measurement.** A verbatim replay of a training
+> set is, on a distributional distance to that same training set, exactly right; that is
+> true a priori and needs no experiment. What the numbers above were doing was
+> *demonstrating* it, and they demonstrate it loosely.
+>
+> **Fixed by `scripts/pbs/N3_cp_matched.pbs`, submitted 2026-08-30**: copy_paste on all
+> four matrix cohorts, scored by the same script against the same training sets as the
+> DiM-TS numbers. It costs four quality evaluations and nothing else -- copy_paste does
+> not train (fit 0.0 s, sample 0.02 s). Replace the table above with its output.
+> Note this sharpens the diagnosis and is **not** the cure; the cure is the held-out
+> reference below.
+
+WHAT THIS DOES **NOT** MEAN -- RETRACTED 2026-08-30, and the retraction matters.
+
+An earlier version of this entry said "the two axes read the same object with opposite
+sign conventions" and concluded that Figure 2 could manufacture a trade-off where none
+exists. **That is wrong, and it contradicts the premise `MODEL_DESIGN.md` §0 is built on:**
+
+> The attack reads a **tail** property of the released set -- the distance from a real
+> window to its *nearest* synthetic neighbour. Every fidelity metric in both suites reads
+> a **bulk** property -- Context-FID is a Frechet distance between embedding means and
+> covariances [...] A perturbation that moves the nearest-neighbour tail while leaving the
+> bulk in place is therefore not a trade-off; it is arbitrage.
+
+Bulk and tail are different functionals. They are computed against the same reference set,
+which is not the same thing as being the same measurement.
+
+**And the data says the two axes separate a memoriser correctly.** `copy_paste` sits at
+Context-FID **0.070** with per-subject AUC **0.816** -- the memorisation ceiling
+(`COPY_PASTE_CEILING.md`). DiM-TS on `d1_c1` sits at **0.095** with a median AUC of
+**0.653**. The cheater is better on quality and far worse on privacy, which is exactly
+what the two axes are supposed to show. **"copy_paste wins the gate" is therefore not
+evidence of a broken metric.** The gate was never meant to reject a memoriser -- that is
+the risk axis's job. The gate exists to reject generators whose output is obviously fake,
+which is what it did to TimeVAE at 0.856.
+
+WHAT SURVIVES, AND IT IS NARROWER THAN THE ABOVE
+
+1. **The ruler is biased against our own defence.** Every mechanism in `MODEL_DESIGN.md`
+   §2 pushes released samples away from training windows, and a fidelity score measured
+   against those same windows mechanically worsens as a result. The bias is conservative
+   -- it makes our method look worse, not better -- but "lower risk at *equal quality*",
+   the claim Step 4 exists to make, is then being judged on ground that is not neutral.
+
+2. **Reproduction fidelity is not the same question as generalisation fidelity.** What a
+   data-release paper needs to know is whether a researcher can run the same analysis on
+   the synthetic data and get the same answer -- that is about matching the *population*.
+   Scored against the training sample, a model that fits that sample more tightly scores
+   better than one that captured the population. Among real generators this is a subtle
+   bias, not a dramatic one; `copy_paste` is the extreme case and the extreme case is
+   already caught by the risk axis.
+
+WHAT IT DOES NOT BLOCK. Scoring is **post-hoc on released sample sets**, so it can be
+redone at any time without retraining or resampling. It therefore does **not** gate the
+Step 2 matrix, and an earlier version of `PAPER_PLAN.md`'s execution order that put it
+first "because you cannot spend a month of GPU on a contaminated ruler" was wrong on that
+point: you can spend the GPU and re-score afterwards. Do it because it removes a real bias
+from the Step 4 claim, not because anything is waiting on it.
+
+WHAT TO DO. Score fidelity against a **held-out reference**: real windows from subjects
+no model in the comparison trained on. The pool exists and is large --
+`data/cohort/metabonet_sid_c1` has 1,329 subjects and the matrix cohort uses 506, so
+roughly 800 are unused. This needs no retraining; it re-runs the existing evaluation on
+released sets already on disk.
+
+Report BOTH. The training-referenced number answers a real and separate question ("did
+this reproduce the distribution it was given"), and the **difference between the two is
+itself a memorisation measure** -- `copy_paste` should show a large gap and a generator
+that has learned the distribution should show almost none. That difference is worth a
+figure, not just a correction.
+
+WHAT IS NOT AFFECTED. The attack side. Every membership number in this repo compares a
+target against two models, one that trained on them and one that did not, so the
+non-member counterfactual is built into the design and no held-out set is required.
+Steps 1, 3a, 3b and 3c stand unchanged. TimeVAE's rejection at 0.856 also stands: that is
+12x `copy_paste` and fails under any reference.
+
+## 20. ⚠️ Silent: "how many of 26 exceed AUC 0.55" has a floor of 7–12, not ~1
+
+Every count in this project of the form "N of 26 patients are identifiable" is read against
+an implicit null of "almost nobody". That null was never measured. It has now been, and it
+is nowhere near zero.
+
+`scripts/leak_locus.py` includes a floor control: shuffle the values **within** each window,
+so every trace of "which record belongs to whom" is destroyed, then run the identical
+distance computation and the identical per-subject AUC. It must read 0.5.
+
+| cell | floor: median AUC | floor: **n of 26 above 0.55** | raw: median | raw: n above 0.55 |
+|---|---|---|---|---|
+| d1_c1 | 0.503 | **7** | 0.653 | 24 |
+| d1_c2 | 0.503 | **8** | 0.575 | 15 |
+| d7_c1 | 0.509 | **12** | 0.691 | 25 |
+| d7_c2 | 0.516 | **8** | 0.542 | 13 |
+
+**The median behaves; the count does not.** The median lands at 0.503–0.516 as it should.
+The count lands at 7–12 of 26 — a false-positive rate of 27–46%, not the 5% a reader
+assumes.
+
+WHY. Subjects have very unequal window counts; several have only 4–6. A Mann–Whitney AUC
+over n windows moves in steps of 1/n², so at n = 5 the statistic can only take values
+0, 0.04, 0.08, … and crossing 0.55 by chance is routine. The count is dominated by the
+short-record subjects.
+
+WHAT THIS INVALIDATES. Not the direction of any finding — raw sits far above the floor in
+every cell — but the *strength* of every count-based sentence. Specifically, this panel and
+`PAPER_PLAN.md` have said things like "24 of 26 are identifiable" and, worse, "if the
+defence worked we would see the count fall to 1 or 2, so the absence of improvement is
+real". **That second sentence assumed a 5% floor and is wrong**: the floor is 7–12, so a
+defence that took the count from 12 to 10 was being judged against the wrong scale.
+
+WHAT TO DO.
+1. **Report the median per-subject AUC as the primary statistic**, with the shuffle floor
+   beside it. It is well behaved and the two separate cleanly.
+2. If a count is quoted, **quote the measured floor in the same sentence**, never an
+   assumed one.
+3. Run the floor control in any new cell. It costs one extra transform in the same job.

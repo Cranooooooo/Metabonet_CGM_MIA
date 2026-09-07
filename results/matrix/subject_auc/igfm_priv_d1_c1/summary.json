@@ -1,0 +1,35 @@
+{
+  "runs": "results/runs/loo_igfm_priv_d1_c1",
+  "replicates": [
+    1
+  ],
+  "n_subjects": 26,
+  "statistic": "per-subject Mann-Whitney AUC over windows, set_reduce=min",
+  "note": "secondary/exploratory; the frozen primary statistic is min x mean and its result is unchanged by anything here",
+  "by_group": {
+    "outlier": {
+      "n": 13,
+      "median": 0.5625,
+      "mean": 0.5706113790818526,
+      "max": 0.9409722222222222,
+      "q1": 0.48148148148148145,
+      "q3": 0.6,
+      "n_over_0_55": 7
+    },
+    "control": {
+      "n": 13,
+      "median": 0.5069444444444444,
+      "mean": 0.5002887257107438,
+      "max": 0.5625,
+      "q1": 0.48,
+      "q3": 0.5454545454545454,
+      "n_over_0_55": 3
+    }
+  },
+  "exploratory_arm_auc_of_aucs": 0.6804733727810651,
+  "exploratory_arm_p": 0.061775072713209735,
+  "spearman_auc_vs_n_windows": {
+    "rho": 0.02054956428732555,
+    "p": 0.920630510762825
+  }
+}

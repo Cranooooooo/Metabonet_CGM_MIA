@@ -1,0 +1,54 @@
+[
+  {
+    "generator": "diffusion_ts",
+    "n_train": 5741,
+    "T": 288,
+    "C": 2,
+    "gen_params": {
+      "n_layer_enc": 4,
+      "n_layer_dec": 4,
+      "d_model": 96,
+      "n_heads": 4,
+      "mlp_hidden_times": 4,
+      "timesteps": 500
+    },
+    "params": 2001730,
+    "train_budget": {
+      "max_epochs": 200,
+      "batch_size": 64,
+      "gradient_accumulate_every": 1
+    },
+    "sample_budget": {},
+    "fit_seconds": 16.4,
+    "train_rate": {
+      "unit": "max_epochs",
+      "per_unit_seconds": 0.0568,
+      "setup_seconds": 5.0,
+      "points": [
+        [
+          50,
+          7.828101873397827
+        ],
+        [
+          200,
+          16.354477167129517
+        ]
+      ]
+    },
+    "n_sampled": 512,
+    "sample_seconds": 146.2,
+    "seconds_per_sample": 0.28562,
+    "hours_for_K": 0.46,
+    "hours_for_49_models_sampling_only": 22.3,
+    "sample_shape": [
+      512,
+      288,
+      2
+    ],
+    "sample_nan_frac": 0.0,
+    "sample_range": [
+      -1.0,
+      1.0
+    ]
+  }
+]

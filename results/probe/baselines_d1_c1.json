@@ -1,0 +1,140 @@
+[
+  {
+    "generator": "diffusion_ts",
+    "n_train": 5741,
+    "T": 288,
+    "C": 1,
+    "params": 223719,
+    "train_budget": {
+      "max_epochs": 200,
+      "batch_size": 64,
+      "gradient_accumulate_every": 1
+    },
+    "sample_budget": {},
+    "fit_seconds": 3.7,
+    "train_rate": {
+      "unit": "max_epochs",
+      "per_unit_seconds": -0.2109,
+      "setup_seconds": 45.9,
+      "points": [
+        [
+          50,
+          35.34449791908264
+        ],
+        [
+          200,
+          3.7162508964538574
+        ]
+      ],
+      "unmeasured": "setup (46s) dominates both budgets (50, 200 max_epochs); the per-max_epochs cost is NOT resolved. Either the adapter ignores 'max_epochs' (grep its cfg.get first), or the budget is too small. Do not read per_unit_seconds."
+    },
+    "n_sampled": 512,
+    "sample_seconds": 24.2,
+    "seconds_per_sample": 0.04736,
+    "hours_for_K": 0.08,
+    "hours_for_49_models_sampling_only": 3.7,
+    "sample_shape": [
+      512,
+      288,
+      1
+    ],
+    "sample_nan_frac": 0.0,
+    "sample_range": [
+      -1.0,
+      1.0
+    ]
+  },
+  {
+    "generator": "fourier_diff",
+    "n_train": 5741,
+    "T": 288,
+    "C": 1,
+    "params": 786887,
+    "train_budget": {
+      "max_epochs": 4,
+      "batch_size": 64,
+      "collapse_ratio_max": 1.1
+    },
+    "sample_budget": {
+      "num_diffusion_steps": 1000,
+      "sample_batch": 128
+    },
+    "fit_seconds": 15.7,
+    "train_rate": {
+      "unit": "max_epochs",
+      "per_unit_seconds": -0.5235,
+      "setup_seconds": 17.7,
+      "points": [
+        [
+          1,
+          17.220744848251343
+        ],
+        [
+          4,
+          15.650251150131226
+        ]
+      ],
+      "unmeasured": "setup (18s) dominates both budgets (1, 4 max_epochs); the per-max_epochs cost is NOT resolved. Either the adapter ignores 'max_epochs' (grep its cfg.get first), or the budget is too small. Do not read per_unit_seconds."
+    },
+    "n_sampled": 512,
+    "sample_seconds": 91.6,
+    "seconds_per_sample": 0.17881,
+    "hours_for_K": 0.29,
+    "hours_for_49_models_sampling_only": 14.0,
+    "sample_shape": [
+      512,
+      288,
+      1
+    ],
+    "sample_nan_frac": 0.0,
+    "sample_range": [
+      -9.537988662719727,
+      18.70789909362793
+    ]
+  },
+  {
+    "generator": "diffwave",
+    "n_train": 5741,
+    "T": 288,
+    "C": 1,
+    "params": 2718977,
+    "train_budget": {
+      "total_iters": 200,
+      "batch_size": 64
+    },
+    "sample_budget": {
+      "sample_batch": 128
+    },
+    "fit_seconds": 3.6,
+    "train_rate": {
+      "unit": "total_iters",
+      "per_unit_seconds": 0.0156,
+      "setup_seconds": 0.5,
+      "points": [
+        [
+          50,
+          1.3064830303192139
+        ],
+        [
+          200,
+          3.649076461791992
+        ]
+      ]
+    },
+    "n_sampled": 512,
+    "sample_seconds": 5.9,
+    "seconds_per_sample": 0.01161,
+    "hours_for_K": 0.02,
+    "hours_for_49_models_sampling_only": 0.9,
+    "sample_shape": [
+      512,
+      288,
+      1
+    ],
+    "sample_nan_frac": 0.0,
+    "sample_range": [
+      -0.4105505049228668,
+      0.966331958770752
+    ]
+  }
+]

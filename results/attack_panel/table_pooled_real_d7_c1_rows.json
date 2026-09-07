@@ -1,0 +1,2962 @@
+{
+ "C1_logreg x F1_min": {
+  "main": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.7582644628099173
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.6388888888888888
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.86
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.640625
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.7091836734693877
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.62
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.859375
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.48
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.66
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.76
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.815
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.6419753086419753
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.6875
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.7
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.5883264462809917
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.6274238227146814
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.53125
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 1.0
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.7513850415512465
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.7678571428571429
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.6605902777777778
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.94
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.6322314049586777
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.8
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.5661157024793388
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.59
+   }
+  ],
+  "negative_control": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.5151515151515151
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.5102880658436214
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.49333333333333335
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.3958333333333333
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.44727891156462585
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5066666666666667
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.5
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.44
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.49333333333333335
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.48
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.5633333333333334
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.4691358024691358
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5208333333333334
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5733333333333334
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.5117079889807162
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.47830101569713757
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.33622685185185186
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.39335180055401664
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.49829931972789115
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.5115740740740741
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.4266666666666667
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.6115702479338843
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.56
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.4972451790633609
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5733333333333334
+   }
+  ]
+ },
+ "C1_logreg x F3_raw10": {
+  "main": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.8326446280991735
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.6728395061728395
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.8975
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.734375
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.7818877551020408
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.73
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 1.0
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.58
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.84
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.71
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.925
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.654320987654321
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.71875
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.73
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.7014462809917356
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.6939058171745153
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.34375
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.9952256944444444
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.4051246537396122
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.8507653061224489
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.8133680555555556
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 1.0
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.34917355371900827
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.77
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.7339876033057852
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.74
+   }
+  ],
+  "negative_control": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.465564738292011
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.5308641975308642
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.4666666666666667
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.4791666666666667
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.40476190476190477
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.6266666666666667
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.4791666666666667
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5866666666666667
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.4533333333333333
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.52
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.6433333333333333
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.411522633744856
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5416666666666666
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.6266666666666667
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.5433884297520661
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.5207756232686981
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.4375
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.703125
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.38134810710988
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.45408163265306123
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.5347222222222222
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.49333333333333335
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.5234159779614325
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.41333333333333333
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.36019283746556474
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.7333333333333333
+   }
+  ]
+ },
+ "C2_tree x F3_raw10": {
+  "main": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.625
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.6049382716049383
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.8575
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.5
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.5625
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.796875
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.585
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.68
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.8
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.6111111111111112
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.625
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.7
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.6340392561983471
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.6225761772853186
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.53125
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.828125
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.45914127423822715
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.7895408163265306
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.6158854166666666
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.3
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.4772727272727273
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.8
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.4659090909090909
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5
+   }
+  ],
+  "negative_control": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.5247933884297521
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.5
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.5216666666666666
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.5
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.48894557823129253
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.5833333333333334
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5466666666666666
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.5
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.5
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.49173553719008267
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.5004616805170822
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5416666666666666
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.2986111111111111
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.48337950138504154
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.5119047619047619
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.5196759259259259
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.4696969696969697
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.5151515151515151
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5
+   }
+  ]
+ },
+ "C3_forest x F3_raw10": {
+  "main": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.7210743801652892
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.691358024691358
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.95625
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.8359375
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.7295918367346939
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.59
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.984375
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.54
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.87
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.73
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.88375
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.6466049382716049
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5546875
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.66
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.7257231404958677
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.6963296398891967
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.5744357638888888
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.7323407202216067
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.8105867346938775
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.775390625
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.315
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.5351239669421488
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.755
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.5674070247933884
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.43
+   }
+  ],
+  "negative_control": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.4049586776859504
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.4897119341563786
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.5
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.6041666666666666
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.5246598639455783
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.3333333333333333
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.4166666666666667
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.36
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.6333333333333333
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.46
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.5283333333333333
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.588477366255144
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5466666666666666
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.5585399449035813
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.36426592797783935
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.46875
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.2025462962962963
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.3444136657433056
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.560374149659864
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.5104166666666666
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5866666666666667
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.4724517906336088
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.7066666666666667
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.4466253443526171
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.4066666666666667
+   }
+  ]
+ },
+ "C4_hgb x F3_raw10": {
+  "main": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.78099173553719
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.7052469135802469
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.9675
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.96875
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.7614795918367347
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.68
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.984375
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.56
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.89
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.73
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.89625
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.7469135802469136
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.7265625
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.71
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.7076446280991735
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.7638504155124654
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.46875
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.8381076388888888
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.45290858725761773
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.8520408163265306
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.7569444444444444
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.12
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.6260330578512396
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.83
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.6492768595041323
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.55
+   }
+  ],
+  "negative_control": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.49586776859504134
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.48148148148148145
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.5666666666666667
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.5416666666666666
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.4923469387755102
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.43333333333333335
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.4479166666666667
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5466666666666666
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.52
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5333333333333333
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.5283333333333333
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.6995884773662552
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5416666666666666
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5466666666666666
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.5289256198347108
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.47830101569713757
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5104166666666666
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.3929398148148148
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.40166204986149584
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.5229591836734694
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.5376157407407407
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.49333333333333335
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.4573002754820937
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.49333333333333335
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.45179063360881544
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.6
+   }
+  ]
+ },
+ "C5_svm x F3_raw10": {
+  "main": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.7913223140495868
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.6851851851851852
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.885
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.90625
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.7551020408163265
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.79
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.984375
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.54
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.89
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.76
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.925
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.691358024691358
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.734375
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.73
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.7133264462809917
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.682825484764543
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.453125
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 1.0
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.628808864265928
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.8227040816326531
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.7730034722222222
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.76
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.4896694214876033
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.71
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.7484504132231405
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.67
+   }
+  ],
+  "negative_control": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.4573002754820937
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.5061728395061729
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.47333333333333333
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.6875
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.4336734693877551
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.6266666666666667
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.4166666666666667
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.4666666666666667
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.4533333333333333
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5066666666666667
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.5666666666666667
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.48148148148148145
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.4791666666666667
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.6266666666666667
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.5199724517906336
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.5226223453370268
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.3958333333333333
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.1440972222222222
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.41735918744228995
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.45918367346938777
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.5005787037037037
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.44
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.512396694214876
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.49333333333333335
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.3002754820936639
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.68
+   }
+  ]
+ },
+ "C6_mlp x F3_raw10": {
+  "main": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.7045454545454546
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.6882716049382716
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.8025
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.578125
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.7270408163265306
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.67
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.9375
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.45
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.81
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.83
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.8125
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.6820987654320988
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.6875
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.73
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.6286157024793388
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.618421052631579
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.4375
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.016927083333333332
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.2299168975069252
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.7576530612244898
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.6458333333333334
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.26
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.3119834710743802
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.79
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.4690082644628099
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.46
+   }
+  ],
+  "negative_control": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.4738292011019284
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.5061728395061729
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.49333333333333335
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.4791666666666667
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.41836734693877553
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.4666666666666667
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.4791666666666667
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.6
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.4
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.52
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.5466666666666666
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.46502057613168724
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5416666666666666
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.52
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.4951790633608815
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.5078485687903971
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5625
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.6238425925925926
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.6481994459833795
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.5034013605442177
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.5005787037037037
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5733333333333334
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.35537190082644626
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5466666666666666
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.4896694214876033
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.41333333333333333
+   }
+  ]
+ },
+ "C4_hgb x F2_cheap4": {
+  "main": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.7252066115702479
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.6604938271604939
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.915
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.7421875
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.7595663265306123
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.575
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 1.0
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.69
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.68
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.73
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.88375
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.7283950617283951
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.6640625
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.7
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.6722623966942148
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.7770083102493075
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5078125
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.8658854166666666
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.6118421052631579
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.7742346938775511
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.7938368055555556
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.38
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.5557851239669421
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.76
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.5841942148760331
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.51
+   }
+  ],
+  "negative_control": [
+   {
+    "target": "DCLP3/10",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 11,
+    "auc": 0.4696969696969697
+   },
+   {
+    "target": "DCLP3/102",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 9,
+    "auc": 0.5432098765432098
+   },
+   {
+    "target": "DCLP3/111",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 10,
+    "auc": 0.5533333333333333
+   },
+   {
+    "target": "DCLP3/114",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.5625
+   },
+   {
+    "target": "DCLP3/134",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 14,
+    "auc": 0.4421768707482993
+   },
+   {
+    "target": "DCLP3/135",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.43333333333333335
+   },
+   {
+    "target": "DCLP3/144",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 4,
+    "auc": 0.2916666666666667
+   },
+   {
+    "target": "DCLP3/171",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5733333333333334
+   },
+   {
+    "target": "DCLP3/43",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.5266666666666666
+   },
+   {
+    "target": "DCLP3/68",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 5,
+    "auc": 0.4
+   },
+   {
+    "target": "DCLP3/91",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 10,
+    "auc": 0.4683333333333333
+   },
+   {
+    "target": "DCLP5/52",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 9,
+    "auc": 0.6255144032921811
+   },
+   {
+    "target": "DCLP5/81",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.5520833333333334
+   },
+   {
+    "target": "Loop/100",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.5466666666666666
+   },
+   {
+    "target": "Loop/1071",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 22,
+    "auc": 0.5368457300275482
+   },
+   {
+    "target": "Loop/1116",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 19,
+    "auc": 0.48753462603878117
+   },
+   {
+    "target": "Loop/1120",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 4,
+    "auc": 0.4479166666666667
+   },
+   {
+    "target": "Loop/1142",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 24,
+    "auc": 0.3666087962962963
+   },
+   {
+    "target": "Loop/1153",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 19,
+    "auc": 0.42566943674976915
+   },
+   {
+    "target": "Loop/19",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 14,
+    "auc": 0.43537414965986393
+   },
+   {
+    "target": "Loop/317",
+    "rep": 1,
+    "group": "control",
+    "n_windows": 24,
+    "auc": 0.5555555555555556
+   },
+   {
+    "target": "Loop/342",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.6
+   },
+   {
+    "target": "Loop/467",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 11,
+    "auc": 0.5234159779614325
+   },
+   {
+    "target": "Loop/633",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.56
+   },
+   {
+    "target": "Loop/727",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 22,
+    "auc": 0.5643939393939394
+   },
+   {
+    "target": "Loop/968",
+    "rep": 1,
+    "group": "outlier",
+    "n_windows": 5,
+    "auc": 0.6133333333333333
+   }
+  ]
+ }
+}

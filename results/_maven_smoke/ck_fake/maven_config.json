@@ -1,0 +1,27 @@
+{
+ "affine": {
+  "lo": [
+   -0.3163795471191406
+  ],
+  "hi": [
+   0.015934541821479797
+  ]
+ },
+ "dims": "64,32,32,64",
+ "view_a": "delay",
+ "fold_period": 288,
+ "delay_tau": 4,
+ "delay_m": 8,
+ "stft_n_fft": 96,
+ "stft_hop": 48,
+ "n_heads": 4,
+ "mask_mode": "cell",
+ "seed": 2026,
+ "total_iters": 20,
+ "T": 288,
+ "C": 1,
+ "N": 256,
+ "L_A": 568,
+ "L_B": 686,
+ "params": 411141
+}

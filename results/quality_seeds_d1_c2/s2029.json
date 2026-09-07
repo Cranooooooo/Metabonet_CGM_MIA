@@ -1,0 +1,40 @@
+{
+ "results/runs/igfm_priv_d1_c2/base": {
+  "correlational": 0.0015918621717102323,
+  "mdd": 0.0012368200727230771,
+  "acd": 0.2876054651307301,
+  "skewness_diff": 0.03962321002551098,
+  "kurtosis_diff": 0.18576164491082028,
+  "vds": 0.0010521320703749855,
+  "fdds": 0.03373617803057035,
+  "context_fid": 0.06274578788229294,
+  "discriminative": 0.007500022649765015,
+  "predictive": 0.12639714127779006,
+  "run": "results/runs/igfm_priv_d1_c2/base",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2029,
+  "label": "d1c2_seed2029"
+ },
+ "results/runs/matrix_d1_c2/base": {
+  "correlational": 0.003825294090671045,
+  "mdd": 0.004776183986749542,
+  "acd": 0.3362236844568749,
+  "skewness_diff": 0.06837086929083962,
+  "kurtosis_diff": 0.2496869263348449,
+  "vds": 0.004485723135682444,
+  "fdds": 0.12332344800233841,
+  "context_fid": 0.20047889488122084,
+  "discriminative": 0.007499992847442627,
+  "predictive": 0.12689904993772508,
+  "run": "results/runs/matrix_d1_c2/base",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2029,
+  "label": "d1c2_seed2029"
+ }
+}

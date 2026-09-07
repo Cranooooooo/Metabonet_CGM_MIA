@@ -1,0 +1,21 @@
+{
+ "results/runs/pilot_igfm_d1_c1/base": {
+  "correlational": 1.1405691206315777e-14,
+  "mdd": 0.0013714336070902815,
+  "acd": 0.06657600017464192,
+  "skewness_diff": 0.027543083418675618,
+  "kurtosis_diff": 0.1540961870047465,
+  "vds": 0.00043791349162347615,
+  "fdds": 0.0,
+  "context_fid": 0.039376323383426906,
+  "discriminative": 0.009999990463256836,
+  "predictive": 0.01166764672100544,
+  "run": "results/runs/pilot_igfm_d1_c1/base",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2026,
+  "label": "igfm_d1_c1"
+ }
+}
