@@ -83,16 +83,24 @@ class IGFMGenerator(GeneratorBase):
             n_dec_layers=int(p.get("n_dec_layers", 4)),
             n_heads=int(p.get("n_heads", 8)),
             window=self.T,
+            # 改动二:瓶颈里划给「水平」的通道数。0 = 关
+            level_dims=int(p.get("level_dims", 0)),
         )
 
     # -- core API --------------------------------------------------------
     def fit(self, X: np.ndarray, train_cfg: Dict[str, Any] | None = None) -> "IGFMGenerator":
         import torch
         core = _core()
-        cfg = dict(train_cfg or {})
+        # 构造参数必须先并进来。run_loo.py 把 --params 交给构造函数,然后调 fit() 时
+        # 不传 train_cfg(loo/train.py),所以只读 train_cfg 的话 --params 全被静默丢弃 ——
+        # 训练会用 300000 的默认值跑完并正常退出,而 meta.json 里记的是我们要的 30000。
+        # dimts.py 和 maven.py 是对的写法(cfg = dict(self.params)),这里跟上。
+        cfg = dict(self.params); cfg.update(train_cfg or {})
         X = self._check_X(X)
 
-        total_iters = int(cfg.get("total_iters", 300000))
+        # `steps` 是本项目通用的名字(dimts/maven 都用它);`total_iters` 是上游的名字。
+        # 两个都认,免得再出一次「名字对不上就静默用默认值」。
+        total_iters = int(cfg.get("steps", cfg.get("total_iters", 300000)))
         eff_batch = int(cfg.get("batch_size", 256))          # upstream's effective batch
         micro = int(cfg.get("micro_batch", 32))              # what actually fits at T=288
         accum = max(1, eff_batch // micro)
@@ -107,6 +115,27 @@ class IGFMGenerator(GeneratorBase):
         corrmap_a = float(cfg.get("corrmap_alpha", 0.1))
         # IDG conditioning-mask schedule. training_step takes these positionally with
         # no defaults, so they must be supplied; values are upstream's CLI defaults.
+        # 三个隐私模块的开关。默认全关 -> 训练路径和原版逐位一致,
+        # 之前那个质量 0.0394 仍可复现。开关含义见 vendor/IG-FM/igfm_core.py。
+        # ⚠️ 改动三只在一天窗口(T=288)上验过前提,七天上被证伪,所以这里硬拦一道。
+        iso_on = bool(cfg.get("iso_weight", False))
+        if iso_on and self.T != 288:
+            raise ValueError(
+                f"iso_weight(改动三)的前提只在 T=288 上验过,七天窗口上被证伪;"
+                f"当前 T={self.T}。要在别的窗口长度上用,先把前提重测一遍。")
+        mod_kw = dict(
+            coord_mask=bool(cfg.get("coord_mask", False)),
+            p_block=float(cfg.get("p_block", 0.35)),
+            p_level=float(cfg.get("p_level", 0.25)),
+            block_lo=float(cfg.get("block_lo", 0.15)),
+            block_hi=float(cfg.get("block_hi", 0.55)),
+            level_dims=int(self.params.get("level_dims", 0)),
+            order_dims=int(self.params.get("order_dims", 0)),
+            iso_weight=iso_on,
+            iso_bucket=int(cfg.get("iso_bucket", 12)),
+            iso_knn=int(cfg.get("iso_knn", 5)),
+            iso_power=float(cfg.get("iso_power", 1.0)),
+        )
         mask_kw = dict(
             p_pure_gen=float(cfg.get("p_pure_gen", 0.10)),
             p_cond_low=float(cfg.get("p_cond_low", 0.40)),
@@ -140,7 +169,10 @@ class IGFMGenerator(GeneratorBase):
         # newest (one is enough to resume; the second guards a half-written file).
         save_every = int(cfg.get("save_every", 2000))
         keep = int(cfg.get("keep_checkpoints", 2))
-        resume_dir = cfg.get("resume_dir")
+        # 默认落在 workdir 里。不给默认值的话周期性存档整段是死代码 ——
+        # 一次 walltime 杀死就是全丢,而且事后无法挽救(IGFMGenerator 从不调
+        # _checkpoint,所以没有 milestone 目录可以重采样)。
+        resume_dir = cfg.get("resume_dir") or cfg.get("workdir")
         start_it = 0
         if resume_dir:
             rd = Path(resume_dir); rd.mkdir(parents=True, exist_ok=True)
@@ -180,14 +212,19 @@ class IGFMGenerator(GeneratorBase):
         N = data.shape[0]
         M_obs = torch.ones(micro, self.T, self.C, device=dev)
         self._model.train()
+        # 按任务累计填充误差。改动一的可证伪预测就靠这个读 ——
+        # 之前这里是 loss, _met = ...(metrics 被丢掉),结果训完只能事后拿权重补测。
+        task_acc = {}
         for it in range(start_it, total_iters):
             lam = core.lambda_schedule(it, schedule)
             opt.zero_grad(set_to_none=True)
             for _ in range(accum):
                 idx = torch.randint(0, N, (micro,), device=dev)
-                loss, _met = core.training_step(
+                loss, met = core.training_step(
                     self._model, data[idx], M_obs, lam,
-                    decor_alpha=decor_a, corrmap_alpha=corrmap_a, **mask_kw)
+                    decor_alpha=decor_a, corrmap_alpha=corrmap_a, **mask_kw, **mod_kw)
+                s = task_acc.setdefault(met["task"], [0.0, 0])
+                s[0] += met["L_imp"]; s[1] += 1
                 (loss / accum).backward()
             if clip > 0:
                 torch.nn.utils.clip_grad_norm_(self._model.parameters(), clip)
@@ -196,8 +233,11 @@ class IGFMGenerator(GeneratorBase):
             if (it + 1) % save_every == 0:
                 _save(it + 1)
             if (it + 1) % 5000 == 0:
-                print(f"[igfm] iter {it+1}/{total_iters} loss={float(loss):.5f} lam={lam}",
-                      flush=True)
+                per = " ".join(f"{k}={v[0]/max(v[1],1):.5f}(n={v[1]})"
+                               for k, v in sorted(task_acc.items()))
+                print(f"[igfm] iter {it+1}/{total_iters} loss={float(loss):.5f} "
+                      f"lam={lam} | per-task L_imp: {per}", flush=True)
+                task_acc.clear()
         _save(total_iters)
         self._fitted = True
         return self
@@ -207,7 +247,9 @@ class IGFMGenerator(GeneratorBase):
         core = _core()
         if not self._fitted:
             raise RuntimeError("IGFMGenerator.sample before fit")
-        cfg = dict(sample_cfg or {})
+        # 同上:sample() 也收不到 sample_cfg,不并进构造参数的话 sampling_steps 会被
+        # 静默忽略,采样退回 200 步,而我们的参照集是 500 步的。
+        cfg = dict(self.params); cfg.update(sample_cfg or {})
         dev = torch.device(self.device if torch.cuda.is_available() else "cpu")
         net = self._ema.module if self._ema is not None else self._model
         net.eval()
