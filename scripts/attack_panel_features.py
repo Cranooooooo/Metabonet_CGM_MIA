@@ -83,13 +83,32 @@ def main():
     groups = {j["target"]: j.get("group") for j in jobs.values() if j.get("target")}
     print(f"[panel] rep{a.rep}: {len(targets)} targets, runs={runs}", flush=True)
 
+    # ⚠️ The job NAME and the target ID are not the same string on every cohort.
+    # `loo.design.safe()` cannot put a slash in a filename, so target "DCLP3/102"
+    # becomes job "include_DCLP3__102", and `lengths` / the run directories are keyed
+    # on the job name while `targets` holds the real id. `assign_negative_sets` builds
+    # "include_<target>", so it hands back names that do not exist on these cohorts.
+    # This stayed hidden because the cohort this script was written against used bare
+    # numeric ids, where the two strings happen to be identical.
+    # Translating here rather than inside assign_negative_sets keeps that function's
+    # draw byte-identical -- it is seeded on the target string, so the prototype's
+    # negative sets stay reproducible.
+    alias = {f"include_{j['target']}": j["name"] for j in jobs.values()
+             if j.get("role") == "include" and j.get("target")}
+    alias["base"] = "base"
+
     lengths = {n: npy_len(runs / n / "samples.npy") for n in jobs}
 
     # Which sets each subject needs, and the K they are all cut to.
     need, kof = {}, {}
     for t in targets:
-        sets = [f"include_{t}"] + P.assign_negative_sets(t, targets, n_neg=a.n_neg,
-                                                         seed=a.seed)
+        raw = [f"include_{t}"] + P.assign_negative_sets(t, targets, n_neg=a.n_neg,
+                                                        seed=a.seed)
+        missing = [s for s in raw if s not in alias]
+        if missing:                       # 宁可现在炸,也不要静默少算几个负例
+            sys.exit(f"[panel] no job for {missing} (target {t!r}); "
+                     f"design={design} has {len(alias)-1} include jobs")
+        sets = [alias[s] for s in raw]
         need[t] = sets
         kof[t] = P.common_k({s: lengths[s] for s in sets})
     inverse = {}
@@ -142,7 +161,7 @@ def main():
     meta = dict(rep=a.rep, runs=str(runs), design=str(design), seed=a.seed,
                 n_neg=a.n_neg, feature_names=P.FEATURE_NAMES, cal=cal,
                 targets=targets, groups={t: groups.get(t) for t in targets},
-                positive={t: f"include_{t}" for t in targets},
+                positive={t: alias[f"include_{t}"] for t in targets},
                 negatives={t: need[t][1:] for t in targets},
                 k={t: kof[t] for t in targets}, n_ref=int(len(ref)),
                 n_windows={t: int(len(real[t])) for t in targets})
