@@ -26,18 +26,18 @@ td.n,th.n{text-align:right;font-family:ui-monospace,Menlo,monospace}
 padding-left:11px;font-size:13px}
 </style><main>
 <h1>MIA campaign tracker</h1>
-<p>Generated 2026-08-28 11:10 from artefacts under <span class="mono">results/</span>.
+<p>Generated 2026-08-28 14:03 from artefacts under <span class="mono">results/</span>.
 Anything with no artefact shows as <span class="todo">not run</span>, never as a blank.
 Plan: <span class="mono">docs/PAPER_PLAN.md</span></p>
-<p><b>Main matrix <span class="mono">93/108</span> models</b> — DiM-TS, 13 outliers vs 13 matched normals, four conditions.</p>
+<p><b>Main matrix <span class="mono">97/108</span> models</b> — DiM-TS, 13 outliers vs 13 matched normals, four conditions.</p>
 
 <h2>Running now</h2>
 <table><tr><th>job</th><th>queue</th><th>name</th><th>state</th><th>elapsed</th></tr>
-<tr><td class="mono">15227999</td><td>glong</td><td class="mono">m_d7_c2_a1</td><td><span class="run">R</span></td><td class="n">50:17</td></tr>
-<tr><td class="mono">15228000</td><td>glong</td><td class="mono">m_d7_c2_b1</td><td><span class="run">R</span></td><td class="n">73:06</td></tr>
+<tr><td class="mono">15227999</td><td>glong</td><td class="mono">m_d7_c2_a1</td><td><span class="run">R</span></td><td class="n">53:11</td></tr>
+<tr><td class="mono">15228000</td><td>glong</td><td class="mono">m_d7_c2_b1</td><td><span class="run">R</span></td><td class="n">75:58</td></tr>
 <tr><td class="mono">15228001</td><td>glong</td><td class="mono">m_d7_c2_a2</td><td><span class="todo">H</span></td><td class="n">--</td></tr>
 <tr><td class="mono">15228002</td><td>glong</td><td class="mono">m_d7_c2_b2</td><td><span class="todo">H</span></td><td class="n">--</td></tr>
-<tr><td class="mono">15636440</td><td>g3</td><td class="mono">cgm_d7swe*</td><td><span class="run">R</span></td><td class="n">20:45</td></tr>
+<tr><td class="mono">15636440</td><td>g3</td><td class="mono">cgm_d7swe*</td><td><span class="run">R</span></td><td class="n">23:38</td></tr>
 </table>
 <h2>Step 1 — Does the risk exist?</h2>
 <p>Four conditions, identical except window length and number of channels.
@@ -52,7 +52,7 @@ discriminator are generation quality, a gate rather than a trade-off.</p>
 <tr><td class="mono">d1_c1</td><td>1 day</td><td>1 (CGM)</td><td><span class="done">27/27</span></td><td class="n">0.800</td><td class="n">0.635</td><td class="n">11 of 13</td><td class="n">13 of 13</td><td class="n">0.960</td><td class="n hl">0.562</td><td class="n">0.095</td><td class="n">0.531 / 0.005</td></tr>
 <tr><td class="mono">d1_c2</td><td>1 day</td><td>2 (+ basal)</td><td><span class="done">27/27</span></td><td class="n">0.600</td><td class="n">0.520</td><td class="n">10 of 13</td><td class="n">5 of 13</td><td class="n">1.000</td><td class="n hl">0.698</td><td class="n">0.160</td><td class="n">0.553 / 0.060</td></tr>
 <tr><td class="mono">d7_c1</td><td>7 days</td><td>1 (CGM)</td><td><span class="done">27/27</span></td><td class="n">0.760</td><td class="n">0.679</td><td class="n">13 of 13</td><td class="n">12 of 13</td><td class="n">1.000</td><td class="n hl">0.627</td><td class="n">0.331</td><td class="n">0.579 / 0.081</td></tr>
-<tr><td class="mono">d7_c2</td><td>7 days</td><td>2 (+ basal)</td><td><span class="run">12/27</span></td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n hl">—</td><td class="n">0.284</td><td class="n">0.592 / 0.107 *</td></tr>
+<tr><td class="mono">d7_c2</td><td>7 days</td><td>2 (+ basal)</td><td><span class="run">16/27</span></td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n hl">—</td><td class="n">0.284</td><td class="n">0.592 / 0.107 *</td></tr>
 </table><p>* quality measured on the models finished so far, not all 27.</p>
 <p class="f"><b>Finding.</b> Risk is real and, at this training length, not selective: in <span class="mono">d1_c1</span> <b>13 of 13 normal patients</b> are identifiable too, and the most exposed patient across conditions reaches AUC <b>1.000</b>. Only the two-channel condition pushes normals back down. Step 3b explains why.</p>
 <h2>Step 2 — Risk vs quality across baselines</h2>
