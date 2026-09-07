@@ -29,6 +29,10 @@ def get(name: str):
     if name == "igfm":
         from .igfm import IGFMGenerator
         return IGFMGenerator
+    if name == "maven":
+        # ours. Plain PyTorch, no second environment; see generators/maven.py.
+        from .maven import MAVENGenerator
+        return MAVENGenerator
     if name == "dimts":
         # importable in the ordinary environment; it only needs the DiM-TS one when
         # you call fit(). See docs/DIMTS.md.
@@ -37,5 +41,5 @@ def get(name: str):
     raise KeyError(f"unknown generator '{name}'")
 
 
-ALL = ["copy_paste", "diffusion_ts", "fourier_diff", "timevae", "diffwave",
+ALL = ["maven", "copy_paste", "diffusion_ts", "fourier_diff", "timevae", "diffwave",
        "padts", "igfm", "dimts"]

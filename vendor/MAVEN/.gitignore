@@ -1,0 +1,29 @@
+# Generated / heavy artifacts
+checkpoints/
+outputs/
+results/
+logs/
+*.pt
+*.pth
+*.ckpt
+*.npy
+*.npz
+*.pkl
+*.joblib
+
+# Python / local runtime
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.DS_Store
+
+# Local environment
+.env
+.venv/
+venv/
+wandb/
+
+# local eval artifacts
+eval_results/
+fusion_eval_results/
