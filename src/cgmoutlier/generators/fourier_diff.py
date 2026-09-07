@@ -29,6 +29,49 @@ _VENDOR_SRC = os.path.abspath(
 )
 
 
+#: 评估前向的参考批。T=288 时 512 条一次过得去,这是历史上一直用的值,
+#: 也是「健康 fold ~= 0.05」那批数字的口径。
+_EVAL_REF_WINDOWS, _EVAL_REF_T = 512, 288
+
+
+def _chunk_for(T: int, override: int = 0) -> int:
+    """一次前向放多少条窗口。按 T 反比缩放,让 (条数 x T) 大致守恒。
+
+    T=288 时返回 512,也就是【和历史完全一样的单次调用】—— 这很重要,已有的
+    d1 结果和 PROGRESS.md 8.3 里的比值必须继续可比。T=2016 时返回 73。
+    """
+    if override > 0:
+        return int(override)
+    return max(1, int(_EVAL_REF_WINDOWS * _EVAL_REF_T / max(1, int(T))))
+
+
+def _eval_chunk(loss_fn, model, X, device, chunk: int) -> float:
+    """分块求评估损失,按块大小加权平均。
+
+    单块时走的是和从前逐位相同的路径:seed(0) 之后一次调用。多块时每块自己
+    seed,所以同一块里「我的损失」和「平台损失」仍然吃同一批噪声 —— 比值的
+    含义不变。跨块的噪声不同,但两边用的是同一串种子,所以两边一致。
+    """
+    import torch
+    from fdiff.utils.dataclasses import DiffusableBatch
+
+    n = int(X.shape[0])
+    if chunk >= n:                      # T=288 走这里,行为不变
+        xb = X.to(device)
+        torch.manual_seed(0)
+        return float(loss_fn(model, DiffusableBatch(X=xb, y=None, timesteps=None)))
+
+    total, seen = 0.0, 0
+    for i in range(0, n, chunk):
+        xb = X[i:i + chunk].to(device)
+        torch.manual_seed(i)            # 逐块固定,两次调用一一对应
+        L = float(loss_fn(model, DiffusableBatch(X=xb, y=None, timesteps=None)))
+        total += L * xb.shape[0]
+        seen += xb.shape[0]
+        del xb
+    return total / max(1, seen)
+
+
 def _ensure_vendor_on_path() -> None:
     if _VENDOR_SRC not in sys.path:
         sys.path.insert(0, _VENDOR_SRC)
@@ -154,8 +197,14 @@ class FourierDiffGenerator(GeneratorBase):
         # 最终值还好），塌缩发生在之后。所以只要保留 best 而不是 last 就能避开，
         # 不需要换种子重训（那样 10M 的期望重试次数是 3 次）。
         # 评估成本：每 epoch 一次 512 样本前向，相对 1130 步训练可忽略。
+        #
+        # ⚠️ 512 这个数在 T=288 上无所谓，在 T=2016 上一次要 46.5 GiB,直接 OOM。
+        # 而它【与 batch_size 无关】,所以现象是"改到 batch 4 也照样 OOM 同一个
+        # 46.51 GiB",看起来像模型装不下,实际只是这一批评估。窗口数仍然是 512,
+        # 只是分块前向再按块大小加权平均 —— 见 _eval_chunk()。
         keep_best = bool(cfg.get("keep_best", True))
         eval_batch = dm.X_train[:512].clone()
+        eval_chunk = _chunk_for(T, int(cfg.get("eval_chunk", 0)))
 
         class _KeepBest(pl.Callback):
             def __init__(_s):
@@ -169,13 +218,11 @@ class FourierDiffGenerator(GeneratorBase):
                 from fdiff.utils.dataclasses import DiffusableBatch
                 lf = get_sde_loss_fn(scheduler=pl_module.noise_scheduler,
                                      train=False, likelihood_weighting=False)
-                xb = eval_batch.to(pl_module.device)
                 was_training = pl_module.training
                 pl_module.eval()
                 with torch.no_grad():
-                    torch.manual_seed(0)      # 固定噪声/时间步 -> epoch 间可比
-                    L = float(lf(pl_module, DiffusableBatch(
-                        X=xb, y=None, timesteps=None)))
+                    L = _eval_chunk(lf, pl_module, eval_batch,
+                                    pl_module.device, eval_chunk)
                 if was_training:
                     pl_module.train()
                 _s.history.append(L)
@@ -242,7 +289,7 @@ class FourierDiffGenerator(GeneratorBase):
         # 采样时 score≡0 抽掉了反向 SDE 的去噪漂移，X ← X(1+½βΔt)+噪声 指数发散，
         # 样本 std 从 0.16 涨到 36，MIA 于是给出假的 AUC=1.000。
         # 详见 PROGRESS.md §8.3。这里在保存之前就把它拦下来。
-        ratio = self._collapse_ratio(dm.X_train)
+        ratio = self._collapse_ratio(dm.X_train, chunk=eval_chunk)
         if ratio > float(cfg.get("collapse_ratio_max", 0.5)):
             raise RuntimeError(
                 f"fourier_diff 训练塌缩：DSM loss 已达 score≡0 平台的 {ratio:.3f} 倍 "
@@ -253,10 +300,15 @@ class FourierDiffGenerator(GeneratorBase):
                 f"\n  换个种子重训，或见 PROGRESS.md §8.3。")
         return self
 
-    def _collapse_ratio(self, X_std: "Any", n: int = 512) -> float:
+    def _collapse_ratio(self, X_std: "Any", n: int = 512,
+                        chunk: int = 0) -> float:
         """本模型的 DSM 损失 / score≡0 的平台损失。1.0 = 完全塌缩，越小越健康。
 
         实测：健康 fold ≈ 0.05，塌缩 fold = 1.0000（停在平台上）。
+
+        ⚠️ 这一步【无条件执行】(fit 末尾),collapse_ratio_max 只关掉抛异常,关不掉
+        这次前向。所以 T=2016 上 n=512 会 OOM,而且和 batch_size 无关 —— 探针里
+        batch 8/6/4 报的是同一个 46.51 GiB,就是这里。分块解决,窗口数不变。
         """
         import torch
         from fdiff.utils.losses import get_sde_loss_fn
@@ -264,8 +316,8 @@ class FourierDiffGenerator(GeneratorBase):
 
         m = self._model
         xb = X_std[:n]
-        if self._use_cuda:
-            xb = xb.cuda()
+        dev = "cuda" if self._use_cuda else "cpu"
+        chunk = _chunk_for(int(xb.shape[1]), chunk)
         lf = get_sde_loss_fn(scheduler=m.noise_scheduler, train=False,
                              likelihood_weighting=False)
 
@@ -279,11 +331,10 @@ class FourierDiffGenerator(GeneratorBase):
                 return torch.zeros_like(b.X)
 
         with torch.no_grad():
-            # 同一个种子 -> 两次用同一批噪声/时间步，比值才有意义
-            torch.manual_seed(0)
-            mine = float(lf(m, DiffusableBatch(X=xb, y=None, timesteps=None)))
-            torch.manual_seed(0)
-            plateau = float(lf(_Zero(), DiffusableBatch(X=xb, y=None, timesteps=None)))
+            # 同一个种子 -> 两次用同一批噪声/时间步，比值才有意义。分块时逐块同种子,
+            # 这个性质在每一块内部保持,比值仍然是「同一批噪声下,我的损失 / 平台损失」。
+            mine = _eval_chunk(lf, m, xb, dev, chunk)
+            plateau = _eval_chunk(lf, _Zero(), xb, dev, chunk)
         return mine / plateau if plateau > 0 else float("inf")
 
     def sample(self, n: int, sample_cfg: Dict[str, Any] | None = None
