@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -N cgm_panel
+#PBS -P 11704243
+#PBS -l select=1:ncpus=4:mem=16gb
+#PBS -l walltime=00:20:00
+#PBS -j oe
+#PBS -o logs/panel.log
+#
+# 构建进程面板(中英双语)。0 张 GPU + walltime <= 2h -> 路由到 qdev,基本不排队。
+#
+# 为什么连「构建一个 HTML」这种事都要走作业:指南 §1 说的是「登录节点上不跑 python」,
+# 没有给「多小算小」留口子,而这个 session 里正是靠「就这一次很小」一路滑到扫 76 MB 日志。
+# 构建一次 0.3 秒,走作业多花两分钟,这两分钟买的是不用再判断边界在哪。
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u; mkdir -p logs
+set -euo pipefail
+{ echo "== $(date '+%F %T')  构建面板"
+  python -u scripts/report/build_panel.py
+} > logs/panel.out 2>&1
+cat logs/panel.out

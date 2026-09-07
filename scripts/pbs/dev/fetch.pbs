@@ -1,0 +1,33 @@
+#!/bin/bash
+#PBS -N cgm_fetch
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=64gb
+#PBS -l walltime=00:30:00
+#PBS -j oe
+#PBS -o logs/fetch.log
+#
+# 通用取数作业。任何需要 python 的事都走这里,登录节点上一行 python 都不跑。
+#
+# 为什么存在:NSCC 会自动标记登录节点上的计算并对项目开工单,一次 CPU 特征提取就触发过。
+# 指南 §1。这条规矩没有例外 —— 「只是读几个 JSON 算个中位数」也不行,因为判断
+# 「多小算小」本身就是滑坡,而这个 session 里正是这样一步步滑到了扫 76 MB 日志
+# 和跑一万次置换检验。
+#
+# 0 张 GPU + walltime <= 2h -> 路由到 qdev,每人可跑 100 个,基本不排队。
+#
+# 用法:把要跑的 python 写进 scripts/fetch_task.py,然后
+#   qsub scripts/pbs/dev/fetch.pbs
+# 结果落到 logs/fetch.live.log,登录节点上 tail 它是允许的。
+#
+# 想跑别的脚本:
+#   qsub -v TASK=scripts/别的.py scripts/pbs/dev/fetch.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u; mkdir -p logs
+set -euo pipefail
+T="${TASK:-scripts/fetch_task.py}"
+# 直接重定向到文件,不走 tee:tee 的进程替换在 PBS 里偶尔来不及 flush,
+# 上一次就留下了一个 0 字节的日志和一个 Exit_status=0 的作业。
+{ echo "== $(date '+%F %T')  运行 $T"; python -u "$T"; echo "== FETCH OK"; } > logs/fetch.out 2>&1
+cat logs/fetch.out

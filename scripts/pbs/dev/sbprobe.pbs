@@ -1,0 +1,44 @@
+#!/bin/bash
+#PBS -N sbprobe
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=110gb:ngpus=1
+#PBS -l walltime=01:00:00
+#PBS -j oe
+#PBS -o logs/sbprobe.log
+#
+# 七天窗口下,一次能给多少条窗口去噪(sample_batch)?实测,不猜。
+#
+# 已知:2026-08-17 在 T=2016 上用 1000 直接 CUDA OOM(SMamba 的 conv2d 要 1.93 GiB,
+# 只剩 906 MiB),当时降到了 100 并且一直沿用至今。100 让第四条曲线的作业跑不完
+# —— 5741 条要分 58 批,27 个模型 x 58 批,17 小时才出一个存档。
+#
+# 但 100 到 1000 之间从没测过。这个作业从大往小试,第一个成功的就是答案。
+# 每次只采 500 条(不是全量),够触发峰值显存又不浪费时间。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+set -u; mkdir -p logs
+{
+echo "== 七天+胰岛素 (T=2016, C=2, hidden 256),从大往小试"
+for SB in 800 500 300 200; do
+  OUT=/tmp/sbprobe_$SB
+  rm -rf "$OUT"
+  T0=$SECONDS
+  if python -u scripts/resample.py --from-run results/runs/matrix_d7_c2/base \
+       --job-file results/matrix/design/rep1/jobs/base.json \
+       --cohort data/cohort/matrix_d7_c2 --out "$OUT" \
+       --sampling-timesteps 500 --milestone 3 --K 500 \
+       --params "{\"sample_batch\": $SB}" > /tmp/sb_$SB.log 2>&1; then
+     echo "  sample_batch=$SB  成功  采 500 条用时 $((SECONDS-T0)) 秒"
+  else
+     echo "  sample_batch=$SB  失败  $(grep -oiE 'out of memory|CUDA error|Error' /tmp/sb_$SB.log | head -1)"
+  fi
+  rm -rf "$OUT"
+done
+echo
+echo "== 换算:全量 5741 条要多少批,以及 27 个模型的总时间"
+echo "   (拿上面成功的那档的秒数 / 500 * 5741 * 27 / 3600 = 小时)"
+echo "PROBE OK"
+} > logs/sbprobe.out 2>&1
+cat logs/sbprobe.out

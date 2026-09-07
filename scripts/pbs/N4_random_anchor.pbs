@@ -1,0 +1,68 @@
+#!/bin/bash
+#PBS -N cgm_rand
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:mem=200gb:ngpus=1
+#PBS -l walltime=06:00:00
+#PBS -j oe
+#PBS -o logs/N4_random_anchor.log
+#
+# The far end of the privacy-quality curve.
+#
+# The curve has two anchors and neither is a real generator:
+#   copy_paste  replays the training set   -> quality best,  privacy worst
+#   random      ignores the training set   -> privacy best,  quality worst
+# Every real generator lies between them, so without both the axis has no scale and
+# "our curve beats DiM-TS's curve" has nothing to be measured against.
+#
+# See scripts/make_random_release.py for what "random" means here (iid Gaussian matched
+# to the cohort's per-channel mean and sd -- the conservative version of the anchor, not
+# white noise on an arbitrary scale, which would flatter the endpoint).
+#
+# THIS IS ALSO A NEGATIVE CONTROL. Every one of the 27 releases is independent noise, so
+# include_t and base differ by nothing that depends on t. The attack must read AUC ~ 0.5.
+# If it reads anything else, the attack has a bug and every number in Step 1 is suspect --
+# which is worth knowing regardless of where the anchor lands.
+#
+#   qsub scripts/pbs/N4_random_anchor.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u
+mkdir -p logs
+exec > >(tee logs/N4_random_anchor.live.log) 2>&1
+set -euo pipefail
+
+for CELL in d1_c1 d1_c2 d7_c1; do
+  echo; echo "##################### $CELL #####################"
+  OUT=results/runs/random_$CELL
+  python -u scripts/make_random_release.py \
+      --cohort "data/cohort/matrix_$CELL" --design results/matrix/design/rep1 --out "$OUT"
+
+  python -u scripts/run_attack.py --design results/matrix/design/rep1 \
+      --cohort "data/cohort/matrix_$CELL" --runs "$OUT" \
+      --out "results/matrix/attack/random_$CELL" --generator dimts 2>&1 | tail -8
+
+  python -u scripts/subject_auc.py --runs "$OUT" --design results/matrix/design \
+      --cohort "data/cohort/matrix_$CELL" --replicates 1 \
+      --out "results/matrix/subject_auc/random_$CELL" 2>&1 | tail -4
+
+  python -u scripts/eval_quality_tsgem.py --runs "$OUT/base" \
+      --cohort "data/cohort/matrix_$CELL" --design results/matrix/design/rep1 \
+      --label "random_$CELL" --out "results/matrix/quality_tsgem/random_$CELL.json" 2>&1 | tail -3
+done
+
+echo; echo "##################### 端点表 #####################"
+python - <<'EOF'
+import json, csv, os
+import numpy as np
+print(f"{'cell':8s} {'质量(越低越像)':>14s} {'隐私风险(0.5=认不出)':>20s}")
+for c in ('d1_c1','d1_c2','d7_c1'):
+    q=f"results/matrix/quality_tsgem/random_{c}.json"
+    s=f"results/matrix/subject_auc/random_{c}/per_subject.csv"
+    if not (os.path.exists(q) and os.path.exists(s)): print(f"{c:8s}  missing"); continue
+    cf=[v for v in json.load(open(q)).values() if isinstance(v,dict) and 'context_fid' in v][0]['context_fid']
+    a=[float(r['auc']) for r in csv.DictReader(open(s))]
+    print(f"{c:8s} {cf:14.4f} {np.median(a):20.3f}")
+print("\n隐私风险应当落在 0.5 附近。明显偏离就是攻击有 bug,不是端点有意思。")
+EOF
+echo "RANDOM ANCHOR OK"

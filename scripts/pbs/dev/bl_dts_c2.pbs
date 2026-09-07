@@ -1,0 +1,21 @@
+#!/bin/bash
+#PBS -N bl_dts_c2
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/bl_dts_c2.log
+#
+# baseline base:Diffusion-TS / d1_c2。等预算口径见 scripts/pbs/dev/baseline_base.body.sh。
+# 探针实测单模型 d1:diffusion_ts 0.59h / fourier_diff 1.51h / diffwave 0.53h。
+# 一个作业只跑一个模型:gdev 每人可以有 10 个作业,而 2 小时是硬上限且【没有断点续训】
+# (三个适配器的 checkpoint 路径都只从 train_cfg 读,run_loo 不传,所以一律不存档)。
+# 两个模型串在一个作业里,第一个超时就把第二个一起连坐,没有任何部分学分。
+# 1 卡 + <=2 小时 -> gdev(这是 1 卡 2 小时唯一的落点:g1-g4/glong 的最小墙钟都是
+# 02:00:01,所以不会静默落到别处;但 gdev 的 16 卡池是全机共享,不保证秒起)。
+#
+#   qsub scripts/pbs/dev/bl_dts_c2.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+JOBS="diffusion_ts:d1_c2"
+source scripts/pbs/dev/baseline_base.body.sh

@@ -1,0 +1,66 @@
+#!/bin/bash
+#PBS -N igfm_priv
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=12:00:00
+#PBS -j oe
+#PBS -o logs/igfm_priv_base.log
+#
+# 加了三个隐私模块之后的 IG-FM,先只训 base,过质量关。
+#
+# 为什么先训 base 而且只训 base:
+#   1) 它是质量关卡 —— 三个模块都在往表示上加约束,必须先证明没把质量赔掉;
+#   2) 它同时就是后面 27 个 MIA 模型里的【对照模型】,不是白训的一步。
+#      base 训的是 475 个背景受试者,不含那 26 个被测者,两个用途不冲突。
+#
+# 队列:1 卡 + 2-24 小时 -> g1。glong 的两个槽被 igfm_loo 和 d7c2_rest 占着,
+# 这个作业不碰它们。原版 25000 iterations 实测 4.1 小时,三个模块加的都是
+# 逐元素运算,开销很小;12 小时留约 3 倍余量。
+#
+# 三个模块(依据全部来自本项目实测,见 vendor/IG-FM/igfm_core.py 的注释):
+#   coord_mask  改动一 按坐标遮:连续时间块 / 去掉整体水平,取代逐格随机遮
+#   level_dims  改动二 瓶颈前 48 通道沿时间池化 + 三组之间去相关
+#   iso_weight  改动三 —— 【本次不启用】。审查指出部署的统计量和验证过的对不上,
+#               桶宽和近邻阶数已改对,但参照池那条修不了(训练步拿不到受试者编号,
+#               排不掉同一个人的其它窗口,而验证脚本专门排掉了它)。
+#               三个一起上、其中一个是错的,质量关卡就没法归因,所以只上两个。
+#
+# 训练预算和原版试点完全一致(25000 x 256 条 = 640 万条),这样质量数字能和
+# 原版的 0.0394 直接比 —— 只有「有没有模块」这一个变量在动。
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u; mkdir -p logs results/igfm_priv
+set -euo pipefail
+
+DSN=results/matrix/design/rep1
+COH=data/cohort/matrix_d1_c1
+OUT=results/runs/igfm_priv_d1_c1
+LOG=logs/igfm_priv_base.live.log
+# set -e 在花括号块里中断时,末尾那条 tail 根本轮不到执行,PBS 日志会是空的。
+# 试点脚本就是因为这个加了 trap。
+trap 'tail -45 "$LOG" 2>/dev/null' EXIT
+
+{
+echo "===== $(date '+%F %T')  IG-FM + 三个隐私模块 · 只训 base ====="
+python -u scripts/run_loo.py --design "$DSN" --cohort "$COH" --out "$OUT" \
+    --generator igfm --job base --seed 2026 \
+    --params '{"hidden":144,"level_dims":48,"order_dims":48,"steps":25000,"sampling_steps":500,"save_every":2000,"keep_checkpoints":2,"coord_mask":true,"p_block":0.35,"p_level":0.25,"iso_weight":false}'
+
+echo; echo "===== 质量打分:和原版 IG-FM 同一套口径 ====="
+# 对比基准 results/pilot_igfm/:原版 context_fid 0.0394,八次重启最差 0.4875。
+# 注册的及格线是 DiM-TS 的 0.0948 —— 加了模块之后不许掉到它以下,
+# 否则等于把已经赢下的质量吐回去。
+python -u scripts/eval_quality_tsgem.py --runs "$OUT/base" --cohort "$COH" \
+    --design "$DSN" --out results/igfm_priv/tsgem.json --label igfm_priv_d1_c1
+
+echo; echo "===== 分真假:必须八次重启取最差,单次不算 ====="
+# --job-file 必须给:不给的话脚本会退回「拿整个队列当参照」,
+# 而试点用的是训练子集 —— 那样两个数就不可比了。脚本注释里记着这个事故。
+python -u scripts/disc_stability.py --runs "$OUT/base" --cohort "$COH" \
+    --job-file "$DSN/jobs/base.json" \
+    --restarts 8 --out results/igfm_priv/disc_stability.json
+
+echo; echo "===== IGFM PRIV OK $(date '+%F %T') ====="
+} > "$LOG" 2>&1
+tail -40 "$LOG"

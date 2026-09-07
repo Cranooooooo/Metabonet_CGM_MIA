@@ -1,0 +1,27 @@
+#!/bin/bash
+#PBS -N cp_d1_c1
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=110gb:ngpus=1
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/cp_d1_c1.log
+#
+# 走 gdev:每人可同时跑 10 个,而 g1 每人只能跑 1 个。
+# 路由是按 (卡数, 时长) 自动决定的 —— 1 卡且 <=2 小时 -> gdev;1 卡且 >2 小时 -> g1。
+# 原先把这些活打包成一个 3-6 小时的作业,结果四个作业全落进 g1 排成一串,
+# 全部堵在一个 16 小时的训练后面。拆开之后它们并行跑。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+set -u; mkdir -p logs
+exec > >(tee logs/cp_d1_c1.live.log) 2>&1
+set -euo pipefail
+# 严格同口径的「完全照抄」端点:同一批病人、同一个打分脚本,和 DiM-TS 的数字可比。
+OUT=results/runs/cp_matrix_d1_c1
+python -u scripts/run_loo.py --design results/matrix/design/rep1 \
+    --cohort data/cohort/matrix_d1_c1 --out "$OUT" --generator copy_paste --job base
+python -u scripts/eval_quality_tsgem.py --runs "$OUT/base" \
+    --cohort data/cohort/matrix_d1_c1 --design results/matrix/design/rep1 \
+    --label "cp_d1_c1" --out results/matrix/quality_cp/d1_c1.json
+echo "CP d1_c1 OK"

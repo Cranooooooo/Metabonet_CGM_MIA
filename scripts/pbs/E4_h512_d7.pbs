@@ -1,0 +1,41 @@
+#!/bin/bash
+#PBS -N cgm_h512
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=220gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+#
+# Is the seven-day quality gap capacity, or is a longer window just harder?
+#
+# hidden_size is 256 in all four cells, but that is not equal capacity. Counting the
+# checkpoints: d1_c1 has 10,511,511 parameters at T=288 and d7_c1 has 12,282,711 at
+# T=2016 -- 7x the sequence for 16.9% more parameters, and all of that 16.9% is in five
+# tensors (two positional embeddings and the input/output projections). The Mamba
+# backbone is byte-identical. Per timestep, d7 has 6,093 parameters against d1's 36,498.
+#
+# That one fact predicts everything measured on d7_c1: context_fid 0.3313 against
+# d1_c1's 0.0951, discriminator max median 0.6675 against 0.5417, spread 0.155 against
+# 0.021, and an inability to tolerate a reduced denoising budget where d1 tolerates 200
+# steps with no loss.
+#
+# So: one base model at h=512, everything else identical, quality metrics only. 27 models
+# would cost 27x to answer the same question.
+#
+# GRACEFUL DEGRADATION. fit() has no resume path -- only resample() takes
+# --load_milestone -- and glong is full with d7_c2 until 08-28, so this gets 24 h on g1
+# and will not reach 100k steps. save_cycle=10000 means it banks a checkpoint every
+# 10k, and whatever milestone it reaches is compared against h=256's SAME milestone.
+# Matched steps, matched epochs, capacity the only difference. Nothing is wasted.
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"
+cd "$REPO"
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+{
+set -euo pipefail
+python -u scripts/run_loo.py --design results/matrix/design/rep1 \
+  --cohort data/cohort/matrix_d7_c1 --out results/runs/matrix_d7_c1_h512 \
+  --job base --generator dimts \
+  --params '{"hidden_size": 512, "steps": 100000, "save_cycle": 10000, "sample_batch": 50}'
+echo "H512 OK"
+} 2>&1 | tee logs/E4_h512.live.log

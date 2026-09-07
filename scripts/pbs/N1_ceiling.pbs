@@ -1,0 +1,54 @@
+#!/bin/bash
+#PBS -N cgm_ceil
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=440gb
+#PBS -l walltime=04:00:00
+#PBS -q normal
+#PBS -j oe
+#PBS -o logs/N1_ceiling.log
+#
+# The three bounds that constrain any release-time privacy edit, measured on released
+# sets that already exist. No GPU, no training, no model. See scripts/nn_ceiling.py.
+#
+# The cells are read at milestone 3 (30,000 steps) because MODEL_DESIGN 5 argues that
+# is the operating point everything should be read at, and PAPER_PLAN 3b measured it as
+# the maximum-contrast checkpoint. The gaps passed as --gap are that milestone's median
+# outlier-arm gap, read from MODEL_DESIGN 2.2 which reads them from
+# results/matrix/sweep/attack/*/summary.json:
+#
+#     d1_c1 ms3  g = 0.00240      d1_c2 ms3  g = 0.00350      d7_c1 ms3  g = 0.00571
+#
+# copy_paste is included as the positive control. It replays training windows verbatim,
+# so a fraction of real windows have an exact copy in the released set: d1 = 0 and the
+# ceiling d2-d1 is whatever the spacing to the next draw is. If the ceiling reads large
+# there and small on the real generators, the measurement is picking up released-set
+# density rather than anything about the generator, and that is worth knowing.
+#
+#   qsub scripts/pbs/N1_ceiling.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u
+mkdir -p logs results/matrix/ceiling
+exec > >(tee logs/N1_ceiling.live.log) 2>&1
+set -euo pipefail
+
+run_cell () {   # cell, run dir, gap
+  echo; echo "##################### $1 #####################"
+  python -u scripts/nn_ceiling.py \
+      --cohort "data/cohort/matrix_$1" --design results/matrix/design/rep1 \
+      --run "$2" --gap "$3" --out "results/matrix/ceiling/$1.json"
+}
+
+run_cell d1_c1 results/runs/sweep_d1_c1_ms3/base 0.00240
+run_cell d1_c2 results/runs/sweep_d1_c2_ms3/base 0.00350
+run_cell d7_c1 results/runs/sweep_d7_c1_ms3/base 0.00571
+
+echo; echo "##################### copy_paste (positive control) #####################"
+python -u scripts/nn_ceiling.py \
+    --cohort data/cohort/matrix_d1_c1 --design results/matrix/design/rep1 \
+    --run results/runs/copy_paste/base --gap 0.00240 \
+    --out results/matrix/ceiling/copy_paste_d1_c1.json || \
+    echo "(copy_paste run is on a different cohort/design -- skipped, not a failure)"
+
+echo "CEILING OK"

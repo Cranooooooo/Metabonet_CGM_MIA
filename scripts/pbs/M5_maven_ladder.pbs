@@ -1,0 +1,70 @@
+#!/bin/bash
+#PBS -N maven_ladder
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=64gb:ngpus=1
+#PBS -l walltime=06:00:00
+#PBS -j oe
+#PBS -o logs/M5_maven_ladder.log
+#
+# MAVEN's own ablation ladder, run on CGM because the pilot reproduced the defect the
+# ladder exists to fix.
+#
+# THE PILOT'S RESULT, which is why this is running:
+#   MAVEN base @30k  context_fid 0.2256   discriminative(max/8) 0.12
+#   DiM-TS base @30k context_fid 0.0611   discriminative        0.0238
+# 3.7x worse on the gate metric. Upstream's DESIGN.md reports the same defect on its own
+# benchmarks (Stocks-128 ~0.10 vs DiM-TS 0.034, Energy 0.28-0.36 vs 0.104) and names the
+# suspected cause: generation routed through the 64-d bottleneck plus coarse deep
+# supervision. MODEL_DESIGN 1.9.2 and 1.9.7b commit the paper to running the ladder and
+# adopting the winner. Nobody upstream has run it.
+#
+# BOTH CHANGES AT ONCE, deliberately. If removing the bottleneck AND the coarse
+# generation loss together does not close a 3.7x gap, the hypothesis is wrong and the
+# two single-change runs are moot. If it does, they are worth 3 GPU-hours each to
+# attribute. Cheapest ordering, not laziness.
+#
+# CONFOUND TO STATE. A constant 128-wide trunk has more parameters than 128,128,64,...
+# so a win here is a win for {no bottleneck, no coarse loss, more capacity} jointly. The
+# parameter count is printed by the run and must be quoted beside any improvement. The
+# capacity-matched version of this is a third rung, not this one.
+#
+#   qsub scripts/pbs/M5_maven_ladder.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u
+mkdir -p logs
+exec > >(tee logs/M5_maven_ladder.live.log) 2>&1
+
+DESIGN=results/matrix/design/rep1
+COHORT=data/cohort/matrix_d1_c1
+OUT=results/runs/ladder_maven_d1_c1
+QOUT=results/ladder_maven
+
+set -euo pipefail
+mkdir -p "$QOUT"
+
+echo "=================== train: constant width, coarse_weight 0 ==================="
+python -u scripts/run_loo.py \
+    --design "$DESIGN" --cohort "$COHORT" --out "$OUT" \
+    --generator maven --job base \
+    --params '{"steps": 30000, "save_cycle": 5000, "sampling_steps": 500,
+               "mask_mode": "cell", "view_a": "auto",
+               "dims": "128,128,128,128,128,128,128,128", "coarse_weight": 0.0}'
+
+test -s "$OUT/base/samples.npy" || { echo "FAIL: no samples.npy"; exit 1; }
+
+echo "=================== quality ==================="
+python -u scripts/eval_quality_tsgem.py --runs "$OUT/base" \
+    --cohort "$COHORT" --design "$DESIGN" --out "$QOUT/tsgem"
+
+echo "=================== discriminative over 8 restarts ==================="
+python -u scripts/disc_stability.py --runs "$OUT/base" \
+    --cohort "$COHORT" --job-file "$DESIGN/jobs/base.json" \
+    --restarts 8 --out "$QOUT/disc_stability.json"
+
+echo "=================== VERDICT ==================="
+echo "  gate, same cell and same 30k checkpoint:  DiM-TS context_fid 0.0611  disc 0.0238"
+echo "  pilot (AE width schedule, coarse_weight 1): context_fid 0.2256  disc(max/8) 0.12"
+echo "  read this run's context_fid and disc MAX above against both."
+echo "LADDER DONE"

@@ -1,0 +1,109 @@
+#!/bin/bash
+#PBS -N igfm_pilot
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=110gb:ngpus=1
+#PBS -l walltime=12:00:00
+#PBS -j oe
+#PBS -o logs/igfm_pilot.log
+#
+# IG-FM 能不能过质量门。我们的三处改动要在原版之上比,所以原版的成绩必须先有。
+#
+# 第一版有六个会白跑或让数字不可信的问题,审查抓出来了,逐条修在这里:
+#
+# 1. --params 里的 steps / sampling_steps 会被静默丢弃。根因在适配器:它只读 train_cfg,
+#    而 run_loo.py 是把参数交给构造函数、调 fit() 时不传 train_cfg。已修 igfm.py
+#    (cfg = dict(self.params) 再 update),并让它同时认 steps 和 total_iters。
+#    不修的话:训练会用 300000 的默认值跑完并正常退出,而 meta.json 记着 30000。
+#
+# 2. 训练预算不能照抄「3 万步」。IG-FM 的一个 iteration = 8 次累积 x 32 微批 = 256 条,
+#    而 DiM-TS 一步 = 64 条。所以 30000 iterations 是 768 万条 = 1338 个 epoch,
+#    而 DiM-TS 的 30000 步只有 192 万条 = 334 个 epoch —— 差 4 倍。
+#    这里按**喂进去的样本数**对齐到注册基准那个点(DiM-TS 10 万步 x 64 = 640 万条),
+#    即 640 万 / 256 = 25000 iterations。docs/PITFALLS.md 第 11 条说的就是这件事。
+#
+# 3. 及格线用注册的那个,不是我自己挑的。configs/experiment.yaml 注册的是
+#    d1_c1 = {context_fid 0.0948, discriminative 0.0238},口径是 DiM-TS base、
+#    500 步采样。第一版用了 0.0611 —— 那是 200 步采样的扫描点,把门槛收紧了 1.55 倍,
+#    而 experiment.yaml 明确禁止事后改门槛。采样也随之用 500 步以对齐口径。
+#
+# 4. 分真假的两个数单位不同,不能并排读。tsgen_metrics 报的是 |准确率-0.5|(0.0238),
+#    disc_stability 报的是原始准确率。同口径的对照是
+#    results/matrix/quality/d1_c1/disc_stability.json 的 base max = 0.5308(500 步)。
+#    而且规矩是取 8 次重启的**最大**值,不是最差值 —— 第一版写反了。
+#
+# 5. walltime 从 6 小时提到 12。审查按网络规模估算 25000 iterations 约 3-4 小时,
+#    加采样和两次打分共 4-6 小时;6 小时没有余量,而且 1 卡 >2 小时进 g1,
+#    g1 每人只能跑一个,白占一个坑再死掉代价太大。
+#
+# 6. 存档现在真的会写。适配器的周期性存档原本是死代码(resume_dir 只从 train_cfg 读,
+#    而那是空的),一次 walltime 杀死就是全丢且无法挽救。已修成默认落在 workdir。
+#
+#   qsub scripts/pbs/dev/igfm_pilot.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+mkdir -p logs results/pilot_igfm
+# -e 会在失败处直接退出,tail 就跑不到了,PBS 的 -o 日志会只剩环境横幅。
+# 用 trap 保证无论成败都看得见。注意不要写成 { ... } || { tail; }:
+# 那会关掉块内的 errexit,第一步失败也会继续往下跑并给一个陈旧样本打分。
+trap 'tail -45 logs/igfm_pilot.out 2>/dev/null' EXIT
+{
+DESIGN=results/matrix/design/rep1
+COHORT=data/cohort/matrix_d1_c1
+OUT=results/runs/pilot_igfm_d1_c1
+
+echo "=================== 1  训练 + 采样 ==================="
+echo "  25000 iterations x 256 条/iteration = 640 万条,对齐 DiM-TS 10 万步 x 64"
+python -u scripts/run_loo.py --design "$DESIGN" --cohort "$COHORT" --out "$OUT" \
+    --generator igfm --job base \
+    --params '{"steps": 25000, "hidden": 144, "sampling_steps": 500,
+               "save_every": 2000, "keep_checkpoints": 2}'
+
+test -s "$OUT/base/samples.npy" || { echo "FAIL: 没有 samples.npy"; exit 1; }
+
+echo; echo "=================== 2  质量(和注册基准同一个脚本、同一个子采样种子) ==================="
+python -u scripts/eval_quality_tsgem.py --runs "$OUT/base" \
+    --cohort "$COHORT" --design "$DESIGN" --label igfm_d1_c1 \
+    --out results/pilot_igfm/tsgem.json
+
+echo; echo "=================== 3  分真假,8 次重启 ==================="
+python -u scripts/disc_stability.py --runs "$OUT/base" \
+    --cohort "$COHORT" --job-file "$DESIGN/jobs/base.json" \
+    --restarts 8 --out results/pilot_igfm/disc_stability.json
+
+echo; echo "=================== 判定(算出来,不靠人眼) ==================="
+python - <<'EOF'
+import json, os
+def cf(p):
+    if not os.path.exists(p): return None
+    d = json.load(open(p))
+    v = [x for x in d.values() if isinstance(x, dict) and "context_fid" in x]
+    return v[0]["context_fid"] if v else None
+def single_disc(p):
+    d = json.load(open(p))
+    v = [x for x in d.values() if isinstance(x, dict) and "discriminative" in x]
+    return v[0]["discriminative"] if v else None
+def dmax(p):
+    if not os.path.exists(p): return None
+    d = json.load(open(p))
+    v = [x for x in d.values() if isinstance(x, dict) and "max" in x]
+    return v[0]["max"] if v else None
+
+Q = "results/pilot_igfm/tsgem.json"
+D = "results/pilot_igfm/disc_stability.json"
+q, s, m = cf(Q), single_disc(Q), dmax(D)
+REF_Q, REF_S = 0.0948, 0.0238          # configs/experiment.yaml 注册值,500 步口径
+REF_M = dmax("results/matrix/quality/d1_c1/disc_stability.json")   # 同口径的 8 次重启对照
+
+print(f"  质量        IG-FM {q}   注册基准 {REF_Q}")
+print(f"  分真假(单次) IG-FM {s}   注册基准 {REF_S}   <- 同为 |准确率-0.5|,可以直接比")
+print(f"  分真假(8次max准确率) IG-FM {m}   DiM-TS 同口径 {REF_M}   <- 同为原始准确率")
+if q is not None:
+    print(f"\n  质量门: {'过' if q <= REF_Q else '不过'}  ({q:.4f} vs {REF_Q})")
+if m is not None and REF_M is not None:
+    print(f"  分真假: {'过' if m <= REF_M else '不过'}  ({m:.4f} vs {REF_M})")
+print("\n  两项都过才算有资格当骨干。任一不过,IG-FM 也出局,")
+print("  那就要在「再换一个流匹配骨干」和「接受防御与模型无关」之间选。")
+EOF
+echo "IGFM PILOT OK"
+} > logs/igfm_pilot.out 2>&1

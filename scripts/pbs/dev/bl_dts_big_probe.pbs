@@ -1,0 +1,53 @@
+#!/bin/bash
+#PBS -N dtsbigp
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/bl_dts_big_probe.log
+#
+# 大容量 Diffusion-TS 的成本。配置取【作者 solar.yaml】(n_layer_enc=4, n_layer_dec=4,
+# d_model=96) —— 那是他们发表过的、面向最长序列(192)的配置,而且在我们的 T=288/C=1 上
+# 恰好是 1,999,513 参数 = IG-FM 2.09M 的 0.96 倍。一个配置同时满足「对作者公平」和
+# 「参数量对齐」两个要求,不用随意缩放。
+#
+# 我们的适配器默认是 1/1/32 = 223,719 参数 —— 作者 11 个 yaml 里没有一个 d_model 低于
+# 64、n_layer_dec 低于 2。所以此前所有 "Diffusion-TS 质量差" 的结论(8 月的 20.7 倍、
+# 昨天的 0.4224)都是在一个作者从未用过、且小于其所有配置的容量上得到的。
+#
+# 先量再训:模型大 9 倍、注意力层 1+1 -> 4+4,等预算的 10 万步很可能超过 gdev 的
+# 2 小时硬上限(而三个 baseline 适配器都【没有断点续训】,checkpoint 路径只从
+# train_cfg 读而 run_loo 不传)。撞墙就是 2 卡时全丢。
+#
+#   qsub scripts/pbs/dev/bl_dts_big_probe.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+mkdir -p logs results/probe
+BIG='{"n_layer_enc":4,"n_layer_dec":4,"d_model":96,"n_heads":4,"mlp_hidden_times":4,"timesteps":500}'
+for cell in d1_c1 d1_c2; do
+  echo "########## $cell ##########"
+  python -u scripts/probe_generator.py --generator diffusion_ts \
+      --cohort "data/cohort/matrix_$cell" --n-train 5741 --n-sample 512 --K 5741 \
+      --batch-size 64 --gen-params "$BIG" --train-rate \
+      --out "results/probe/dts_big_$cell.json" 2>&1 | tail -20 || true
+done
+echo "===== 汇总(用高点算,低点吃掉进程热身) ====="
+python - <<'PY' || true
+import json, os
+for cell in ("d1_c1", "d1_c2"):
+    p = f"results/probe/dts_big_{cell}.json"
+    if not os.path.exists(p): print(f"  {cell}: 没有产出"); continue
+    for r in json.load(open(p)):
+        if r.get("error"): print(f"  {cell}: ❌ {r['error'][:110]}"); continue
+        tr = r.get("train_rate") or {}
+        pts = tr.get("points") or []
+        sps = r.get("seconds_per_sample") or 0
+        if len(pts) == 2:
+            (n0, t0), (n1, t1) = pts
+            per = t1 / n1                      # 高点是热的;这是保守上界
+            th = per * (6_400_000 / 64) / 3600
+            print(f"  {cell}: params={r.get('params'):,}  低点 {n0}步/{t0:.1f}s  高点 {n1}步/{t1:.1f}s"
+                  f"  -> {per:.4f} 秒/步  训练 {th:.2f} h + 采样 {sps*5741/3600:.2f} h "
+                  f"= {th + sps*5741/3600:.2f} h/模型")
+PY

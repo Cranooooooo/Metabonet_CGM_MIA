@@ -1,0 +1,100 @@
+#!/bin/bash
+#PBS -N bl_probe
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/probe_baselines.log
+#
+# 三个 baseline 的冒烟测试 + 成本测量,在提交 12 个 base 之前。
+#   Diffusion-TS (ICLR 2024) / FourierDiffusion (ICML 2024) / DiffWave (ICLR 2021)
+# PaD-TS 已排除:它 import timm(环境里没有,依赖清单里也没有),而且它的核心项
+#   —— 通道间相关性分布的 MMD —— 在 C=1 时索引集为空,空张量取均值得到 NaN 而【不报错】,
+#   一步优化后全部权重变 NaN。四个格子里有两个是 C=1,方法本身不适用。
+# TimeVAE 已排除:2021,且早前已判出局(0.856,12 倍 copy_paste)。
+#
+# 为什么必须先测:
+#   1) 探针刚修过一个 bug:PROBE_BUDGET/STEP_KEY 里 diffusion_ts 写 train_num_steps、
+#      diffwave 写 max_steps,而适配器分别读 max_epochs 和 total_iters —— 预算被静默
+#      忽略,跑的是各自的默认值。证据在 results/probe/generators.json:diffusion_ts 的
+#      50 步和 200 步只差 1.9 秒,diffwave 的每步成本是负的。修完必须重测。
+#   2) 七天窗口(T=2016)上没有任何一个 baseline 跑过。IG-FM 在那里慢了 24 倍,
+#      而且 batch 32 和 16 都 OOM,只有 8 能跑 —— 这三个适配器没有 OOM 回退。
+#
+# 1 卡 + 2 小时 -> gdev,不碰 glong/g1/g2/g3 上已经在跑的四个作业。
+#
+#   qsub scripts/pbs/dev/probe_baselines.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+case $- in *e*) ;; *) echo "❌ errexit 没打开"; exit 1;; esac
+mkdir -p logs results/probe
+LOG=logs/probe_baselines.live.log
+trap 'tail -70 "$LOG" 2>/dev/null || true' EXIT
+
+{
+echo "===== $(date '+%F %T')  baseline 冒烟 + 成本探针 ====="
+python -c "import py_compile; py_compile.compile('scripts/probe_generator.py', doraise=True); print('[check] probe_generator.py 语法 OK')"
+
+# n_sample 512:Diffusion-TS 的 vendor 采样循环是 range(n//batch + 1),要 64 条会
+# 生成 128 条再丢一半,而探针除以的是 64 —— 成本虚高 2 倍。FourierDiffusion 和
+# DiffWave 的循环是精确的 while remaining>0,没有这个问题,所以三个比成本时是
+# 【只有一个被系统性抬高】。512 把偏差压到 1/8。
+# K=5741 是本设计 base 的真实发布量(旧默认 177000 差 30 倍,采样成本外推直接依赖它)。
+for cell in d1_c1 d7_c1; do
+  if [ "$cell" = d7_c1 ]; then BS=8; else BS=64; fi
+  echo; echo "########## $cell (batch_size=$BS) ##########"
+  python -u scripts/probe_generator.py \
+      --generator diffusion_ts fourier_diff diffwave \
+      --cohort "data/cohort/matrix_$cell" \
+      --n-train 5741 --n-sample 512 --K 5741 --batch-size "$BS" --train-rate \
+      --out "results/probe/baselines_$cell.json" || true
+done
+
+echo; echo "===== 汇总:等预算下的成本 ====="
+# `|| true`:汇总跑挂了不该把整个作业带走(比如某个格子被墙钟切掉、JSON 写了一半)。
+python - <<'PY' || true
+import json, os
+BUDGET = 6_400_000   # DiM-TS 10万步x64 = IG-FM 25000x256 = 640 万条序列
+
+# 一个预算单位到底喂多少条序列 —— 按【单位语义】判,不是按生成器名。
+#   iter  : 一个单位 = 一个优化步 = batch_size 条
+#   epoch : 一个单位 = 走完整个训练集 = N 条(丢掉最后不满一批的部分)
+UNIT_KIND = {"diffusion_ts": "iter",    # max_epochs 传给 vendor 的 train_num_steps
+             "diffwave":     "iter",    # total_iters
+             "fourier_diff": "epoch",   # pl.Trainer(max_epochs=...)
+             "timevae":      "epoch"}
+for cell in ("d1_c1", "d7_c1"):
+    p = f"results/probe/baselines_{cell}.json"
+    if not os.path.exists(p):
+        print(f"\n--- {cell}: 没有产出(可能被墙钟切掉)"); continue
+    print(f"\n--- {cell}")
+    for r in json.load(open(p)):
+        g = r["generator"]
+        if r.get("error"):
+            print(f"  {g:<14} ❌ {r['error'][:100]}"); continue
+        tr = r.get("train_rate") or {}
+        rng = r.get("sample_range") or [float("nan")] * 2
+        note = "  ⚠️ 每步成本没测出来" if tr.get("unmeasured") else ""
+        if r.get("sample_nan_frac"):
+            note += f"  ❌ {r['sample_nan_frac']:.1%} 是 NaN"
+        bs = (r.get("train_budget") or {}).get("batch_size")
+        per, unit = tr.get("per_unit_seconds"), tr.get("unit", "?")
+        sps = r.get("seconds_per_sample")
+        print(f"  {g:<14} params={r.get('params')} batch={bs}  {per} 秒/{unit}  "
+              f"setup={tr.get('setup_seconds')}s  采样 {sps} 秒/条  "
+              f"范围=[{rng[0]:.2f},{rng[1]:.2f}]{note}")
+        if not per or per <= 0 or tr.get("unmeasured"):
+            continue
+        kind = UNIT_KIND.get(g)
+        n = r["n_train"]
+        seq_per_unit = bs if kind == "iter" else (n // bs) * bs
+        need = BUDGET / seq_per_unit
+        h = per * need / 3600 + (sps or 0) * 5741 / 3600
+        print(f"                 等预算 = {need:,.0f} {unit} ({kind}, 每单位 "
+              f"{seq_per_unit:,} 条) -> 单模型 {h:.1f} 小时, 27 个 {h*27:,.0f} 卡时")
+PY
+echo; echo "===== PROBE BASELINES DONE $(date '+%F %T') ====="
+} > "$LOG" 2>&1
+tail -70 "$LOG"

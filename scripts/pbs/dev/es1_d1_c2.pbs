@@ -1,0 +1,31 @@
+#!/bin/bash
+#PBS -N es1_d1_c2
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=110gb:ngpus=1
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/es1_d1_c2.log
+#
+# 1 万步这一档:三个 cell 里有两个的质量最低点就落在已测的最早一档(2 万步)上,
+# 所以真正的最低点可能更早而我们看不见。这一档就是来判这件事的。
+#
+# 上一版把三个 cell 串在一个作业里、sample_batch=100,被 walltime 杀了:
+# 5741/100 = 58 批,每批 500 步去噪约 96 秒 -> 单个模型就要 93 分钟。
+# 改成一个作业一个 cell,并把 sample_batch 提到 500(批数降到 12)。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+set -u; mkdir -p logs
+exec > >(tee logs/es1_d1_c2.live.log) 2>&1
+set -euo pipefail
+OUT=results/runs/sweep_d1_c2_ms1
+mkdir -p "$OUT"
+[ -s "$OUT/base/samples.npy" ] || python -u scripts/resample.py \
+    --from-run results/runs/matrix_d1_c2/base --job-file results/matrix/design/rep1/jobs/base.json \
+    --cohort data/cohort/matrix_d1_c2 --out "$OUT/base" \
+    --sampling-timesteps 500 --milestone 1 --params '{"sample_batch": 500}'
+python -u scripts/eval_quality_tsgem.py --runs "$OUT/base" \
+    --cohort data/cohort/matrix_d1_c2 --design results/matrix/design/rep1 \
+    --label "d1_c2_ms1" --out results/matrix/sweep/quality_tsgem/d1_c2_ms1_base.json
+echo "ES1 d1_c2 OK"

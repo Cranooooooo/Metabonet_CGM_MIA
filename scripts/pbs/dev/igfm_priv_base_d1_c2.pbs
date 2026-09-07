@@ -1,0 +1,28 @@
+#!/bin/bash
+#PBS -N ipb_d1c2
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+#PBS -o logs/igfm_priv_base_d1_c2.log
+#
+# d1_c2 = 一天窗口(T=288)+ CGM 和胰岛素两个通道。
+#
+# 这个格子【没有内存风险】,不需要等探针:窗口长度和已经跑过的 d1_c1 完全一样,
+# 注意力矩阵一模一样大,只是通道数 1 变 2。micro_batch 保持 32 —— 显式写出来,
+# 不靠适配器的默认值,这样它会进 meta.json 也会进参数指纹。
+#
+# 成本估计:DiM-TS 在这个格子上是 d1_c1 的 1.75 倍(29010 秒 vs 16609 秒)。
+# IG-FM 在 d1_c1 上是 4.37 小时,按同样比例约 7.6 小时 + 采样。
+# 1 卡 + 2-24 小时 -> g1。24 小时是 3 倍余量。
+# (七天那两个格子【不能】照抄这个墙钟:同样的步数在 T=2016 上估计 45-115 小时,
+#  24 小时会撞墙,而且每撞一次就占掉 g1 唯一的那个槽。等探针给出数再定。)
+#
+#   qsub scripts/pbs/dev/igfm_priv_base_d1_c2.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+
+CELL=d1_c2
+EXTRA='"micro_batch":32'
+source scripts/pbs/dev/igfm_priv_base.body.sh

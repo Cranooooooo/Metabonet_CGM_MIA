@@ -1,0 +1,206 @@
+#!/bin/bash
+#PBS -N maven_smoke
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=64gb:ngpus=1
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/M2_maven_smoke.log
+#
+# First run of our generator. Five checks, cheapest first, each one able to fail the
+# job on its own -- a smoke test that prints OK while a child died is worse than no
+# smoke test, which is the mistake D1_st50_check.pbs made (docs/PITFALLS.md).
+#
+#   1  end-to-end on fake data      shapes, cohort-space round trip, gate is learning
+#   2  milestone -> resample        the path the risk-vs-training-length curve needs
+#   3  real d1_c1, 200 iters        speed and memory on the cohort we will actually use
+#   4  d7 memory probe              the open question: what micro-batch fits at T=2016,
+#                                   where the velocity net's full self-attention is
+#                                   quadratic in 2016 (day fold) / 4024 (delay) tokens
+#   5  cost extrapolation           prints the projected hours per model, so the
+#                                   campaign is costed BEFORE anything long is queued
+#
+# 1 GPU + walltime <= 2 h routes to gdev: priority 100, a card in 1-2 minutes. The
+# login node is at load average ~50 with 61 users, which is why this is not run there.
+#
+#   qsub scripts/pbs/M2_maven_smoke.pbs
+#
+# PBS copies -o back only when the job ENDS, so nothing is visible while it runs. The
+# tee below is what makes progress readable live, matching K1_d7traj.pbs; watching the
+# -o path instead shows the PREVIOUS run's output and reads as a failure that is not
+# happening. Learned the hard way on 2026-08-28.
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u
+mkdir -p logs
+exec > >(tee logs/M2_maven_smoke.live.log) 2>&1
+
+# exported, not just set: every heredoc below reads it through os.environ, and a
+# bare shell variable is invisible to them.
+export SM="$REPO/results/_maven_smoke"
+rm -rf "$SM"; mkdir -p "$SM"
+FAIL=0
+step() { echo; echo "=================== $* ==================="; }
+ok()   { echo "  [PASS] $*"; }
+bad()  { echo "  [FAIL] $*"; FAIL=1; }
+
+nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
+python -c "import torch;print('torch',torch.__version__,'cuda',torch.cuda.is_available())"
+
+# ─────────────────────────────────────────────── 1. end-to-end on fake data
+step "1  end-to-end, fake data, T=288 C=1"
+python - <<'PY'
+import numpy as np, os
+rng = np.random.default_rng(0)
+t = np.linspace(0, 4*np.pi, 288)[None, :, None]
+X = (0.2*np.sin(t + rng.uniform(0, 6.28, (256, 1, 1)))
+     + 0.02*rng.standard_normal((256, 288, 1))).astype('float32')
+# deliberately NOT centred on zero and NOT unit range: the affine has real work to do
+X = X * 0.6 - 0.15
+np.save(os.environ['SM'] + '/fake.npy', X)
+print('fake cohort', X.shape, 'range %.4f %.4f' % (X.min(), X.max()))
+PY
+python -u vendor/MAVEN/cgm_train_sample.py \
+  --data_npy "$SM/fake.npy" --out_npy "$SM/fake_out.npy" \
+  --results_folder "$SM/ck_fake" --K 64 --total_iters 20 --batch_size 16 \
+  --micro_batch_size 8 --dims 64,32,32,64 --n_heads 4 \
+  --sampling_steps 8 --sample_batch 32 --save_cycle 10 --log_every 5 \
+  || bad "fake-data run exited non-zero"
+
+python - <<'PY' || exit 1
+import numpy as np, os, sys, json
+sm = os.environ['SM']
+X = np.load(sm + '/fake.npy'); S = np.load(sm + '/fake_out.npy')
+bad = 0
+if S.shape != (64, 288, 1): print('  [FAIL] shape', S.shape); bad = 1
+else: print('  [PASS] shape', S.shape)
+if not np.isfinite(S).all(): print('  [FAIL] non-finite samples'); bad = 1
+else: print('  [PASS] all finite')
+# The affine must land samples on the cohort's scale. 20 iterations does not make a
+# good model, so this is a SCALE check, not a quality check: an untrained model still
+# has to produce numbers in the right units or the attack's distances are meaningless.
+lo, hi = X.min(), X.max(); span = hi - lo
+if S.min() < lo - 2*span or S.max() > hi + 2*span:
+    print('  [FAIL] samples off-scale: real [%.3f,%.3f] synth [%.3f,%.3f]'
+          % (lo, hi, S.min(), S.max())); bad = 1
+else:
+    print('  [PASS] cohort scale: real [%.3f,%.3f] synth [%.3f,%.3f]'
+          % (lo, hi, S.min(), S.max()))
+cfg = json.load(open(sm + '/ck_fake/maven_config.json'))
+print('  [INFO] view_a=%s L_A=%d L_B=%d params=%d mask=%s'
+      % (cfg['view_a'], cfg['L_A'], cfg['L_B'], cfg['params'], cfg['mask_mode']))
+sys.exit(bad)
+PY
+[ $? -eq 0 ] || bad "fake-data assertions"
+
+# ─────────────────────────────────────────────── 2. milestone -> resample
+step "2  resample from milestone-1, no training"
+python -u vendor/MAVEN/cgm_train_sample.py \
+  --data_npy "$SM/fake.npy" --out_npy "$SM/fake_ms1.npy" \
+  --results_folder "$SM/ck_fake" --K 32 --skip_train --load_milestone 1 \
+  --sampling_steps 8 --sample_batch 32 \
+  || bad "resample from milestone exited non-zero"
+python - <<'PY' || exit 1
+import numpy as np, os, sys
+sm = os.environ['SM']
+A = np.load(sm + '/fake_ms1.npy')
+if A.shape != (32, 288, 1) or not np.isfinite(A).all():
+    print('  [FAIL] milestone resample', A.shape); sys.exit(1)
+print('  [PASS] milestone resample', A.shape, 'range %.3f %.3f' % (A.min(), A.max()))
+PY
+[ $? -eq 0 ] || bad "milestone resample assertions"
+
+# a resample MUST refuse when the config that records the scaling is gone, rather
+# than silently refitting the affine on a different array
+mv "$SM/ck_fake/maven_config.json" "$SM/cfg.bak"
+if python -u vendor/MAVEN/cgm_train_sample.py \
+     --data_npy "$SM/fake.npy" --out_npy "$SM/nope.npy" \
+     --results_folder "$SM/ck_fake" --K 4 --skip_train --load_milestone 1 \
+     >/dev/null 2>&1; then
+  bad "resample SUCCEEDED with no maven_config.json -- the scaling was guessed"
+else
+  ok "resample refuses without maven_config.json"
+fi
+mv "$SM/cfg.bak" "$SM/ck_fake/maven_config.json"
+
+# ─────────────────────────────────────────────── 3. real cohort, timed
+step "3  real d1_c1 cohort, 200 iters, timed"
+python - <<'PY'
+import numpy as np, os
+from cgmoutlier.data.cohort import load
+X, _, _ = load('data/cohort/matrix_d1_c1')
+np.save(os.environ['SM'] + '/d1_c1.npy', X.astype('float32'))
+print('d1_c1', X.shape, 'range %.4f %.4f' % (X.min(), X.max()))
+PY
+timeout 2400 python -u vendor/MAVEN/cgm_train_sample.py \
+  --data_npy "$SM/d1_c1.npy" --out_npy "$SM/d1_c1_out.npy" \
+  --results_folder "$SM/ck_d1" --K 256 --total_iters 200 --batch_size 128 \
+  --micro_batch_size 32 --sampling_steps 50 --sample_batch 64 \
+  --save_cycle 0 --log_every 50 \
+  || bad "d1_c1 run exited non-zero (or hit the 40-min cap)"
+
+# ─────────────────────────────────────────────── 4. d7 memory probe
+step "4  d7 memory probe -- largest micro-batch that fits at T=2016"
+python - <<'PY'
+import os, sys, torch, numpy as np
+sys.path.insert(0, 'vendor/MAVEN')
+from visual_transforms import PeriodFold, DelayEmbed, STFTEmbedder
+from train_maven_maskae import AEMaskVelocityNet
+dev = torch.device('cuda')
+dims = [int(x) for x in '128,128,64,64,64,64,128,128'.split(',')]
+T, D = 2016, 2
+tot = torch.cuda.get_device_properties(0).total_memory / 1e9
+print('  GPU total %.1f GB' % tot)
+for name, L in [('dayfold', PeriodFold(T, 288).L),
+                ('delay', DelayEmbed(T, tau=4, m=8).L),
+                ('stft(96/48)', STFTEmbedder(T, D, n_fft=96, hop_length=48).L)]:
+    net = AEMaskVelocityNet(D, dims, n_heads=8, seq_len=L).to(dev)
+    best = 0
+    for b in (1, 2, 4, 8, 16, 32, 64):
+        torch.cuda.empty_cache(); torch.cuda.reset_peak_memory_stats()
+        try:
+            x = torch.randn(b, L, D, device=dev)
+            t = torch.rand(b, device=dev)
+            z = torch.zeros_like(x)
+            with torch.autocast('cuda', dtype=torch.bfloat16):
+                c, f = net(x, t, z, z, None)
+                loss = (f ** 2).mean() + (c ** 2).mean()
+            loss.backward()
+            best = b
+            peak = torch.cuda.max_memory_allocated() / 1e9
+        except torch.cuda.OutOfMemoryError:
+            print('    %-12s L=%-5d micro-batch %2d  OOM' % (name, L, b)); break
+        finally:
+            net.zero_grad(set_to_none=True)
+    print('  %-12s L=%-5d  max micro-batch %d  (peak %.1f GB)' % (name, L, best, peak))
+    del net; torch.cuda.empty_cache()
+PY
+[ $? -eq 0 ] || bad "d7 memory probe crashed"
+
+# ─────────────────────────────────────────────── 5. cost extrapolation
+step "5  projected cost per model"
+python - <<'PY'
+import os, re
+log = os.environ.get('PBS_O_WORKDIR', '.') + '/logs/M2_maven_smoke.log'
+# The d1_c1 step logs "(SECONDSs)" at iter 200; read the rate straight off it rather
+# than timing the whole step, which includes cohort load and sampling.
+try:
+    txt = open(log).read()
+except OSError:
+    print('  [INFO] log not readable yet; rate printed above by the run itself'); raise SystemExit(0)
+m = re.findall(r'\[maven\] iter (\d+)/\d+ \((\d+)s\)', txt)
+if len(m) >= 2:
+    (i0, t0), (i1, t1) = m[-2], m[-1]
+    rate = (int(i1) - int(i0)) / max(1, int(t1) - int(t0))
+    print('  measured %.2f it/s on d1_c1' % rate)
+    for steps in (30000, 100000):
+        print('    %6d iters -> %5.1f h/model, x27 models = %6.0f GPU-h'
+              % (steps, steps / rate / 3600, 27 * steps / rate / 3600))
+    print('  DiM-TS reference: 1.25 it/s at T=2016 C=2, ~22 h/model at 100k')
+else:
+    print('  [INFO] not enough iter lines to extrapolate')
+PY
+
+step "VERDICT"
+if [ "$FAIL" -eq 0 ]; then echo "SMOKE OK -- all checks passed"; else echo "SMOKE FAILED"; fi
+exit $FAIL

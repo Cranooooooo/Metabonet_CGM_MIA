@@ -1,0 +1,38 @@
+#!/bin/bash
+#PBS -N igfmpriv_a
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:ngpus=4:mem=440gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+#PBS -o logs/igfm_priv_loo_a.log
+#
+# 加了隐私模块的 IG-FM,泄漏实验的前半 —— 分片 0-3(共 7 片)。
+#
+# 这批要回答的是整个项目的那个问题:两个隐私模块到底把泄漏降了多少。
+# 光有质量数字(0.0383,比原版 0.0394 还好一点)只证明了「没把生成能力赔掉」,
+# 完全没碰隐私。隐私要成对的模型才测得出来:同一个人,分别拿「训练用了他」和
+# 「没用他」的两个模型放出的假数据去比。对照那一半(原版 IG-FM 的 27 个模型)
+# 今晚出,这一半是被比的那一半。
+#
+# 模块只有两个:改动一(按坐标遮)+ 改动二(瓶颈前池化去相关)。
+# 改动三 iso_weight 在 review 中撤出,base 就是没有它训的,这里也不能开 ——
+# 三个变量一起动,泄漏降了也归不了因。
+#
+# 为什么现在就能发:glong 那两个槽被原版基线和第 4 步补档占着,但 g2/g3 我一个没用。
+# g3 要求正好 4 张卡、2-24 小时,提交时队里 0 个人排。
+# 这 4 张卡跑分片 0-3,配套的 igfm_priv_loo_b.pbs 拿 g2 的 3 张卡跑分片 4-6。
+# b 万一排不上也不影响:run_loo 跳过已完成的模型,到时候原版基线跑完腾出 glong,
+# 剩下的接着跑就行,不重训任何一个。
+#
+# base 不在这里训:它已经存在(results/runs/igfm_priv_d1_c1/base,过了质量关),
+# 把它的 samples.npy 和 meta.json 拷进来(不是符号链接 —— 共享目录的话,任何一次
+# 往那边的重跑都会悄悄换掉这 26 个配对的对照),run_loo 核对后跳过。省 4.6 卡时。
+#
+#   qsub scripts/pbs/dev/igfm_priv_loo_a.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+
+
+SHARDS="0 1 2 3"
+source scripts/pbs/dev/igfm_priv_loo.body.sh

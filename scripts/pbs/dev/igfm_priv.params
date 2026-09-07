@@ -1,0 +1,1 @@
+{"hidden":144,"level_dims":48,"order_dims":48,"steps":25000,"sampling_steps":500,"save_every":2000,"keep_checkpoints":2,"coord_mask":true,"p_block":0.35,"p_level":0.25,"iso_weight":false}

@@ -1,0 +1,19 @@
+#!/bin/bash
+#PBS -N bl_fd_c2
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/bl_fd_c2.log
+#
+# baseline 的 base 模型:FourierDiffusion 在 d1_c2
+# 说明和等预算口径见 scripts/pbs/dev/baseline_base.body.sh。
+# 探针实测的单模型成本:diffusion_ts 0.59h / fourier_diff 1.51h / diffwave 0.53h(d1)。
+# 1 卡 + <=2 小时 -> gdev。g1/g2/g3 三个槽都被 d1_c2 原版 IG-FM 的作业排着,gdev 是
+# 现在唯一能立刻起跑的队列。
+#
+#   qsub scripts/pbs/dev/bl_fd_c2.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+JOBS="fourier_diff:d1_c2"
+source scripts/pbs/dev/baseline_base.body.sh

@@ -1,0 +1,74 @@
+#!/bin/bash
+#PBS -N qseed2
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/quality_seeds_d1_c2.log
+#
+# d1_c2 质量分的误差棒。不训练任何模型 —— 两套样本都在盘上。
+#
+# 为什么要:d1_c1 上量过一次,结论是【单次评分的差别不能读】—— 种子间标准差 0.0073,
+# 而同一个种子重打都能差 0.0009(纯 GPU 不确定性)。d1_c2 现在只有单次读数
+# (IG-FM 0.0551 对 DiM-TS 0.159),不给误差棒的话「好 2.9 倍」这句只是一次抽样。
+# 两个模型在同一个种子下一起打分,可以做配对比较。
+#
+# 一次打分实测 54 秒,6 种子 x 2 模型 = 12 次约 11 分钟。1 卡 + 2 小时 -> gdev。
+#
+#   qsub scripts/pbs/dev/quality_seeds_d1_c2.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+case $- in *e*) ;; *) echo "❌ errexit 没打开"; exit 1;; esac
+mkdir -p logs results/quality_seeds_d1_c2
+LOG=logs/quality_seeds_d1_c2.live.log
+trap 'tail -40 "$LOG" 2>/dev/null || true' EXIT
+
+A=results/runs/igfm_priv_d1_c2/base
+B=results/runs/matrix_d1_c2/base
+
+{
+echo "===== $(date '+%F %T')  d1_c2 质量分 · 6 种子 x 2 模型 ====="
+for s in 2026 2027 2028 2029 2030 2031; do
+  echo "--- seed $s"
+  python -u scripts/eval_quality_tsgem.py --runs "$A" "$B" \
+      --cohort data/cohort/matrix_d1_c2 --design results/matrix/design/rep1 \
+      --seed "$s" --label "d1c2_seed$s" \
+      --out "results/quality_seeds_d1_c2/s${s}.json"
+done
+
+echo; echo "===== 汇总 ====="
+python - <<'PY'
+import json, statistics as st
+SEEDS = [2026, 2027, 2028, 2029, 2030, 2031]
+A = "results/runs/igfm_priv_d1_c2/base"
+B = "results/runs/matrix_d1_c2/base"
+NAME = {A: "IG-FM+两模块", B: "DiM-TS"}
+by = {A: {}, B: {}}
+for s in SEEDS:
+    d = json.load(open(f"results/quality_seeds_d1_c2/s{s}.json"))
+    for run, rec in d.items():
+        if run in by:
+            by[run][s] = rec["context_fid"]
+
+print(f"{'模型':<16}{'均值':>9}{'标准差':>9}{'最小':>9}{'最大':>9}")
+for run, name in NAME.items():
+    v = [by[run][s] for s in SEEDS if s in by[run]]
+    print(f"{name:<16}{st.mean(v):>9.4f}{st.stdev(v):>9.4f}{min(v):>9.4f}{max(v):>9.4f}")
+
+# 同一个种子下 DiM-TS 减 IG-FM。同一抽、同一初始化,配对比两组各自的散布紧得多。
+d = [by[B][s] - by[A][s] for s in SEEDS if s in by[A] and s in by[B]]
+r = [by[B][s] / by[A][s] for s in SEEDS if s in by[A] and s in by[B]]
+m, sd = st.mean(d), st.stdev(d); se = sd / len(d) ** 0.5
+print(f"\n配对差(DiM-TS - IG-FM),{len(d)} 个种子:")
+print("  每个种子: " + "  ".join(f"{x:+.4f}" for x in d))
+print(f"  均值 {m:+.4f}  标准差 {sd:.4f}  标准误 {se:.4f}")
+print(f"  95% 区间约 [{m-1.96*se:+.4f}, {m+1.96*se:+.4f}]")
+print(f"  倍数 {st.mean(r):.2f}x (最小 {min(r):.2f}x 最大 {max(r):.2f}x)")
+print("  区间整个在 0 以上 -> 「IG-FM 在这个格子上质量更好」站得住,边界是区间下限")
+print("  区间跨过 0 -> 只能说测不出差异,不能说好 N 倍")
+PY
+echo; echo "===== QSEEDS d1_c2 OK $(date '+%F %T') ====="
+} > "$LOG" 2>&1
+tail -40 "$LOG"

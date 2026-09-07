@@ -1,0 +1,32 @@
+#!/bin/bash
+#PBS -N d7pfd
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/bl_d7_probe_fd.log
+#
+# FourierDiffusion 在七天窗口能不能塞进 40 GB。batch 8 实测要 46.5 GiB。
+# 逐档往下试 6 / 4 / 2,第一个不 OOM 的就是答案。
+#
+# ⚠️ 它 fit() 末尾有一道无条件的"训练塌缩"检查(ratio>0.5 直接 RuntimeError),
+#    冒烟预算下必然触发。探针的 try/except 会把它记成 error 字符串,所以
+#    【OOM 和塌缩要靠错误文本区分】,不能只看有没有 error。
+#
+#   qsub scripts/pbs/dev/bl_d7_probe_fd.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -uo pipefail
+mkdir -p logs results/probe
+for bs in 6 4 2; do
+  echo "########## fourier_diff d7_c1 batch=$bs ##########"
+  python -u scripts/probe_generator.py --generator fourier_diff \
+      --cohort data/cohort/matrix_d7_c1 --n-train 5741 --n-sample 128 --K 5741 \
+      --batch-size $bs --train-rate \
+      --out "results/probe/fd_d7_c1_bs$bs.json" 2>&1 | tail -14
+  if grep -q '"error"' "results/probe/fd_d7_c1_bs$bs.json" 2>/dev/null; then
+      echo "   -> batch=$bs 失败,试下一档"
+  else
+      echo "   -> batch=$bs 跑通了,不再往下试"; break
+  fi
+done

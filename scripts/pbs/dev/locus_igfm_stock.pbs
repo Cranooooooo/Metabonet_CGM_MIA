@@ -1,0 +1,45 @@
+#!/bin/bash
+#PBS -N locus_igfm
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=440gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/locus_igfm_stock.log
+#
+# 原版 IG-FM 那 27 个模型的【打乱地板】。
+#
+# 为什么必须补这一步:我们现在报的主指标是「每组逐病人 AUC 的中位数」,
+# 而这个数只有和「纯靠运气能得多少分」并排放着才读得懂。DiM-TS 在同一个格子上
+# 地板是中位数 0.503、26 个里有 7 个能碰巧超过 0.55、最高一个能碰巧到 0.903 ——
+# 没有这条线,「11/13 个 outlier 有风险」这种句子会被当成 5% 假阳性去理解,
+# 实际是 27%(docs/PITFALLS.md 第 20 条,那一条就是为了纠正这个才写的)。
+#
+# 地板是【每个 release 各算各的】,不能拿 DiM-TS 的地板去读 IG-FM 的数,
+# 所以原版和加模块那两批各要跑一次。加模块那批已经写进 igfm_priv_loo.body.sh
+# 的收尾里了,这个作业补的是原版那批 —— igfm_loo.pbs 写的时候还没有第 20 条。
+#
+# 0 张 GPU:纯距离算术,路由到 qdev,不占显卡,也不碰那两个 glong 槽。
+#
+# 依赖 igfm_loo(15870939)成功结束。那个作业只有在 27 个模型全齐、
+# 攻击和逐病人都跑完之后才 exit 0,正好是这里需要的前提 —— 所以用 afterok
+# 而不是 afterany:模型不齐的时候算地板没有意义。
+#
+#   qsub -W depend=afterok:15870939 scripts/pbs/dev/locus_igfm_stock.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u; mkdir -p logs results/matrix/leak_locus
+set -euo pipefail
+
+OUT=results/runs/loo_igfm_d1_c1
+n=0; for d in "$OUT"/*/; do if [ -f "$d/samples.npy" ]; then n=$((n + 1)); fi; done
+echo "原版 IG-FM: $n / 27 个模型"
+[ "$n" -eq 27 ] || { echo "❌ 不足 27 个,地板算出来不可比,停"; exit 1; }
+
+{
+python -u scripts/leak_locus.py --design results/matrix/design/rep1 \
+    --cohort data/cohort/matrix_d1_c1 --runs "$OUT" \
+    --out results/matrix/leak_locus/igfm_d1_c1.json
+echo "LOCUS igfm_stock OK"
+} > logs/locus_igfm_stock.out 2>&1
+tail -25 logs/locus_igfm_stock.out

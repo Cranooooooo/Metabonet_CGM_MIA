@@ -1,0 +1,42 @@
+#!/bin/bash
+#PBS -N cgm_editceil
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=440gb
+#PBS -l walltime=08:00:00
+#PBS -q normal
+#PBS -j oe
+#PBS -o logs/N2d_edit_ceiling.log
+#
+# Does a directed release-time edit close the membership gap, or do the neighbours take
+# over first? See scripts/edit_ceiling.py. No GPU, no model, no mechanism -- it applies
+# the best directed edit that can exist and reads the frozen attack's own output.
+#
+# Milestone 3 (30,000 steps) on all three finished cells: MODEL_DESIGN 5 argues every
+# number is read at the maximum-contrast checkpoint and PAPER_PLAN 3b measured it there.
+# d7_c2 is deliberately absent -- it finishes 08-30 and nothing in this design has looked
+# at it, which is what makes it usable as the confirmatory cell.
+#
+# WHY THIS SUPERSEDES N1's SECTION 1. N1 reported d2-d1: a per-pair bound, aggregated per
+# window while the attack's g is per subject. It read 1.81x / 0.89x / 0.51x of g and said
+# the design might be dead on d7_c1. That was a bound, not a measurement, and it was
+# pessimistic by construction (it assumes only the nearest released sample moves). N1's
+# sections 2 and 3 -- sparsity and raw-vs-sorted agreement -- stand and are not repeated.
+#
+#   qsub scripts/pbs/N2_edit_ceiling.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u
+mkdir -p logs results/matrix/edit_ceiling
+exec > >(tee logs/N2d_edit_ceiling.live.log) 2>&1
+set -euo pipefail
+
+for CELL in d1_c1 d1_c2 d7_c1; do
+  echo; echo "############################ $CELL ############################"
+  python -u scripts/edit_ceiling.py --cell "$CELL" \
+      --runs "results/runs/sweep_${CELL}_ms3" \
+      --design results/matrix/design/rep1 \
+      --direction dual \
+      --out "results/matrix/edit_ceiling/${CELL}.json"
+done
+echo "EDIT CEILING OK"

@@ -1,0 +1,99 @@
+#!/bin/bash
+#PBS -N igfm_curve
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:ngpus=2:mem=220gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+#PBS -o logs/igfm_curve.log
+#
+# IG-FM 自己的质量-预算曲线。这是决定七天格子做不做得起的那一步。
+#
+# 背景。探针量出七天窗口上一个模型要 120 小时,27 个就是 3250 卡时、一个格子
+# 35 天 —— 按现在的 25000 步预算做不起。而 DiM-TS 在本项目的预算曲线显示,
+# 质量在 20% 预算处见顶之后【一路变差】:d7_c1 从 2 万步的 0.131 烂到 10 万步的
+# 0.327。如果 IG-FM 也这样,七天就能用 5000 步训,单模型 23 小时,一个格子 620
+# 卡时,做得起。
+#
+# 但这条【不能直接搬】:IG-FM 在 d1_c1 满预算是 0.0429,比 DiM-TS 有史以来最好的
+# 0.060 还好,很可能没有那个过训退化。没人量过,因为之前每一次 IG-FM 都设
+# keep_checkpoints=2,中间权重全被剪掉了 —— 而剪是从旧到新剪的,被删掉的正好是
+# 这条曲线要看的早期里程碑。
+#
+# 所以这里重训一遍,只改一个东西:keep_checkpoints 开到 20,把 13 个存档全留下。
+# 训练轨迹和战役里那个 base 是同一套参数、同一个种子,曲线描述的是【这个配置】。
+# 输出写在 results/runs/igfm_curve_* 里,和战役的树完全分开 ——
+# results/runs/igfm_priv_d1_c1/base 是已经过质量关、后面要当 MIA 对照的模型,不许碰。
+#
+# 两张卡各跑一个格子:card0 = d1_c1(已知终点 0.0383,可以验曲线对不对),
+# card1 = d1_c2(正在训的那个战役 base 只留两个存档,给不出曲线)。两个格子的
+# 曲线如果形状一致,往七天外推才有底气;不一致,就说明形状跟窗口长度有关,
+# 那更要老老实实先量七天。
+#
+# 成本:每张卡 4.6-7.6 小时训练 + 8 个里程碑各采一次(d1_c1 实测 830 秒/次)。
+# 2 卡 + 2-24 小时 -> g2。g1 那个槽被 ipb_d1c2 占着,g2/g3 我一个没用。
+#
+#   qsub scripts/pbs/dev/igfm_curve.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+case $- in *e*) ;; *) echo "❌ errexit 没打开,拒绝继续"; exit 1;; esac
+mkdir -p logs results/matrix/curve
+
+DSN=results/matrix/design/rep1
+MS=2000,4000,6000,8000,12000,16000,20000,25000
+# 和战役参数逐字相同,只有 keep_checkpoints 从 2 改成 20 —— 它只影响留几个存档,
+# 不影响训练本身。micro_batch 显式写出来,一天窗口上就是 32。
+PBASE='{"hidden":144,"level_dims":48,"order_dims":48,"steps":25000,"sampling_steps":500,"save_every":2000,"keep_checkpoints":20,"coord_mask":true,"p_block":0.35,"p_level":0.25,"iso_weight":false,"micro_batch":32}'
+
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0,1}"
+[ "${#ALLOC[@]}" -eq 2 ] || { echo "❌ 拿到 ${#ALLOC[@]} 张卡,要 2 张"; exit 1; }
+
+one_cell() {                       # $1 = cell, $2 = 卡
+  local c="$1" dev="$2"
+  local COH="data/cohort/matrix_$c" RUN="results/runs/igfm_curve_$c"
+  export CUDA_VISIBLE_DEVICES="$dev"
+  echo "===== $(date '+%F %T')  $c 的预算曲线(卡 $dev) ====="
+  echo "参数: $PBASE"
+
+  python -u scripts/run_loo.py --design "$DSN" --cohort "$COH" --out "$RUN" \
+      --generator igfm --job base --seed 2026 --params "$PBASE"
+  [ -s "$RUN/base/samples.npy" ] || { echo "❌ $c 训练没产出样本"; return 1; }
+  echo "$c 存档: $(ls "$RUN/base" | grep -c '^iter-') 个"
+
+  python -u scripts/igfm_budget_curve.py --run "$RUN/base" --cohort "$COH" \
+      --design "$DSN" --job base --milestones "$MS" \
+      --out-root "results/matrix/curve/$c" --seed 2026
+
+  # 一次调用把 8 个里程碑一起打分:同一个种子、同一套子采样,点和点之间才可比。
+  local dirs=""; for m in ${MS//,/ }; do dirs="$dirs results/matrix/curve/$c/m$m"; done
+  python -u scripts/eval_quality_tsgem.py --runs $dirs --cohort "$COH" \
+      --design "$DSN" --seed 2026 --label "curve_$c" \
+      --out "results/matrix/curve/${c}_quality.json"
+  # eval_quality_tsgem 在某个目录缺 samples.npy 时是【打一行、跳过、照样退 0】,
+  # 所以「文件里有 context_fid」这个条件 8 个里中 1 个就满足。必须数够 8 个。
+  n=$(grep -c '"context_fid"' "results/matrix/curve/${c}_quality.json" 2>/dev/null || true)
+  [ "${n:-0}" -eq 8 ] || { echo "❌ $c 的曲线只打出 ${n:-0}/8 个点"; return 1; }
+  echo "===== $c OK $(date '+%F %T') ====="
+}
+
+rc=0
+( one_cell d1_c1 "${ALLOC[0]}" ) > logs/igfm_curve_d1_c1.log 2>&1 &
+p1=$!
+( one_cell d1_c2 "${ALLOC[1]}" ) > logs/igfm_curve_d1_c2.log 2>&1 &
+p2=$!
+wait $p1 || { echo "d1_c1 失败"; rc=1; }
+wait $p2 || { echo "d1_c2 失败"; rc=1; }
+
+echo; echo "########## 曲线 ##########"
+for c in d1_c1 d1_c2; do
+  echo "--- $c   (参照:DiM-TS 在 20% 预算见顶后一路变差)"
+  for m in ${MS//,/ }; do
+    v=$(grep -A20 "curve/$c/m$m\"" "results/matrix/curve/${c}_quality.json" 2>/dev/null \
+        | grep -oE '"context_fid": *[0-9.]+' | head -1 || true)
+    printf "   %-6s %s\n" "m$m" "${v:-(无)}"
+  done
+done
+echo; echo "d1_c1 满预算的已知参照: 0.0383(单次) / 0.0429±0.0073(6 个种子)"
+[ "$rc" -eq 0 ] || echo "== 退出码 $rc,上面有失败项"
+exit $rc

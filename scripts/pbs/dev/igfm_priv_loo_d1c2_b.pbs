@@ -1,0 +1,31 @@
+#!/bin/bash
+#PBS -N ipl_d1c2b
+#PBS -P 11704243
+#PBS -l select=1:ncpus=48:ngpus=3:mem=330gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+#PBS -o logs/igfm_priv_loo_d1c2_b.log
+#
+# d1_c2 的 26 个 include 模型,第 b 段 —— 分片 4 5 6(共 8 片)。3 张卡 -> g2。
+#
+# 实测单模型 4.63 小时(训 15818 秒 + 采 838 秒),和 d1_c1 的 4.6 小时几乎一样 ——
+# 多一个胰岛素通道对 IG-FM 几乎不要钱(参数量和注意力矩阵都没变,只是 in_proj 的
+# 输入维度从 1 变 2)。DiM-TS 在同一步上要贵 75%,那个比例不能搬过来。
+#
+# 8 路分片每片最多 4 个模型 = 18.5 小时,24 小时墙钟余量 5.5 小时。
+# 三个作业分别占 g3 / g2 / g1,一张卡都不空等;谁先跑完不影响 ——
+# 收尾看的是目录里够不够 27 个,不是「我跑完了」。
+#
+# base 不在这里训:results/runs/igfm_priv_d1_c2/base 已过质量关
+# (0.0551,DiM-TS 同格子 0.159,好 2.9 倍;分真假八次最差 0.5075),拷贝进来复用。
+#
+#   qsub scripts/pbs/dev/igfm_priv_loo_d1c2_b.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+
+CELL=d1_c2
+EXTRA='"micro_batch":32'
+NS=8
+SHARDS="4 5 6"
+source scripts/pbs/dev/igfm_priv_loo_cell.body.sh

@@ -1,0 +1,24 @@
+#!/bin/bash
+#PBS -N cgm_fill
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=220gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+{
+set -euo pipefail
+python -u scripts/disc_stability.py --runs results/runs/matrix_d7_c1_st200/base \
+  --cohort data/cohort/matrix_d7_c1 --restarts 8 \
+  --out results/matrix/quality/d7_c1_st200/disc_stability.json
+for ST in 100 200; do
+  for CELL in d1_c1 d1_c2 d7_c1; do
+    O=results/matrix/quality_tsgem/${CELL}_st${ST}.json
+    [ -f "$O" ] && continue
+    python -u scripts/eval_quality_tsgem.py --runs results/runs/matrix_${CELL}_st${ST}/base \
+      --cohort data/cohort/matrix_$CELL --design results/matrix/design/rep1 \
+      --label "${CELL}_st${ST}" --out "$O"
+  done
+done
+echo "FILL OK"
+} 2>&1 | tee logs/D12_fill.live.log

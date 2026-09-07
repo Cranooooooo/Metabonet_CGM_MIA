@@ -1,0 +1,34 @@
+#!/bin/bash
+#PBS -N d7pdts
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/bl_d7_probe_dts.log
+#
+# Diffusion-TS 在七天窗口的成本,补两个表里的空格:
+#   (a) 【作者默认容量】在 d7_c2 —— d7_c1 已探过(batch 4, 8,315,943 参数),
+#       d7_c2 之前是照 c1 估的。注意 T=2016 时"默认"已经是 8.3M 参数
+#       (trend/Fourier 分量随 T 增长),反而比 IG-FM 的 2.34M 【大】3.6 倍,
+#       和 d1 上 0.22M 那个稻草人完全是两回事。
+#   (b) 【作者 solar 容量】(4/4/96) 在 d7_c1 和 d7_c2 —— 完全没探过。
+#
+# batch=4:探针实测 8 会 OOM(要 15.5 GiB),4 最省(0.0344 s/iter,比 2 和 1 都快)。
+#
+#   qsub scripts/pbs/dev/bl_d7_probe_dts.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -uo pipefail
+mkdir -p logs results/probe
+SOLAR='{"n_layer_enc":4,"n_layer_dec":4,"d_model":96,"n_heads":4,"mlp_hidden_times":4,"timesteps":500}'
+for cell in d7_c1 d7_c2; do
+  for cfg in default solar; do
+    [ "$cell$cfg" = "d7_c1default" ] && { echo "## $cell/$cfg 已有 dts_d7_bs4.json,跳过"; continue; }
+    echo "########## $cell / $cfg ##########"
+    P=""; [ "$cfg" = solar ] && P="--gen-params $SOLAR"
+    python -u scripts/probe_generator.py --generator diffusion_ts \
+        --cohort "data/cohort/matrix_$cell" --n-train 5741 --n-sample 256 --K 5741 \
+        --batch-size 4 $P --train-rate \
+        --out "results/probe/dts_d7_${cell}_${cfg}.json" 2>&1 | tail -14
+  done
+done

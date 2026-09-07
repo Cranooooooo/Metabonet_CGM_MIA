@@ -1,0 +1,66 @@
+#!/bin/bash
+#PBS -N igfm_probe
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/igfm_priv_probe_d7.log
+#
+# 七天窗口上 IG-FM 的 micro_batch 和真实成本 —— 提交正式作业之前先量出来。
+#
+# 为什么必须先量:适配器里 micro_batch 写死 32,那个数是按 T=288 定的。
+# 自注意力 O(T^2),T=2016 时每条序列的注意力工作量是 49 倍。IG-FM 从没在这个
+# 长度上跑过。拿猜的数去发 27 个模型,两种下场都很难看:跑几小时才 OOM,
+# 或者悄悄慢 20 倍、撞墙钟死掉、一个可用模型都没有。0 卡时换掉约 1300 卡时的未知数。
+#
+# 顺序是刻意的:
+#   1) 先跑 d1_c1 标定。那个格子的真值我们已经知道(15715.76 秒训 + 830.5 秒采样),
+#      探针在这里对不上,七天的外推就一个字都不能信。放最后的话,一旦某个 d7 格子
+#      吃掉全部时间,最该有的那个数反而没了。
+#   2) 每个格子后面跟 `|| true`。env.sh 开了 set -e,而「没有一个配置跑得起来」
+#      正是探针要报告的两种答案之一 —— 它让脚本退 1,不兜住的话整个作业当场结束,
+#      后面的格子和标定全部作废。
+#
+# gdev 的墙钟上限是 2 小时,而「非常慢」恰恰是最耗探针时间的那个答案。所以每个
+# d7 格子给 2700 秒的软预算:超了就干净地停下,把已经量到的写盘,而不是被杀掉、
+# 什么都没留下。探针每量完一个 micro 就写一次盘,不是最后才写。
+#
+#   qsub scripts/pbs/dev/igfm_priv_probe_d7.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u; mkdir -p logs results/probe
+set -euo pipefail
+LOG=logs/igfm_priv_probe_d7.live.log
+trap 'tail -60 "$LOG" 2>/dev/null || true' EXIT
+
+P=$(cat scripts/pbs/dev/igfm_priv.params)
+
+{
+echo "===== $(date '+%F %T')  IG-FM(带模块)七天窗口成本探针 ====="
+echo "参数: $P"
+
+echo; echo "########## 标定:d1_c1 (真值 4.37 h 训 + 0.23 h 采样) ##########"
+python -u scripts/probe_igfm_micro.py \
+    --cohort data/cohort/matrix_d1_c1 --design results/matrix/design/rep1 \
+    --params "$P" --micro 32 --stop-after 1 --short 8 --long 24 \
+    --target-iters 25000 --sample-n 64 --budget-seconds 600 \
+    --out results/probe/igfm_priv_d1_c1_calib.json || true
+
+for c in d7_c1 d7_c2; do
+  echo; echo "########## $c ##########"
+  python -u scripts/probe_igfm_micro.py \
+      --cohort "data/cohort/matrix_$c" --design results/matrix/design/rep1 \
+      --params "$P" --micro 32,16,8,4,2 --stop-after 2 --short 8 --long 24 \
+      --target-iters 25000 --sample-n 64 --budget-seconds 2700 \
+      --out "results/probe/igfm_priv_$c.json" || true
+done
+
+echo; echo "===== 汇总 ====="
+for f in results/probe/igfm_priv_d1_c1_calib.json results/probe/igfm_priv_d7_c1.json results/probe/igfm_priv_d7_c2.json; do
+  echo "--- $f"
+  grep -oE '"(micro|accum|sec_per_iter|fixed_overhead_s|peak_reserved_gib|projected_fit_hours|projected_total_hours|error)": *[^,}]*' "$f" 2>/dev/null || echo "  (没有产出)"
+done
+echo; echo "===== PROBE DONE $(date '+%F %T') ====="
+} > "$LOG" 2>&1
+tail -70 "$LOG"

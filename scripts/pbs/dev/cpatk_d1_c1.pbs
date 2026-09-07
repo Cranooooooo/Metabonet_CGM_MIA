@@ -1,0 +1,36 @@
+#!/bin/bash
+#PBS -N cpatk_d1_c1
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=440gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/cpatk_d1_c1.log
+#
+# 「完全照抄」这个端点的纵坐标(隐私风险),同口径测量。
+#
+# 之前只测了它的质量(横坐标),纵坐标一直借用 COPY_PASTE_CEILING.md 里的 0.816 ——
+# 那是在另一批病人上测的,正是本项目已经栽过一次的坑(PITFALLS 19)。
+# 这个作业把 27 个照抄模型都生成出来,走和 DiM-TS 完全相同的攻击,拿到同口径的风险值。
+#
+# 0 张 GPU:攻击是纯距离算术,不需要显卡。这样路由到 qdev,每人可跑 100 个,
+# 不和 GPU 队列抢资源。copy_paste 本身不训练(fit 0 秒),27 个模型是瞬时生成的。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u; mkdir -p logs
+set -euo pipefail
+{
+OUT=results/runs/cp_matrix_d1_c1
+echo "== 生成 27 个照抄发布集"
+python -u scripts/run_loo.py --design results/matrix/design/rep1 \
+    --cohort data/cohort/matrix_d1_c1 --out "$OUT" --generator copy_paste
+echo "== 攻击(冻结统计量)"
+python -u scripts/run_attack.py --design results/matrix/design/rep1 \
+    --cohort data/cohort/matrix_d1_c1 --runs "$OUT" \
+    --out results/matrix/attack/cp_d1_c1 --generator copy_paste 2>&1 | tail -6
+echo "== 逐病人"
+python -u scripts/subject_auc.py --runs "$OUT" --design results/matrix/design \
+    --cohort data/cohort/matrix_d1_c1 --replicates 1 \
+    --out results/matrix/subject_auc/cp_d1_c1 2>&1 | tail -3
+echo "CPATK d1_c1 OK"
+} > logs/cpatk_d1_c1.out 2>&1
+cat logs/cpatk_d1_c1.out

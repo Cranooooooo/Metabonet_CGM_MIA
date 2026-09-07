@@ -1,0 +1,160 @@
+#!/bin/bash
+#PBS -N ipb_d7
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:ngpus=2:mem=220gb
+#PBS -l walltime=120:00:00
+#PBS -j oe
+#PBS -o logs/igfm_priv_d7_bases.log
+#
+# 七天窗口的两个 base,一张卡一个格子。这一步同时买到三样东西:
+#   1) 质量关 —— 两个模块在 T=288 上不赔质量,不等于在 T=2016 上不赔;
+#   2) 后面 27 个 MIA 模型的【对照模型】;
+#   3) 【d7 自己的预算曲线】—— keep_checkpoints 开到 20,13 个存档全留。
+#
+# 第 3 条是这个作业的真正理由。一天窗口的曲线显示 IG-FM 不过训(单调变好,和
+# DiM-TS 在 20% 见顶后烂掉相反),但 12000 步之后的变化已经在噪声里,8000 步就赢过
+# DiM-TS 的历史最好成绩。若能砍到那两档,26 个 include 是 1438 / 1006 卡时,4 卡
+# 15 / 10.5 天,而不是满预算的 2847 卡时、30 天。
+# 但【不能外推】:难的格子飘得更晚(8000 步时 d1_c1 是终点的 1.23 倍,d1_c2 是
+# 1.66 倍),七天窗口长 7 倍,大概率更难。让 d7 自己给出曲线,再定 include 的档位;
+# 曲线用 scripts/igfm_budget_curve.py 从存档重采样,顺带产出和 include 同预算的
+# 对照模型,不用重训。
+#
+# 成本(探针实测,已修正一处算错):单模型 109.5 小时 = 104.1 训 + 5.4 采。
+#   micro_batch=8 是探针实测:32 和 16 在 40 GB A100 上都 OOM,8 能跑(21.5 GiB),
+#   4 并没有更快(15.14 vs 14.96 秒/iter)—— 算力受限,不是显存受限。
+#   有效批仍是 256(适配器 accum = 256/micro),所以这不是换了一个训练预算。
+#   每 iteration 14.98 秒是取【长跑那一次】的 359.61s/24。探针原本用两次做差,
+#   那个估计在 d1_c1 上算出负数 —— 因为第一次调用要付约 25 秒的进程热身而第二次
+#   不付。d7 上没有这个问题:头两次尝试(micro 32/16)OOM 了但已经把 CUDA 上下文
+#   初始化付掉,所以 t_short/8=15.04 和 t_long/24=14.98 只差 0.4%,互相印证。
+#   同一口径在 d1_c1 上给出 0.6325 s/iter,真值 0.6286,误差 0.6% —— 标定通过。
+#
+# 墙钟:109.5 < 120,一次应当跑得完。万一被切掉也不丢东西(存档每 2000 步一次,
+# 重排队时 fit 走 start_it >= total_iters 的提前返回直接进采样)——但那种情况下
+# meta.json 里的 fit_seconds 会是【几十秒】而不是训练成本,下面有专门的守卫标记它,
+# 因为 26 个 include 的预算就是照着这个字段估的。恢复作业见 igfm_priv_d7_resume.pbs。
+#
+#   qsub scripts/pbs/dev/igfm_priv_d7_bases.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+case $- in *e*) ;; *) echo "❌ errexit 没打开,拒绝继续"; exit 1;; esac
+mkdir -p logs
+
+DSN=results/matrix/design/rep1
+FREEZE=results/runs/.igfm_priv_campaign.params
+BASEP=$(cat scripts/pbs/dev/igfm_priv.params | tr -d '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+
+# 战役级冻结。glong 排着 20 多个作业、每人只能跑一个,这个作业可能等好几天 ——
+# 那期间任何一次对共享参数文件的编辑都会让 d7 的 base 和 d1 的用不同参数训,
+# 而跨窗口比较正是这个 arm 的全部意义。每格子的 .params.json 挡不住这个:
+# d7 的目录还不存在,指纹会把漂移【记下来】而不是拦住。
+[ -f "$FREEZE" ] || { echo "❌ $FREEZE 不存在 —— d1 的战役应该已经冻结过它了"; exit 1; }
+if [ "$(cat "$FREEZE")" != "$BASEP" ]; then
+  echo "❌ 共享参数和本战役冻结的那份不一致,停。"
+  echo "   冻住的: $(cat "$FREEZE")"; echo "   现在的: $BASEP"; exit 1
+fi
+echo "战役参数与冻结一致"
+
+# 共享参数里 keep_checkpoints 是 2,这里要 20。JSON 后出现的键覆盖先出现的,
+# 但不能只靠「应该是这样」——下面当场解析验一遍,免得拼错了烧 100 小时才发现
+# 存档被剪光、曲线做不出来。
+P="${BASEP%\}}, \"micro_batch\":8, \"keep_checkpoints\":20}"
+python - "$P" <<'PY'
+import json, sys
+d = json.loads(sys.argv[1])
+assert d["micro_batch"] == 8, d["micro_batch"]
+assert d["keep_checkpoints"] == 20, d["keep_checkpoints"]
+assert d["steps"] == 25000 and d["save_every"] == 2000
+assert d["coord_mask"] is True and d["iso_weight"] is False and d["level_dims"] == 48
+print(f"[check] 参数拼接正确: micro_batch={d['micro_batch']} "
+      f"keep_checkpoints={d['keep_checkpoints']} -> 应留下 13 个存档")
+PY
+
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0,1}"
+[ "${#ALLOC[@]}" -eq 2 ] || { echo "❌ 拿到 ${#ALLOC[@]} 张卡,要 2 张"; exit 1; }
+# 两个进程共用 32 核,而 env.sh 已经按 NCPUS=32 导出过 OMP/NUMBA/MKL。d1_c1 的证据
+# 说线程超订阅在这里没有可测影响(4 进程 x 64 线程 / 64 核:15648-15715 秒,
+# 独占是 15715 秒),所以刻意不动 —— 和 d1 那批保持同样的线程环境。
+export THREADS=$(( ${NCPUS:-32} / 2 ))
+
+one_base() {                       # $1 = cell, $2 = 卡
+  local c="$1" dev="$2"
+  local COH="data/cohort/matrix_$c" OUT="results/runs/igfm_priv_$c" QOUT="results/igfm_priv_$c"
+  export CUDA_VISIBLE_DEVICES="$dev"
+  mkdir -p "$QOUT" "$OUT"
+  echo "===== $(date '+%F %T')  $c 的 base(卡 $dev) ====="
+  local STAMP="$OUT/.params.json"
+  if [ -f "$STAMP" ]; then
+    [ "$(cat "$STAMP")" = "$P" ] || { echo "❌ $c 已有模型的参数和现在不一致"; \
+      echo "   已有: $(cat "$STAMP")"; echo "   现在: $P"; return 1; }
+  else printf '%s' "$P" > "$STAMP"; fi
+
+  local t0=$SECONDS
+  python -u scripts/run_loo.py --design "$DSN" --cohort "$COH" --out "$OUT" \
+      --generator igfm --job base --seed 2026 --params "$P"
+  local wall=$(( SECONDS - t0 ))
+  [ -s "$OUT/base/samples.npy" ] || { echo "❌ $c 没产出样本"; return 1; }
+
+  # 存档守卫。「数够 8 个」是错的判据:剪是从旧到新剪的,{12000,...,25000} 也是 8 个,
+  # 而曲线要的恰恰是早期那几个,igfm_budget_curve.py 缺任何一个都硬失败。
+  # keep=20 > 13,理论上一个都不该被剪 —— 所以既数 13,也直接查最早那个在不在。
+  local nck; nck=$(ls "$OUT/base" | grep -c '^iter-' || true)
+  echo "$c: 存档 ${nck:-0} 个"
+  [ "${nck:-0}" -ge 13 ] || { echo "❌ $c 存档只有 ${nck:-0} 个,预期 13,曲线做不出来"; return 1; }
+  [ -f "$OUT/base/iter-2000.pt" ] || { echo "❌ $c 最早的存档 iter-2000.pt 不在 —— 被剪掉了,曲线的左半段没了"; return 1; }
+
+  # 续训标记。run() 会把 fit_seconds 重新测一遍写进 meta.json,而在「存档已完成」
+  # 的提前返回路径上那只有几十秒。26 个 include 的预算就是照这个字段估的,
+  # 读到 60 秒会把 3000 卡时的决定低估 20 倍,而盘上没有任何东西能反驳它。
+  # resample() 对同样的情形会写 bit_reproducible/resample_note,run() 什么都不写。
+  python - "$OUT/base/meta.json" "$wall" <<'PY'
+import json, sys
+p, wall = sys.argv[1], float(sys.argv[2])
+d = json.load(open(p))
+fs = float(d.get("fit_seconds") or 0)
+if fs < 3600:
+    d["fit_seconds_note"] = (
+        "RESUMED from a completed checkpoint: fit_seconds measures only the early "
+        "return, NOT the training cost. Do NOT size a campaign from it.")
+    d["bit_reproducible"] = False
+    d["job_wallclock_seconds"] = wall
+    json.dump(d, open(p, "w"), indent=2)
+    print(f"[warn] fit_seconds={fs:.1f}s -> 这是续训,已在 meta.json 里标记,别拿它估预算")
+else:
+    print(f"[ok] fit_seconds={fs:.1f}s = {fs/3600:.2f} 小时(单次训完)")
+PY
+
+  echo; echo "===== $c 质量打分 ====="
+  python -u scripts/eval_quality_tsgem.py --runs "$OUT/base" --cohort "$COH" \
+      --design "$DSN" --out "$QOUT/tsgem.json" --label "igfm_priv_$c"
+  grep -q context_fid "$QOUT/tsgem.json" || { echo "❌ $c 打分是空的"; return 1; }
+  python -u scripts/disc_stability.py --runs "$OUT/base" --cohort "$COH" \
+      --job-file "$DSN/jobs/base.json" --restarts 8 --out "$QOUT/disc_stability.json"
+
+  echo; echo "----- $c 质量对照 -----"
+  echo "  IG-FM+模块  $(grep -oE '"context_fid": *[0-9.]+' "$QOUT/tsgem.json" | head -1)"
+  # 两个文件名都试:d7_c1 有 *_allmodels.json,d7_c2 只有 d7_c2.json。
+  # 而且按【键】取不按位置取 —— 第一个恰好是 base 只是写文件时的 --runs 顺序。
+  local f v
+  for f in "results/matrix/quality_tsgem/${c}_allmodels.json" \
+           "results/matrix/quality_tsgem/${c}.json"; do
+    if [ -f "$f" ]; then
+      v=$(grep -A20 "\"results/runs/matrix_$c/base\"" "$f" \
+          | grep -oE '"context_fid": *[0-9.]+' | head -1 || true)
+      echo "  DiM-TS      ${v:-(键没找到)}   <- $f"
+      break
+    fi
+  done
+  echo "===== $c OK $(date '+%F %T') ====="
+}
+
+rc=0
+( one_base d7_c1 "${ALLOC[0]}" ) >> logs/igfm_priv_base_d7_c1.log 2>&1 & p1=$!
+( one_base d7_c2 "${ALLOC[1]}" ) >> logs/igfm_priv_base_d7_c2.log 2>&1 & p2=$!
+wait $p1 || { echo "d7_c1 失败或未跑完"; rc=1; }
+wait $p2 || { echo "d7_c2 失败或未跑完"; rc=1; }
+echo "== 收尾 $(date '+%F %T'),退出码 $rc"
+exit $rc

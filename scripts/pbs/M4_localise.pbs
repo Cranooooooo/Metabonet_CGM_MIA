@@ -1,0 +1,55 @@
+#!/bin/bash
+#PBS -N maven_loc
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=64gb:ngpus=1
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/M4_localise.log
+#
+# Does MAVEN's mask head localise the leak, or does it localise unpredictability?
+#
+# This runs even though the pilot FAILED the quality gate (context_fid 0.2256 against
+# DiM-TS's 0.0611 at the same 30k checkpoint). The localiser question is separable: a
+# generator that models the distribution poorly still has a trained imputation head, and
+# what is being asked is whether that head's per-cell surprisal reproduces the
+# model-free QUANTILE map -- the coordinate MODEL_DESIGN 2.3 measured the leak in.
+# A negative here kills the mask-head localiser regardless of which backbone hosts it;
+# a positive says the idea survives the backbone's own failure and should be retried on
+# whatever generator does pass the gate.
+#
+# The prior is negative and is stated in scripts/maven_surprisal.py: level is what a
+# masked autoencoder predicts BEST from context, and the zscore transform says level is
+# what carries the leak. Agreement lift near 1.0 is the expected outcome, not a bug.
+#
+#   qsub scripts/pbs/M4_localise.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u
+mkdir -p logs results/matrix/cellmaps
+exec > >(tee logs/M4_localise.live.log) 2>&1
+set -euo pipefail
+
+RUN=results/runs/pilot_maven_d1_c1/base
+MAPS=results/matrix/cellmaps/pilot_maven_d1_c1.npz
+
+echo "=================== 1  model-free maps (RAW and QUANTILE) ==================="
+python -u scripts/localise_cells.py --run "$RUN" \
+    --design results/matrix/design/rep1 --cohort data/cohort/matrix_d1_c1 \
+    --n 1024 --out "$MAPS"
+
+echo; echo "=================== 2  the mask head's surprisal ==================="
+python -u scripts/maven_surprisal.py --run "$RUN" --maps "$MAPS" \
+    --rounds 16 --steps 200 --batch 128 \
+    --out results/matrix/cellmaps/pilot_maven_d1_c1_surprisal.npz
+
+echo; echo "=================== 3  the same maps on DiM-TS, for scale ==================="
+# The model-free maps do not need MAVEN. Computing them on DiM-TS's own 30k release
+# says whether the RAW/QUANTILE disagreement is a property of the leak or of MAVEN's
+# (failing) samples -- results/matrix/ceiling measured it on real training windows,
+# this measures it on released ones.
+python -u scripts/localise_cells.py --run results/runs/sweep_d1_c1_ms3/base \
+    --design results/matrix/design/rep1 --cohort data/cohort/matrix_d1_c1 \
+    --n 1024 --out results/matrix/cellmaps/dimts_d1_c1_ms3.npz
+
+echo "LOCALISE OK"

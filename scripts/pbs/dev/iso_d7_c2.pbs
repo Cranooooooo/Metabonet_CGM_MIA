@@ -1,0 +1,23 @@
+#!/bin/bash
+#PBS -N iso_d7_c2
+#PBS -P 11704243
+#PBS -l select=1:ncpus=8:mem=32gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/iso_d7_c2.log
+#
+# 分配器的证伪。见 scripts/isolation_vs_leak.py。0 张 GPU -> qdev。
+# 资源按实测需求给:整个 cohort 也就几十 MB,最大的中间量是一个 (24 x 5800) 的距离块。
+# 上一版要 64 核 440 GB,那是要一整个节点来跑几秒钟的 BLAS,白排队。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+mkdir -p logs
+# 失败时 -e 会在 tail 之前退出,PBS 的 -o 日志就只剩环境横幅。用 trap 保证看得见。
+trap 'tail -30 logs/iso_d7_c2.out 2>/dev/null' EXIT
+{
+python -u scripts/isolation_vs_leak.py --design results/matrix/design/rep1 \
+    --cohort data/cohort/matrix_d7_c2 --runs results/runs/matrix_d7_c2 \
+    --auc results/matrix/subject_auc/d7_c2 \
+    --out results/matrix/isolation/d7_c2.json
+echo "ISO d7_c2 OK"
+} > logs/iso_d7_c2.out 2>&1

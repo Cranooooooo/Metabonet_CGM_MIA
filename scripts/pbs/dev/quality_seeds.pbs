@@ -1,0 +1,96 @@
+#!/bin/bash
+#PBS -N qseeds
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/quality_seeds.log
+#
+# 质量分的误差棒。不训练任何模型 —— 三套样本都已经在盘上了。
+#
+# 要修的问题:我们一直在拿「原版 0.0394 对加模块 0.0383」说事,差 0.0011,
+# 而 docs/PLAN.md 写着单次评分分辨不了小于 0.026 的差 —— 误差棒是效果的 24 倍。
+# 所以「加了模块质量没赔」这句话现在没有依据。多个种子重打就能给出依据。
+#
+# 种子同时控制两件事:从 5741 条里抽 2000 条的那一抽,以及打分用的那几个小网络
+# 的初始化。这两件正是「单次评分」的噪声来源,所以换种子重打量的就是它。
+#
+# 关键:三个模型在【同一个种子】下一起打分,所以可以做配对比较 ——
+# 同一抽、同一初始化下原版比加模块高多少。配对比两组各自的散布要紧得多。
+#
+# 三个模型共用同一个 base 作业(subjects_sha1 全是 8cf77b7732b8fe79),
+# 真实那一半完全相同,可以直接比:
+#   pilot_igfm_d1_c1/base  原版 IG-FM        单次 0.0394
+#   igfm_priv_d1_c1/base   IG-FM + 两个模块   单次 0.0383
+#   matrix_d1_c1/base      DiM-TS(及格线)    单次 0.0948
+#
+# 一次打分实测 54 秒(1.8 秒统计量 + 51.7 秒神经网络),18 次约 17 分钟。
+# 0 张卡跑不动(TS2Vec 和 GRU 在 CPU 上要几小时,超 qdev 的 2 小时上限),
+# 所以要 1 张卡 + 2 小时 -> gdev。只占 1 张,不碰 g2/g3/glong 那 15 张。
+#
+#   qsub scripts/pbs/dev/quality_seeds.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u; mkdir -p logs results/quality_seeds
+set -euo pipefail
+LOG=logs/quality_seeds.live.log
+trap 'tail -60 "$LOG" 2>/dev/null || true' EXIT
+
+RUNS="results/runs/pilot_igfm_d1_c1/base results/runs/igfm_priv_d1_c1/base results/runs/matrix_d1_c1/base"
+
+{
+echo "===== $(date '+%F %T')  质量分 · 6 个种子 x 3 个模型 ====="
+# 2026 是当初那一次用的种子,留着当复现校验:重打应该逐位重现 0.0394 / 0.0383 / 0.0948。
+# 重现不了就说明打分本身有不受种子控制的随机性,那比误差棒大小更要紧,得先查那个。
+for s in 2026 2027 2028 2029 2030 2031; do
+  echo "--- seed $s"
+  python -u scripts/eval_quality_tsgem.py --runs $RUNS \
+      --cohort data/cohort/matrix_d1_c1 --design results/matrix/design/rep1 \
+      --seed "$s" --label "seed$s" \
+      --out "results/quality_seeds/s${s}.json"
+done
+
+echo; echo "===== 汇总 ====="
+python - <<'PY'
+import json, glob, statistics as st
+SEEDS = [2026, 2027, 2028, 2029, 2030, 2031]
+NAME = {"results/runs/pilot_igfm_d1_c1/base": "IG-FM 原版",
+        "results/runs/igfm_priv_d1_c1/base":  "IG-FM+两模块",
+        "results/runs/matrix_d1_c1/base":     "DiM-TS(及格线)"}
+by = {k: {} for k in NAME}
+for s in SEEDS:
+    d = json.load(open(f"results/quality_seeds/s{s}.json"))
+    for run, rec in d.items():
+        if run in by:
+            by[run][s] = rec["context_fid"]
+
+print(f"{'模型':<18}{'均值':>9}{'标准差':>9}{'最小':>9}{'最大':>9}{'极差':>9}")
+for run, name in NAME.items():
+    v = [by[run][s] for s in SEEDS if s in by[run]]
+    print(f"{name:<18}{st.mean(v):>9.4f}{st.stdev(v):>9.4f}"
+          f"{min(v):>9.4f}{max(v):>9.4f}{max(v)-min(v):>9.4f}")
+
+# 配对:同一个种子下,原版减去加模块。正数 = 加模块更好(Context-FID 越小越好)。
+a, b = "results/runs/pilot_igfm_d1_c1/base", "results/runs/igfm_priv_d1_c1/base"
+dif = [by[a][s] - by[b][s] for s in SEEDS if s in by[a] and s in by[b]]
+m, sd = st.mean(dif), st.stdev(dif)
+se = sd / len(dif) ** 0.5
+print(f"\n配对差(原版 - 加模块),{len(dif)} 个种子:")
+print(f"  每个种子: " + "  ".join(f"{d:+.4f}" for d in dif))
+print(f"  均值 {m:+.4f}   标准差 {sd:.4f}   标准误 {se:.4f}")
+print(f"  95% 区间约 [{m-1.96*se:+.4f}, {m+1.96*se:+.4f}]")
+print(f"  正数 = 加模块的 Context-FID 更小 = 质量更好")
+print(f"  区间跨过 0 -> 只能说「测不出差异」,不能说「质量没赔」也不能说「变好了」")
+print(f"  区间整个在 0 以上 -> 可以说加模块质量确实不劣于原版,边界就是区间下限")
+
+# 及格线也要带误差棒:说「远好于 DiM-TS」得先知道 DiM-TS 那个数本身抖多少。
+c = "results/runs/matrix_d1_c1/base"
+gap = [by[c][s] - by[b][s] for s in SEEDS if s in by[c] and s in by[b]]
+print(f"\n离及格线的距离(DiM-TS - 加模块),{len(gap)} 个种子:")
+print(f"  均值 {st.mean(gap):+.4f}   标准差 {st.stdev(gap):.4f}")
+print(f"  倍数约 {st.mean([by[c][s]/by[b][s] for s in SEEDS if s in by[c] and s in by[b]]):.2f}x")
+PY
+echo; echo "===== QSEEDS OK $(date '+%F %T') ====="
+} > "$LOG" 2>&1
+tail -60 "$LOG"

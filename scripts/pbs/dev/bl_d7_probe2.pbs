@@ -1,0 +1,46 @@
+#!/bin/bash
+#PBS -N d7p2
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/bl_d7_probe2.log
+#
+# 重探。上一轮(16157844/16157845)两个都 OOM,但都不是"模型装不下":
+#   Diffusion-TS: 三种配置报同一个 15.50 GiB,和 C、和容量都无关 -> 炸在采样。
+#                 9/5 用 n_sample=128 是成功的,我这次给了 256。改回 128。
+#   FourierDiff : batch 6 和 4 报同一个 46.51 GiB,且当时卡上还空着 22 GiB
+#                 -> 炸在 keep_best 回调那个写死的 512 条评估批,与训练批无关。
+#                 探针里关掉 keep_best 即可(正式跑要改成按 T 缩小,不是关掉)。
+#
+# 采样成本用【两点做差】拿,而不是单点相除:vendor 的采样循环是 range(n//batch+1),
+# 会多生成一批再丢掉,单点相除会把这个偏差算进每条成本里。两点的斜率能消掉它,
+# 也能消掉固定开销 —— 和训练那边用的是同一个手法。
+#
+#   qsub scripts/pbs/dev/bl_d7_probe2.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -uo pipefail
+mkdir -p logs results/probe
+SOLAR='{"n_layer_enc":4,"n_layer_dec":4,"d_model":96,"n_heads":4,"mlp_hidden_times":4,"timesteps":500}'
+
+for spec in "d7_c1:solar" "d7_c2:default" "d7_c2:solar"; do
+  cell="${spec%%:*}"; cfg="${spec##*:}"
+  P=""; [ "$cfg" = solar ] && P="--gen-params $SOLAR"
+  for ns in 64 128; do
+    echo "########## diffusion_ts $cell / $cfg / n_sample=$ns ##########"
+    python -u scripts/probe_generator.py --generator diffusion_ts \
+        --cohort "data/cohort/matrix_$cell" --n-train 5741 --n-sample $ns --K 5741 \
+        --batch-size 4 $P --train-rate \
+        --out "results/probe/p2_dts_${cell}_${cfg}_n${ns}.json" 2>&1 | tail -6
+  done
+done
+
+for ns in 64 128; do
+  echo "########## fourier_diff d7_c1 / batch=4 / n_sample=$ns ##########"
+  python -u scripts/probe_generator.py --generator fourier_diff \
+      --cohort data/cohort/matrix_d7_c1 --n-train 5741 --n-sample $ns --K 5741 \
+      --batch-size 4 --train-rate \
+      --out "results/probe/p2_fd_d7_c1_n${ns}.json" 2>&1 | tail -6
+done
+echo "===== ALL DONE ====="

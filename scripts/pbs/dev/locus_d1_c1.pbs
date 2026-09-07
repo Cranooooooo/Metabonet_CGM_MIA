@@ -1,0 +1,25 @@
+#!/bin/bash
+#PBS -N locus_d1_c1
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=440gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/locus_d1_c1.log
+#
+# 泄漏本身藏在哪个坐标里。见 scripts/leak_locus.py 的说明。
+#
+# 这个测量是直接决定防御机制怎么设计的那一个。之前我们只测了「离群者和普通人的
+# 差别藏在哪」(arm AUC),却拿它的答案去回答「泄漏藏在哪」——这两个是不同的问题。
+#
+# 0 张 GPU:纯距离算术,路由到 qdev,不占显卡。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u; mkdir -p logs
+set -euo pipefail
+{
+python -u scripts/leak_locus.py --design results/matrix/design/rep1 \
+    --cohort data/cohort/matrix_d1_c1 --runs results/runs/matrix_d1_c1 \
+    --out results/matrix/leak_locus/d1_c1.json
+echo "LOCUS d1_c1 OK"
+} > logs/locus_d1_c1.out 2>&1
+tail -20 logs/locus_d1_c1.out

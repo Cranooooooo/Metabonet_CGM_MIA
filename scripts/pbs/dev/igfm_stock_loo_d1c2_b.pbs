@@ -1,0 +1,20 @@
+#!/bin/bash
+#PBS -N isl_d1c2b
+#PBS -P 11704243
+#PBS -l select=1:ncpus=48:ngpus=3:mem=330gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+#PBS -o logs/igfm_stock_loo_d1c2_b.log
+#
+# d1_c2 上【原版】IG-FM 的 27 个模型,第 b 段 —— 分片 4 5 6(共 8 片)。
+# 说明见 scripts/pbs/dev/igfm_stock_loo.body.sh。
+# 单模型实测 4.63 小时(带模块那批的实测值,模块不改变计算量),
+# 8 路分片每片最多 4 个 = 18.5 小时,24 小时墙钟余量 5.5 小时。
+#
+#   qsub scripts/pbs/dev/igfm_stock_loo_d1c2_b.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+CELL=d1_c2
+NS=8
+SHARDS="4 5 6"
+source scripts/pbs/dev/igfm_stock_loo.body.sh

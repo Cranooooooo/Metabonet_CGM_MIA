@@ -1,0 +1,118 @@
+#!/bin/bash
+#PBS -N maven_100k
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=64gb:ngpus=1
+#PBS -l walltime=16:00:00
+#PBS -j oe
+#PBS -o logs/M6_maven_100k.log
+#
+# MAVEN's first real training run: ONE model, d1_c1, the `base` subject set.
+#
+# WHY `base` AND NOT THE WHOLE COHORT. The pre-registered gate in
+# configs/experiment.yaml is `no_worse_than_dimts_base` against DiM-TS's own base model
+# on the same cell -- 475 subjects, 5741 windows, K=5741. Training on anything else
+# makes the one comparison this job exists for meaningless.
+#
+# WHY 100,000 STEPS -- THE LAST THING MAVEN IS OWED.
+# Two runs at 30k have failed the gate (0.2256 default, 0.2721 after the authors' own
+# ablation ladder, against DiM-TS's 0.0611 at the same checkpoint). ONE confound survives
+# both: MAVEN's loss was still falling slowly at 30k, while DiM-TS is converged by 20k on
+# this cell (Context-FID 0.060 at 20k, 0.061 at 30k). Upstream reports its Context-FID
+# PLATEAUS rather than descends, which predicts this will not help -- so this run exists
+# to close the question either way, not because we expect it to pass.
+#
+#   PASS  -> 30k was simply too few steps; the host decision reopens in MAVEN's favour.
+#   FAIL  -> MAVEN is done as the backbone and the choice is another flow-matching host
+#            or accepting a backbone-independent defence (PAPER_PLAN Step 4).
+#
+# Read it at 100k AND at the banked 30k milestone: if quality improves while the leak
+# also grows, that is the trade-off Step 3b measured, not a win.
+#
+# (superseded) WHY 30,000 STEPS. docs/MODEL_DESIGN.md 5 argues everything is read at the
+# maximum-contrast checkpoint, and docs/PAPER_PLAN.md 3b measured it: at 30k the arm AUC
+# peaks (0.840 on d1_c1) while 20k is still below convergence. This is the operating
+# point the paper argues for, so it is the one the pilot has to clear.
+#
+# WHY NOT FOUR VIEWS OR A CHANGED WIDTH. Nothing in MODEL_DESIGN 1.9's "ablation ladder"
+# tier is applied here. This run changes ONE thing at a time: it is the default two-view
+# config (view_a=delay at T=288, STFT branch B) with our cell masking, so a failure is
+# attributable. The single-view / constant-width variants are the ablations, not this.
+#
+# WHAT IT DECIDES
+#   PASS  context_fid <= 0.0948 AND discriminative <= 0.0238   (DiM-TS base, st500)
+#         -> MAVEN can host the privacy stage; proceed to the mask-head localiser.
+#   FAIL  -> MAVEN does not clear the gate on CGM, exactly as its own DESIGN.md warns
+#         (Context-FID plateaus: 0.10 vs DiM-TS 0.034 on Stocks-128). That is a result,
+#         not a gap, and it is cheaper to learn now than after the localiser is built.
+#
+# The discriminative number is read as the MAX over 8 restarts with the spread, never a
+# single fit -- docs/PITFALLS.md 16 and 18, and scripts/disc_stability.py's docstring.
+# A single fit has twice given the wrong answer here, once with the sign reversed.
+#
+#   qsub scripts/pbs/M3_maven_pilot.pbs
+#
+# PBS copies -o back only when the job ENDS; the tee below is what makes it readable
+# live. Watching the -o path shows the PREVIOUS run and reads as a failure that is not
+# happening (learned 2026-08-28).
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u
+mkdir -p logs
+exec > >(tee logs/M6_maven_100k.live.log) 2>&1
+
+DESIGN=results/matrix/design/rep1
+COHORT=data/cohort/matrix_d1_c1
+OUT=results/runs/maven100k_d1_c1
+QOUT=results/maven_100k
+
+set -euo pipefail
+mkdir -p "$QOUT"
+
+echo "=================== 1  train + sample  (30k steps, base) ==================="
+python -u scripts/run_loo.py \
+    --design "$DESIGN" --cohort "$COHORT" --out "$OUT" \
+    --generator maven --job base \
+    --params '{"steps": 100000, "save_cycle": 10000, "sampling_steps": 500,
+               "mask_mode": "cell", "view_a": "auto"}'
+
+test -s "$OUT/base/samples.npy" || { echo "FAIL: no samples.npy"; exit 1; }
+
+echo "=================== 2  quality, the two suites ==================="
+# eval_quality_tsgem is the suite the pre-registered reference numbers came from
+# (results/matrix/quality_tsgem/, st500), so it is the one the gate is read on.
+python -u scripts/eval_quality_tsgem.py --runs "$OUT/base" \
+    --cohort "$COHORT" --design "$DESIGN" --out "$QOUT/tsgem"
+python -u scripts/eval_quality.py --runs "$OUT/base" \
+    --cohort "$COHORT" --design "$DESIGN" --out "$QOUT/quality"
+
+echo "=================== 3  discriminative over 8 restarts ==================="
+python -u scripts/disc_stability.py --runs "$OUT/base" \
+    --cohort "$COHORT" --job-file "$DESIGN/jobs/base.json" \
+    --restarts 8 --out "$QOUT/disc_stability.json"
+
+echo "=================== VERDICT ==================="
+python - <<'EOF'
+import json, glob, os
+ref = {"context_fid": 0.0948, "discriminative": 0.0238}   # configs/experiment.yaml
+tsgem = {}
+for f in glob.glob("results/maven_100k/tsgem/*.json"):
+    tsgem.update(json.load(open(f)))
+def dig(o, key, acc):
+    if isinstance(o, dict):
+        for k, v in o.items():
+            dig(v, key, acc) if isinstance(v, dict) else (acc.append(v) if k == key else None)
+cf, ds = [], []
+dig(tsgem, "context_fid", cf); dig(tsgem, "discriminative", ds)
+p = "results/maven_100k/disc_stability.json"
+dmax = None
+if os.path.exists(p):
+    d = json.load(open(p))
+    print("disc_stability:", json.dumps(d)[:600])
+print(f"\ncontext_fid   MAVEN {cf}   vs DiM-TS base {ref['context_fid']}")
+print(f"discriminative(single fit) MAVEN {ds}   vs DiM-TS base {ref['discriminative']}")
+print("\nRead the MAX over restarts for discriminative, not the single fit above.")
+if cf:
+    print("GATE context_fid:", "PASS" if min(cf) <= ref["context_fid"] else "FAIL")
+EOF
+echo "PILOT DONE"

@@ -1,0 +1,31 @@
+#!/bin/bash
+#PBS -N bl_dtsp
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/bl_dts_d7probe.log
+#
+# Diffusion-TS 在七天窗口上还能不能跑。batch 8 时它要分配 15.5 GiB(卡是 40 GiB),
+# 降到 4/2/1 也许塞得下 —— 值得用一个 gdev 作业问清楚,而不是直接判它出局。
+# FourierDiffusion 不在这里试:它 batch 8 就要 46.5 GiB,按比例每条约 5.8 GiB,
+# batch 1 也没有余量,而 batch 1 的等预算是 640 万迭代,即使跑得动也不可行。
+#
+#   qsub scripts/pbs/dev/bl_dts_d7probe.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+mkdir -p logs results/probe
+for bs in 4 2 1; do
+  echo "########## batch_size=$bs ##########"
+  python -u scripts/probe_generator.py --generator diffusion_ts \
+      --cohort data/cohort/matrix_d7_c1 --n-train 5741 --n-sample 128 --K 5741 \
+      --batch-size "$bs" --train-rate \
+      --out "results/probe/dts_d7_bs$bs.json" 2>&1 | tail -25 || true
+done
+echo "===== 汇总 ====="
+for bs in 4 2 1; do
+  f=results/probe/dts_d7_bs$bs.json
+  printf "  batch=%-3s " "$bs"
+  { grep -oE '"(error|per_unit_seconds|seconds_per_sample)": *[^,}]*' "$f" 2>/dev/null | head -3 | tr '\n' ' '; } || true; echo
+done

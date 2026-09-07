@@ -1,0 +1,13 @@
+#!/bin/bash
+#PBS -N cnt_dts
+#PBS -P 11704243
+#PBS -l select=1:ncpus=8:mem=60gb
+#PBS -l walltime=00:20:00
+#PBS -j oe
+#PBS -o logs/count_dts.log
+# 只构建模型数参数量,不训练。0 张卡 -> qdev,不占任何显卡。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+echo "########## d1 (T=288, C=1) ##########"; python -u scripts/count_dts_params.py 288 1
+echo; echo "########## d1_c2 (T=288, C=2) ##########"; python -u scripts/count_dts_params.py 288 2

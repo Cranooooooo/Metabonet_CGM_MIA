@@ -1,0 +1,68 @@
+#!/bin/bash
+#PBS -N cgm_cp_match
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:mem=64gb:ngpus=1
+#PBS -l walltime=03:00:00
+#PBS -j oe
+#PBS -o logs/N3_cp_matched.log
+#
+# A MATCHED copy-paste control on all four matrix cells.
+#
+# WHY. PITFALLS 19 argues that scoring fidelity against a model's OWN training set makes
+# the gate reward memorisation, and backs it with copy_paste at Context-FID 0.070 against
+# DiM-TS's 0.131-0.331. Those two numbers come from DIFFERENT COHORTS --
+# `metabonet_sid_c1_d7_contiguous` (573 subjects, 5,925 windows) against
+# `matrix_d7_c1` (506 subjects, 5,741 windows). Similar size is not the same reference,
+# and the entry did not say so. The one-day copy_paste is worse: it was scored against
+# `metabonet875` at 179,084 windows and is not comparable at all, which is why the panel
+# could only show the seven-day cell.
+#
+# The MECHANISM does not depend on any of this -- a verbatim replay of the training set
+# is, on a distributional distance to that same training set, exactly right, and that is
+# true a priori. But the demonstration should be matched, and it costs almost nothing to
+# make it so: copy_paste does not train (fit 0.0 s, sample 0.02 s), so the entire price
+# is four quality evaluations.
+#
+# WHAT THIS DOES NOT FIX. The real repair is a HELD-OUT reference -- scoring against
+# subjects no model trained on (PAPER_PLAN execution order, task 1). This job sharpens
+# the diagnosis; it is not the cure.
+#
+#   qsub scripts/pbs/N3_cp_matched.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u
+mkdir -p logs results/matrix/quality_cp
+exec > >(tee logs/N3_cp_matched.live.log) 2>&1
+set -euo pipefail
+
+for CELL in d1_c1 d1_c2 d7_c1 d7_c2; do
+  echo; echo "##################### $CELL #####################"
+  OUT=results/runs/cp_matrix_$CELL
+  python -u scripts/run_loo.py \
+      --design results/matrix/design/rep1 --cohort "data/cohort/matrix_$CELL" \
+      --out "$OUT" --generator copy_paste --job base
+
+  # scored against the SAME training set, by the SAME script, as the DiM-TS number it
+  # is being compared with -- that is the whole point of this job
+  python -u scripts/eval_quality_tsgem.py --runs "$OUT/base" \
+      --cohort "data/cohort/matrix_$CELL" --design results/matrix/design/rep1 \
+      --label "cp_$CELL" --out "results/matrix/quality_cp/$CELL.json"
+done
+
+echo; echo "##################### 对照表 #####################"
+python - <<'EOF'
+import json, os
+print(f"{'cell':8s} {'copy_paste':>11s} {'DiM-TS @100k':>13s} {'倍数':>7s}")
+for c in ('d1_c1','d1_c2','d7_c1','d7_c2'):
+    p=f"results/matrix/quality_cp/{c}.json"
+    q=f"results/matrix/quality_tsgem/{c}_st500.json"
+    if not os.path.exists(q): q=f"results/matrix/quality_tsgem/{c}.json"
+    if not (os.path.exists(p) and os.path.exists(q)): print(f"{c:8s}  missing"); continue
+    a=[v for v in json.load(open(p)).values() if isinstance(v,dict) and 'context_fid' in v][0]['context_fid']
+    b=[v for v in json.load(open(q)).values() if isinstance(v,dict) and 'context_fid' in v][0]['context_fid']
+    print(f"{c:8s} {a:11.4f} {b:13.4f} {b/a:6.2f}x")
+print("\nRead: a ratio ABOVE 1 means the verbatim memoriser beats the real generator")
+print("on the gate metric, on the same cohort and the same reference. That is the claim.")
+EOF
+echo "CP MATCHED OK"

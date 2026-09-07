@@ -1,0 +1,106 @@
+#!/bin/bash
+#PBS -N cgm_agrid
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:mem=64gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -o logs/attack_grid.log
+#
+# 攻击网格(距离特征 x 分类器)搬到四个条件上跑。面板第 8 步。
+#
+# 两种模式,分别 qsub,互不依赖,可以同时跑:
+#   qsub -v MODE=real  scripts/pbs/dev/attack_grid.pbs   # 正式结果
+#   qsub -v MODE=power scripts/pbs/dev/attack_grid.pbs   # 功效检验(先造照抄发布集)
+#
+# 为什么拆成两个作业而不是一个:
+#   照抄发布集要现造(四个条件 x 27 份),而正式那半不依赖它。
+#   拆开之后正式结果先出来,而且任何一半超时都不会拖垮另一半。
+#   qdev 每人可跑 100 个,同时跑两个不占别人的资源。
+#
+# 0 张 GPU + walltime 恰好 2:00:00 -> 路由到 qdev。
+#   ⚠️ 不要写成 2:00:01 —— 指南 §2,多一秒就掉出快车道,并发从 10 降到 1。
+#   ⚠️ 整条流程是纯 numpy,不用显卡;copy_paste 生成器也只是重采样,--device cpu。
+#
+# 时长依据(实测,不是拍脑袋):
+#   原型那次特征阶段 427-789 秒,发布集 17.6 万条窗口 x 288 维 x 41 份。
+#   这四个条件每份只有 5741 条,维度 288/576/2016/4032,真实数据侧 26 人共 274 段。
+#   按「真实段数 x 假数据条数 x 维度」折算:d1_c1 约为原型的 1%,d7_c2 约 13%。
+#   分类器阶段实测每格 7.3 秒 x 8 格。
+#   -> 估计每个模式 30-45 分钟,给 2 小时留约 3 倍余量。
+#   独立校验:即使照抄生成慢到每份 10 秒,108 份也只有 18 分钟,仍在预算内。
+#
+# 断点续跑:run_loo 默认跳过已存在的产物(没有 --overwrite),
+# 特征和表格都是整份重写,所以超时重投是安全的。
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u; mkdir -p logs results/attack_panel
+set -euo pipefail
+
+MODE="${MODE:-real}"
+DSN=results/matrix/design/rep1
+# K 不再显式指定:留空时 run_loo 用每个作业自己的训练集大小,
+# 这恰好和真实发布集逐份一致(5741-5765),正是这个对比需要的口径。
+# 之前写死 5741 是错的 —— 那只是 base 那一份的值。
+LOG=logs/attack_grid.${MODE}.live.log
+
+# 便宜的条件排在前面:先出结果,而且万一后面出问题前面的已经落地
+CONDS="d1_c1 d1_c2 d7_c1 d7_c2"
+
+{
+echo "===== $(date '+%F %T')  攻击网格 · 模式 $MODE ====="
+
+for C in $CONDS; do
+  COH=data/cohort/matrix_$C
+  [ -d "$COH" ] || { echo "!! 缺 cohort $COH"; exit 1; }
+  [ -d "$DSN/jobs" ] || { echo "!! 缺 design $DSN/jobs"; exit 1; }
+
+  if [ "$MODE" = "power" ]; then
+    RUNS=results/runs/cp_matrix_$C
+    PANEL=results/attack_panel/cp_matrix_$C
+    echo; echo "---- $C · 造照抄发布集(不训练,只把训练窗口有放回抽一遍) ----"
+    python -u scripts/run_loo.py --design "$DSN" --cohort "$COH" --out "$RUNS" \
+        --generator copy_paste --device cpu --seed 2026
+    n=$(find "$RUNS" -name samples.npy | wc -l)
+    echo "[$C] 照抄发布集 $n / 27 份"
+    [ "$n" -eq 27 ] || { echo "!! $C 照抄发布集不足 27 份,停"; exit 1; }
+
+    # ⚠️ run_loo 的「已存在就跳过」只看文件在不在,不比对是谁造的、按什么参数造的。
+    # 2026-09-01 这里真的踩到了:cp_matrix_* 是 8/30-8/31 就存在的,本次一份都没造,
+    # 全部复用,而 --K 因此完全没生效。那一次复用恰好是对的(受试者 sha1、cohort、
+    # 每份大小都对得上),但「恰好是对的」不是可以依赖的性质 —— 一份用别的 design
+    # 或别的 K 造的旧样本会被同样静默地收下,功效检验会安静地变弱而不报错。
+    # 所以这里逐份核对来路:cohort 要对,K 要和对应的真实发布集一致。
+    bad=0
+    for j in "$RUNS"/*/; do
+      nm=$(basename "$j")
+      mc=$(grep -oE '"cohort": *"[^"]*"' "$j/meta.json" | sed 's/.*: *"//;s/"//')
+      kc=$(grep -oE '"K": *[0-9]+' "$j/meta.json" | sed 's/.*: *//')
+      kr=$(grep -oE '"K": *[0-9]+' "results/runs/matrix_$C/$nm/meta.json" | sed 's/.*: *//')
+      if [ "$mc" != "$COH" ]; then echo "!! $C/$nm cohort=$mc,应为 $COH"; bad=1; fi
+      if [ "$kc" != "$kr" ]; then echo "!! $C/$nm K=$kc,真实发布集是 $kr"; bad=1; fi
+    done
+    [ "$bad" -eq 0 ] || { echo "!! $C 照抄发布集来路不符,停 —— 用 --overwrite 重造"; exit 1; }
+    echo "[$C] 照抄发布集来路已逐份核对:cohort 与 K 都和真实发布集一致"
+  else
+    RUNS=results/runs/matrix_$C
+    PANEL=results/attack_panel/matrix_$C
+    n=$(find "$RUNS" -name samples.npy | wc -l)
+    echo; echo "---- $C · 用已训好的发布集($n / 27 份) ----"
+    [ "$n" -eq 27 ] || { echo "!! $C 发布集不足 27 份,停"; exit 1; }
+  fi
+
+  echo "[$C] 第一阶段:算距离特征"
+  python -u scripts/attack_panel_features.py \
+      --runs "$RUNS" --design "$DSN" --cohort "$COH" \
+      --rep 1 --out "$PANEL" --seed 2026
+
+  echo "[$C] 第二阶段:跨人合并训分类器,留一人在外"
+  python -u scripts/attack_panel_pooled.py --panel "$PANEL" \
+      --out "results/attack_panel/table_pooled_${MODE}_${C}.json"
+  echo "[$C] 完成 -> results/attack_panel/table_pooled_${MODE}_${C}.json"
+done
+
+echo; echo "===== ATTACK GRID OK ($MODE) $(date '+%F %T') ====="
+} > "$LOG" 2>&1
+tail -40 "$LOG"

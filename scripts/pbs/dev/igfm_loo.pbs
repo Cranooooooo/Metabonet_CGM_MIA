@@ -1,0 +1,75 @@
+#!/bin/bash
+#PBS -N igfm_loo
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:ngpus=4:mem=440gb
+#PBS -l walltime=48:00:00
+#PBS -j oe
+#PBS -o logs/igfm_loo.log
+#
+# 原版 IG-FM 的泄漏基线:d1_c1 上的 27 个模型(1 个对照 + 26 个各多放一个被测者)。
+#
+# 为什么这是接下来一切的地基。我们只测过 IG-FM 的**质量**(0.0394,比外部对手
+# DiM-TS 的 0.0948 好 2.4 倍),那只需要训 1 个模型。但**泄漏**需要成对的模型:
+# 同一个人的记录,分别拿「用了他」和「没用他」的两个模型放出的假数据去比。
+# 没有这一批,后面「改动之后泄漏降了多少」就没有参照系 —— 改完再补是补不上的,
+# 因为要比的是同一套设计下的两个版本。
+#
+# 成本:单模型实测约 4 小时(25000 iterations),27 个约 108 卡时。
+# 4 卡分片 -> 约 27 小时。walltime 给 48 小时留余量;>24 小时进 glong,
+# 那里每人可以同时跑 2 个作业,所以不会挤掉别的活。
+#
+# 训练预算 25000 iterations 和试点一致:IG-FM 一个 iteration 喂 256 条
+# (8 次累积 x 32 微批),25000 x 256 = 640 万条,对齐 DiM-TS 10 万步 x 64。
+# 不要照抄「3 万步」——两边的一步不是一回事,差 4 倍(docs/PITFALLS.md 第 11 条)。
+#
+# 中途被杀不会全丢:适配器的周期性存档已经修好(原先 resume_dir 只从 train_cfg 读,
+# 而那是空的,整段是死代码)。run_loo 也会跳过已完成的模型,重排队只花没做完的部分。
+#
+#   qsub scripts/pbs/dev/igfm_loo.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+mkdir -p logs
+trap 'echo "== 收尾:$(find results/runs/loo_igfm_d1_c1 -name samples.npy 2>/dev/null | wc -l) / 27 个模型完成"' EXIT
+
+DSN=results/matrix/design/rep1
+COH=data/cohort/matrix_d1_c1
+OUT=results/runs/loo_igfm_d1_c1
+mkdir -p "$OUT"
+
+IFS=',' read -ra ALLOC <<< "${CUDA_VISIBLE_DEVICES:-0}"
+NG=${#ALLOC[@]}
+export THREADS=$(( ${NCPUS:-64} / NG ))
+echo "IG-FM 泄漏基线  $COH  $NG 张卡分片"
+echo "  已完成: $(find "$OUT" -name samples.npy 2>/dev/null | wc -l) / 27"
+
+pids=(); rc=0
+for i in "${!ALLOC[@]}"; do
+  ( export CUDA_VISIBLE_DEVICES="${ALLOC[$i]}"
+    python -u scripts/run_loo.py --design "$DSN" --cohort "$COH" --out "$OUT" \
+      --generator igfm --shard "$i" --n-shards "$NG" \
+      --params '{"steps": 25000, "hidden": 144, "sampling_steps": 500,
+                 "save_every": 2000, "keep_checkpoints": 2}'
+  ) > "logs/igfm_loo_shard${i}.log" 2>&1 &
+  pids+=($!)
+done
+for i in "${!pids[@]}"; do
+  if wait "${pids[$i]}"; then echo "分片 $i OK"; else echo "分片 $i 失败"; rc=1; fi
+done
+
+n=$(find "$OUT" -name samples.npy 2>/dev/null | wc -l)
+echo "训练完成: $n / 27"
+if [ "$n" -eq 27 ]; then
+  echo "== 攻击(和 DiM-TS 完全同一套冻结统计量)"
+  python -u scripts/run_attack.py --design "$DSN" --cohort "$COH" --runs "$OUT" \
+      --out results/matrix/attack/igfm_d1_c1 --generator igfm 2>&1 | tail -8
+  echo "== 逐病人"
+  python -u scripts/subject_auc.py --runs "$OUT" --design results/matrix/design \
+      --cohort "$COH" --replicates 1 \
+      --out results/matrix/subject_auc/igfm_d1_c1 2>&1 | tail -4
+  echo "IGFM LOO OK"
+else
+  echo "不足 27 个,不做分析 —— 部分结果的攻击数字没有意义。重排队会接着跑。"
+  rc=1
+fi
+exit $rc

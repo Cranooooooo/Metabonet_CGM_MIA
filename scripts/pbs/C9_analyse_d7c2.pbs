@@ -1,0 +1,70 @@
+#!/bin/bash
+#PBS -N cgm_a_d7c2
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:mem=440gb:ngpus=1
+#PBS -l walltime=12:00:00
+#PBS -j oe
+#PBS -o logs/C9_analyse_d7c2.log
+#
+# The FOURTH and last condition of Step 1: seven-day windows (T=2016), CGM + insulin,
+# 27/27 models finished 2026-08-30 17:30 after 102 hours of training.
+#
+# Follows scripts/pbs/C8_analyse_d7c1.pbs, with one difference: this asks for a GPU and
+# runs the quality gate in the SAME job. C8 could not -- every GPU queue was at the
+# per-user limit while the training itself was running -- so its attack numbers were
+# provisional until a separate job confirmed the models had fitted. The training is
+# finished now, so there is a card free and no reason to split it.
+#
+# ORDER MATTERS AND THE GATE COMES FIRST IN THE READING, IF NOT IN THE RUNNING. A
+# generator that failed to fit produces a gap that means nothing: the released samples
+# would differ from the target for reasons unrelated to membership. Read the
+# discriminator's MAX over 8 restarts (PITFALLS 16 -- one reading is a single draw of a
+# lower bound) before reading any attack number below it.
+#
+# NOTE ON WHAT THIS CELL IS FOR. d7_c2 is the only condition no design decision has ever
+# looked at, which makes it the one candidate for a pre-registered confirmatory cell
+# (MODEL_DESIGN 8 / PAPER_PLAN). Running it here spends it on its ORIGINAL registered
+# purpose -- the fourth row of Step 1's table -- which is legitimate. What it must not be
+# used for afterwards is confirming any Step 4 design choice that was made after seeing
+# it.
+#
+#   qsub scripts/pbs/C9_analyse_d7c2.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -u
+mkdir -p logs
+exec > >(tee logs/C9_analyse_d7c2.live.log) 2>&1
+set -euo pipefail
+
+CELL=d7_c2
+RUNS=results/runs/matrix_$CELL
+COH=data/cohort/matrix_$CELL
+
+n=$(find -L "$RUNS" -name samples.npy | grep -c .)
+echo "released sets present: $n / 27"
+[ "$n" -eq 27 ] || { echo "FAIL: incomplete, refusing to analyse a partial cell"; exit 1; }
+
+echo; echo "########## 1  attack: the frozen statistic, min x mean ##########"
+# subject_auc.py appends its own rep{r}; run_attack.py takes rep1 itself.
+python -u scripts/run_attack.py \
+  --design results/matrix/design/rep1 --cohort "$COH" --runs "$RUNS" \
+  --out "results/matrix/attack/$CELL" --generator dimts
+
+echo; echo "########## 2  per-subject AUC ##########"
+python -u scripts/subject_auc.py \
+  --runs "$RUNS" --design results/matrix/design --cohort "$COH" \
+  --replicates 1 --out "results/matrix/subject_auc/$CELL"
+
+echo; echo "########## 3  generation quality, ten metrics ##########"
+python -u scripts/eval_quality_tsgem.py --runs "$RUNS/base" \
+  --cohort "$COH" --design results/matrix/design/rep1 --label "$CELL" \
+  --out "results/matrix/quality_tsgem/$CELL.json"
+
+echo; echo "########## 4  the gate: discriminator over 8 restarts ##########"
+mkdir -p "results/matrix/quality/$CELL"
+python -u scripts/disc_stability.py --runs "$RUNS"/*/ \
+  --cohort "$COH" --restarts 8 \
+  --out "results/matrix/quality/$CELL/disc_stability.json"
+
+echo; echo "ANALYSIS OK -- Step 1 now has all four conditions"

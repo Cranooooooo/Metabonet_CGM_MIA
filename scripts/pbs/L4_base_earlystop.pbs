@@ -1,0 +1,81 @@
+#!/bin/bash
+#PBS -N cgm_estop
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:mem=200gb:ngpus=1
+#PBS -l walltime=06:00:00
+#PBS -j oe
+#PBS -o logs/L4_base_earlystop.log
+#
+# Find the generation-quality minimum on the BASE model only, so the training budget can
+# be fixed before the 27-model campaign runs.
+#
+# THE PROTOCOL THIS SERVES. Early stopping is decided on generation quality, measured on
+# `base`; the chosen step count is then used for ALL 27 models of that cell. Fixing the
+# budget is not a convenience -- it is required for the attack to mean anything. Step 3b
+# measured a large effect of training length on the membership gap, so if include_t and
+# base ran to different lengths, the gap would confound membership with training length.
+# Choosing it on `base` also keeps the decision clear of the 26 targets: base never sees
+# them, so nothing about them enters the protocol.
+#
+# WHY THIS RUN IS NEEDED. The existing sweep covers 20k/30k/40k/60k/80k/100k. On quality
+# the minimum sits at 20k for d1_c1 (0.0602) and d7_c1 (0.1306) -- the EARLIEST point
+# measured, so the real minimum may be earlier and we cannot see it. Only d1_c2 has an
+# interior minimum (40k, 0.0992). This adds milestone 1 (10k) and 5 (50k) to bracket it.
+#
+# It also tests an assertion. PAPER_PLAN 3b's footnote says "the 20,000-step row is below
+# convergence and is excluded from the trend", with no result file behind it -- and on
+# quality 20k is the BEST of the six in two cells, which is the opposite of what "below
+# convergence" would predict. Either the footnote is wrong or convergence is being judged
+# by something other than quality. This run does not settle that, but it makes the shape
+# of the curve below 20k visible for the first time.
+#
+# BASE ONLY: 2 milestones x 3 cells = 6 models, against 54 if the full design were swept.
+#
+#   qsub scripts/pbs/L4_base_earlystop.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+export DIMTS_PYTHON=$WORK/envs/dimts/bin/python
+export LD_LIBRARY_PATH="$WORK/envs/dimts/lib:$WORK/envs/dimts/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH:-}"
+set -u
+mkdir -p logs
+exec > >(tee logs/L4_base_earlystop.live.log) 2>&1
+set -euo pipefail
+
+DSN=results/matrix/design/rep1
+for MS in 1 5; do
+  for CELL in d1_c1 d1_c2 d7_c1; do
+    OUT=results/runs/sweep_${CELL}_ms${MS}
+    if [ -s "$OUT/base/samples.npy" ]; then echo "== $CELL ms$MS 已有,跳过"; else
+      echo; echo "########## $CELL milestone $MS  ($((MS*10000)) 步) ##########"
+      mkdir -p "$OUT"
+      python -u scripts/resample.py --from-run "results/runs/matrix_$CELL/base" \
+        --job-file "$DSN/jobs/base.json" --cohort "data/cohort/matrix_$CELL" \
+        --out "$OUT/base" --sampling-timesteps 500 --milestone "$MS" \
+        --params '{"sample_batch": 100}'
+    fi
+    python -u scripts/eval_quality_tsgem.py --runs "$OUT/base" \
+      --cohort "data/cohort/matrix_$CELL" --design "$DSN" --label "${CELL}_ms${MS}" \
+      --out "results/matrix/sweep/quality_tsgem/${CELL}_ms${MS}_base.json" 2>&1 | tail -3
+  done
+done
+
+echo; echo "##################### 质量随步数,base 模型 #####################"
+python - <<'EOF'
+import json, os
+def cf(p):
+    if not os.path.exists(p): return None
+    d=json.load(open(p))
+    v=[x for x in d.values() if isinstance(x,dict) and 'context_fid' in x]
+    return v[0]['context_fid'] if v else None
+print(f"{'cell':8s}" + "".join(f"{m*10}k".rjust(9) for m in (1,2,3,4,5,6,8,10)))
+for c in ('d1_c1','d1_c2','d7_c1'):
+    row=[]
+    for m in (1,2,3,4,5,6,8,10):
+        v = cf(f"results/matrix/sweep/quality_tsgem/{c}_ms{m}_base.json") \
+            or cf(f"results/matrix/sweep/quality_tsgem/{c}_ms{m}.json")
+        row.append("  --   " if v is None else f"{v:.4f}")
+    print(f"{c:8s}" + "".join(x.rjust(9) for x in row))
+print("\n最低的那一档就是该 cell 的训练预算。定下来之后,该 cell 的全部 27 个模型都用这个步数。")
+EOF
+echo "EARLYSTOP OK"

@@ -1,0 +1,26 @@
+#!/bin/bash
+#PBS -N ipb_d7r
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:ngpus=2:mem=220gb
+#PBS -l walltime=12:00:00
+#PBS -j oe
+#PBS -o logs/igfm_priv_d7_resume.log
+#
+# igfm_priv_d7_bases.pbs 的恢复作业 —— 只在它被墙钟切掉时才需要。
+#
+# 为什么要单独写一个:恢复不能再进 glong。glong 的【最小】墙钟是 24:00:01,
+# 而恢复只要几小时。12 小时 + 2 卡 -> g2。⚠️ g2 每人只能跑一个作业,而
+# igfm_priv_loo_d1c2_b.pbs 也在 g2 —— 用之前先确认 b 段已经结束。
+#
+# 恢复路径:run_loo 看到没有 samples.npy -> 调 fit -> fit 找到 iter-25000.pt ->
+# start_it >= total_iters 走提前返回 -> 直接采样。所以只花采样的 5.4 小时。
+# 主作业里那段 meta.json 的续训标记会自动生效,把 fit_seconds 标成不可用于估预算。
+#
+#   qsub scripts/pbs/dev/igfm_priv_d7_resume.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+exec bash scripts/pbs/dev/igfm_priv_d7_bases.body 2>/dev/null || {
+  echo "恢复请直接重排主作业:qsub scripts/pbs/dev/igfm_priv_d7_bases.pbs"
+  echo "(它对已完成的部分是幂等的:run_loo 跳过已有 samples.npy 的 job,"
+  echo " fit 从 iter-*.pt 续,里程碑目录也各自跳过)"
+  exit 1; }

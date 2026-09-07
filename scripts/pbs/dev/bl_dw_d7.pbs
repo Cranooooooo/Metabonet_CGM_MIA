@@ -1,0 +1,35 @@
+#!/bin/bash
+#PBS -N bl_dw_d7
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:ngpus=2:mem=220gb
+#PBS -l walltime=12:00:00
+#PBS -j oe
+#PBS -o logs/bl_dw_d7.log
+#
+# DiffWave 在两个七天格子的 base,一张卡一个。
+#
+# 探针实测:T=2016、batch 8 时 0.0163 秒/迭代,等预算 80 万迭代 = 3.6 小时训练
+# + 0.11 小时采样 = 3.7 小时/模型。装不进 gdev 的 2 小时上限,所以要 g2。
+# ⚠️ igfm_stock_loo_d1c2_b.pbs 已经在 g2 排着,这个会
+#    排在它后面。这是刻意的:d1 的六个 base 走 gdev 立刻起跑,不被它挡住。
+#
+# 三个 baseline 里只有 DiffWave 能上七天窗口:探针实测 batch 8 时
+#   Diffusion-TS 要 15.5 GiB(还能再降 batch 试),
+#   FourierDiffusion 要 46.5 GiB —— 卡总共 40 GiB,每条序列约 5.8 GiB,
+#   batch 1 都勉强,而 batch 1 的等预算是 640 万迭代,彻底不可行。
+#
+#   qsub scripts/pbs/dev/bl_dw_d7.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+IFS=',' read -ra A <<< "${CUDA_VISIBLE_DEVICES:-0,1}"
+[ "${#A[@]}" -eq 2 ] || { echo "❌ 要 2 张卡,拿到 ${#A[@]}"; exit 1; }
+rc=0
+( export CUDA_VISIBLE_DEVICES="${A[0]}"; JOBS="diffwave:d7_c1"
+  source scripts/pbs/dev/baseline_base.body.sh ) > logs/bl_dw_d7_c1.log 2>&1 & p1=$!
+( export CUDA_VISIBLE_DEVICES="${A[1]}"; JOBS="diffwave:d7_c2"
+  source scripts/pbs/dev/baseline_base.body.sh ) > logs/bl_dw_d7_c2.log 2>&1 & p2=$!
+wait $p1 || { echo "d7_c1 失败"; rc=1; }
+wait $p2 || { echo "d7_c2 失败"; rc=1; }
+tail -20 logs/bl_dw_d7_c1.log; echo "-----"; tail -20 logs/bl_dw_d7_c2.log
+exit $rc
