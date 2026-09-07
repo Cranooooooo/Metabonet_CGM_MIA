@@ -134,7 +134,15 @@ class DiffusionTSGenerator(GeneratorBase):
     def fit(self, X: np.ndarray, train_cfg: Dict[str, Any] | None = None) -> "DiffusionTSGenerator":
         import torch
         X = self._check_X(X)
-        train_cfg = dict(train_cfg or {})
+        # 构造参数必须先并进来。run_loo.py 把 --params 交给【构造函数】,然后调
+        # fit() 时不传 train_cfg(loo/train.py:258 是 gen.fit(Xtr)),所以只读
+        # train_cfg 的话 --params 全被静默丢弃 —— 训练会用适配器自己的默认值跑完
+        # 并正常退出,而 meta.json 里记的是我们【要求】的预算。等预算的跨生成器
+        # 对比会在没人察觉的情况下变成「各跑各的默认预算」。
+        # igfm/dimts/maven/timevae 早就是这个写法,这四个一直漏着。
+        # 先把调用方传进来的存下来,否则 train_cfg 被重绑之后 update(train_cfg) 是自己更新自己。
+        _caller = dict(train_cfg or {})
+        train_cfg = dict(self.params); train_cfg.update(_caller)
         self._device = self._resolve_device()
         self._seed_all()
 

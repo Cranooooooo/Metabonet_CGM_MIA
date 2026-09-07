@@ -127,7 +127,13 @@ class PaDTSGenerator(GeneratorBase):
         _, _, Batch_Same_Sampler, _ = _import_vendor()
 
         X = self._check_X(X)  # (N, T, C) float32
-        cfg = dict(train_cfg or {})
+        # 构造参数必须先并进来。run_loo.py 把 --params 交给【构造函数】,然后调
+        # fit() 时不传 train_cfg(loo/train.py:258 是 gen.fit(Xtr)),所以只读
+        # train_cfg 的话 --params 全被静默丢弃 —— 训练会用适配器自己的默认值跑完
+        # 并正常退出,而 meta.json 里记的是我们【要求】的预算。等预算的跨生成器
+        # 对比会在没人察觉的情况下变成「各跑各的默认预算」。
+        # igfm/dimts/maven/timevae 早就是这个写法,这四个一直漏着。
+        cfg = dict(self.params); cfg.update(train_cfg or {})
         self._device = self._resolve_device()
         _set_seeds(self.seed)
 
