@@ -1,0 +1,35 @@
+{
+  "runs": "results/runs/bl_diffwave_d1_c1",
+  "replicates": [
+    1
+  ],
+  "n_subjects": 26,
+  "statistic": "per-subject Mann-Whitney AUC over windows, set_reduce=min",
+  "note": "secondary/exploratory; the frozen primary statistic is min x mean and its result is unchanged by anything here",
+  "by_group": {
+    "outlier": {
+      "n": 13,
+      "median": 0.64,
+      "mean": 0.6113917068766812,
+      "max": 0.9861111111111112,
+      "q1": 0.39285714285714285,
+      "q3": 0.76,
+      "n_over_0_55": 8
+    },
+    "control": {
+      "n": 13,
+      "median": 0.46938775510204084,
+      "mean": 0.5083817574104521,
+      "max": 0.72,
+      "q1": 0.44,
+      "q3": 0.6,
+      "n_over_0_55": 4
+    }
+  },
+  "exploratory_arm_auc_of_aucs": 0.6331360946745562,
+  "exploratory_arm_p": 0.1295759290143476,
+  "spearman_auc_vs_n_windows": {
+    "rho": 0.17573988901115664,
+    "p": 0.3904829318041685
+  }
+}

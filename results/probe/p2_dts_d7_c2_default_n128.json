@@ -1,0 +1,48 @@
+[
+  {
+    "generator": "diffusion_ts",
+    "n_train": 5741,
+    "T": 2016,
+    "C": 2,
+    "gen_params": {},
+    "params": 8316298,
+    "train_budget": {
+      "max_epochs": 200,
+      "batch_size": 4,
+      "gradient_accumulate_every": 1
+    },
+    "sample_budget": {},
+    "fit_seconds": 6.6,
+    "train_rate": {
+      "unit": "max_epochs",
+      "per_unit_seconds": -0.0338,
+      "setup_seconds": 13.4,
+      "points": [
+        [
+          50,
+          11.698306798934937
+        ],
+        [
+          200,
+          6.6222147941589355
+        ]
+      ],
+      "unmeasured": "setup (13s) dominates both budgets (50, 200 max_epochs); the per-max_epochs cost is NOT resolved. Either the adapter ignores 'max_epochs' (grep its cfg.get first), or the budget is too small. Do not read per_unit_seconds."
+    },
+    "n_sampled": 128,
+    "sample_seconds": 220.4,
+    "seconds_per_sample": 1.72159,
+    "hours_for_K": 2.75,
+    "hours_for_49_models_sampling_only": 134.5,
+    "sample_shape": [
+      128,
+      2016,
+      2
+    ],
+    "sample_nan_frac": 0.0,
+    "sample_range": [
+      -1.0,
+      1.0
+    ]
+  }
+]

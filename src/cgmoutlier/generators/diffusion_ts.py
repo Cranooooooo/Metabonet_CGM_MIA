@@ -150,10 +150,22 @@ class DiffusionTSGenerator(GeneratorBase):
         # 默认仍是 /tmp（保持旧行为，供 smoke / 一次性调用使用），但 train_folds 会传
         # resume_dir 指到 fold checkpoint 目录下的持久化子目录 —— /tmp 重启即清空、
         # 且路径带 PID，重启后找不到，等于没有断点（PROGRESS.md §6 教训 6）。
+        # ⛔ 默认路径【不能】用 id(self):CPython 在对象回收后会重用内存地址,所以
+        # 同一个分片进程里训第 N+1 个模型时,可能拿到和第 N 个一模一样的目录,于是
+        # load() 读到上一个模型训满的 checkpoint,train_num_steps 被扣成 0,打印
+        # 「断点显示已训满,跳过训练」,然后【拿上一个模型的权重去采样】。
+        # 2026-09-08 实测:bl_diffusion_ts_d1_c1/include_DCLP3__111 的 fit_seconds
+        # 是 0.08 秒,它的样本来自 include_DCLP3__102 的模型 —— 一个从没见过
+        # DCLP3/111 的模型。meta.json、samples.npy 大小全部正常,只有 fit_seconds
+        # 露了馅。对 MIA 这是致命的:那个人的 membership gap 量的是别人的模型。
+        # mkdtemp 保证不重名;跨进程续训本来就靠调用方传 resume_dir。
         resume_dir = train_cfg.get("resume_dir")
-        self._results_folder = (str(resume_dir) if resume_dir else
-                                os.path.join("/tmp", f"m7mia_diffts_{os.getpid()}_{id(self)}"))
-        os.makedirs(self._results_folder, exist_ok=True)
+        if resume_dir:
+            self._results_folder = str(resume_dir)
+            os.makedirs(self._results_folder, exist_ok=True)
+        else:
+            import tempfile
+            self._results_folder = tempfile.mkdtemp(prefix="m7mia_diffts_")
 
         self._model = self._build_model()
 
@@ -255,8 +267,10 @@ class DiffusionTSGenerator(GeneratorBase):
         if data.get("params"):
             self.params = dict(data["params"])
 
-        self._results_folder = os.path.join(
-            "/tmp", f"m7mia_diffts_{os.getpid()}_{id(self)}")
+        # 同 fit():id(self) 会被 CPython 重用,不能拿来当唯一目录名。这里 train()
+        # 不会被调用,所以撞名不会触发「跳过训练」,但留着就是等下一个人踩。
+        import tempfile
+        self._results_folder = tempfile.mkdtemp(prefix="m7mia_diffts_load_")
         self._model = self._build_model()
         self._model.load_state_dict(data["model"])
 

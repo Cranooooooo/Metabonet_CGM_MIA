@@ -1,0 +1,21 @@
+{
+ "results/runs/loo_igfm_d1_c2/base": {
+  "correlational": 0.0006436907132555292,
+  "mdd": 0.0011424611980170862,
+  "acd": 0.30459865322965674,
+  "skewness_diff": 0.04794035294656648,
+  "kurtosis_diff": 0.21645088956497713,
+  "vds": 0.0004456270592830454,
+  "fdds": 0.02121031346420447,
+  "context_fid": 0.055200914474716666,
+  "discriminative": 0.008749961853027344,
+  "predictive": 0.12779934513568877,
+  "run": "results/runs/loo_igfm_d1_c2/base",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2026,
+  "label": "igfm_stock_d1_c2"
+ }
+}

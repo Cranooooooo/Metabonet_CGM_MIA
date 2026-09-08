@@ -227,7 +227,17 @@ AUC near 0.5 is not the test; the floor is 0.50–0.52 depending on the cell.
 7. **Sampling loops in the vendored code are `range(n // batch + 1)`** — they generate one
    batch too many and discard it. Ask for enough samples that the extra batch is a small
    fraction, or take two points and use the slope.
-8. **Do not compute on the login node.** NSCC-specific, but the habit is worth keeping:
+8. **An adapter can silently sample from the *previous* model's weights.** Diffusion-TS
+   defaulted its checkpoint directory to `/tmp/..._{pid}_{id(self)}`. Within one shard the
+   pid is constant and CPython **reuses `id()` after an object is collected**, so model N+1
+   could land in model N's directory, load a checkpoint reading "100000/100000 steps done",
+   set the remaining steps to zero, and sample from weights that never saw its own target
+   subject. Training exits 0, `meta.json` looks right, `samples.npy` is the right size —
+   **only `fit_seconds` gives it away** (0.08 s against 1900 s). For a membership experiment
+   this is fatal, not cosmetic: that subject's gap is measured against somebody else's model.
+   Fixed with `tempfile.mkdtemp`. **Scan `fit_seconds` before trusting any run**; the
+   analysis job now refuses to score a cell containing a model under 60 s.
+9. **Do not compute on the login node.** NSCC-specific, but the habit is worth keeping:
    route even a log scan or a page build through a zero-GPU queue.
 
 ---

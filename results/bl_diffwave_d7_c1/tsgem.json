@@ -1,0 +1,21 @@
+{
+ "results/runs/bl_diffwave_d7_c1/base": {
+  "correlational": 2.5194661172160223e-14,
+  "mdd": 0.0215868327459392,
+  "acd": 0.6820877096523761,
+  "skewness_diff": 0.03510096610119717,
+  "kurtosis_diff": 0.14348188609078102,
+  "vds": 0.0050417423869172735,
+  "fdds": 0.0,
+  "context_fid": 0.8591697794376676,
+  "discriminative": 0.02249997854232788,
+  "predictive": 0.010504671461880208,
+  "run": "results/runs/bl_diffwave_d7_c1/base",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2026,
+  "label": "bl_diffwave_d7_c1"
+ }
+}

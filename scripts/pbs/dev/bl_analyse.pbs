@@ -1,0 +1,68 @@
+#!/bin/bash
+#PBS -N blanl
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:mem=120gb
+#PBS -l walltime=01:30:00
+#PBS -j oe
+#PBS -o logs/bl_analyse.log
+#
+# 任一 baseline 在任一格子上的收尾分析。GEN / CELL 用 qsub -v 传。
+# 口径逐字照抄 igfm_priv_loo_cell.body.sh:105-130,否则各 arm 之间不可比。
+# 0 GPU -> qdev:三个脚本都不 import torch。
+#   qsub -v GEN=diffwave,CELL=d1_c1 scripts/pbs/dev/bl_analyse.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+export PYTHONNOUSERSITE=1
+set -uo pipefail
+: "${GEN:?}"; : "${CELL:?}"
+TAG="bl_${GEN}_${CELL}"; OUT="results/runs/$TAG"
+COH="data/cohort/matrix_$CELL"; DSN=results/matrix/design/rep1
+
+n=$(ls -d $OUT/*/ 2>/dev/null | while read d; do [ -s "$d/samples.npy" ] && echo x; done | wc -l)
+echo "$TAG 训练完成: $n / 27"
+[ "$n" -ne 27 ] && { echo "还没齐,不分析(幂等,补齐后重排即可)"; exit 0; }
+
+# 预算漂移检查:27 个模型的训练预算必须逐字相同,否则泄漏差混进训练时长
+python - "$OUT" <<'PY' || exit 1
+import json, glob, sys, collections
+keys = ("total_iters", "max_epochs", "batch_size", "gradient_accumulate_every", "steps")
+c = collections.Counter()
+for p in glob.glob(sys.argv[1] + "/*/meta.json"):
+    m = json.load(open(p))["params"]
+    c[tuple(sorted((k, m[k]) for k in keys if k in m))] += 1
+print(f"[check] 预算指纹: {len(c)} 种 -> {'一致' if len(c)==1 else '❌ 漂移了'}")
+for k, v in c.items(): print(f"          {v:2d}x {dict(k)}")
+sys.exit(0 if len(c) == 1 else 1)
+PY
+
+# 未训练检测:fit_seconds 接近 0 的模型是【拿别人的权重采的样】,不是训得快。
+# 2026-09-08 diffusion_ts 的 id(self) 重用 bug 就是这么露馅的,当时只有这一个字段异常。
+python - "$OUT" <<'PY2' || exit 1
+import json, glob, sys, os
+bad = []
+for p in glob.glob(sys.argv[1] + "/*/meta.json"):
+    f = json.load(open(p)).get("fit_seconds")
+    if f is not None and f < 60:
+        bad.append((os.path.basename(os.path.dirname(p)), f))
+print(f"[check] 未训练模型: {len(bad)} 个")
+for n, f in bad: print(f"          ❌ {n} fit={f}s")
+sys.exit(1 if bad else 0)
+PY2
+
+ok=1
+A=logs/${TAG}_attack.log; B=logs/${TAG}_subjauc.log; F=logs/${TAG}_floor.log
+echo "== 攻击"
+# run_attack 缺配对时不报错,只在最前面警告一句、跳过、照样写 summary(子集 AUC)
+python -u scripts/run_attack.py --design "$DSN" --cohort "$COH" --runs "$OUT" \
+    --out "results/matrix/attack/$TAG" --generator "$GEN" > "$A" 2>&1 || ok=0
+grep -q "missing a model" "$A" && { echo "❌ 有配对缺模型,summary 不可用:"; grep "missing a model" "$A"; ok=0; }
+tail -25 "$A"
+echo "== 逐病人 AUC"
+python -u scripts/subject_auc.py --runs "$OUT" --design results/matrix/design \
+    --cohort "$COH" --replicates 1 --out "results/matrix/subject_auc/$TAG" > "$B" 2>&1 || ok=0
+tail -18 "$B"
+echo "== 打乱地板(PITFALLS 第 20 条:地板 7/26,且每个 release 各算各的)"
+python -u scripts/leak_locus.py --design "$DSN" --cohort "$COH" --runs "$OUT" \
+    --out "results/matrix/leak_locus/$TAG.json" > "$F" 2>&1 || ok=0
+tail -18 "$F"
+[ "$ok" -eq 1 ] && echo "✅ $TAG 分析完成" || { echo "❌ 分析失败,重排重试"; exit 1; }

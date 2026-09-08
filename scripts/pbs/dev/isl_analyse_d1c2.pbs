@@ -1,0 +1,47 @@
+#!/bin/bash
+#PBS -N islanl
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:mem=120gb
+#PBS -l walltime=01:30:00
+#PBS -j oe
+#PBS -o logs/isl_analyse_d1_c2.log
+#
+# IG-FM【原版】在 d1_c2 上的收尾分析。口径逐字照抄带模块那一版
+# (igfm_priv_loo_cell.body.sh:105-130),否则两个 arm 不可比。
+#
+# 0 GPU -> qdev。这三个脚本都不 import torch,以前挂在 GPU 作业尾巴上跑纯属浪费。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+export PYTHONNOUSERSITE=1
+set -uo pipefail
+
+CELL=d1_c2; OUT=results/runs/loo_igfm_$CELL
+COH=data/cohort/matrix_$CELL; DSN=results/matrix/design/rep1
+n=$(ls -d $OUT/*/ 2>/dev/null | while read d; do [ -s "$d/samples.npy" ] && echo x; done | wc -l)
+echo "训练完成: $n / 27"
+if [ "$n" -ne 27 ]; then
+  echo "还没齐,不分析。补齐后重排本作业即可(分析是幂等的)"; exit 0
+fi
+
+ok=1
+A=logs/isl_attack_$CELL.log; B=logs/isl_subjauc_$CELL.log; F=logs/isl_floor_$CELL.log
+echo "== 攻击(和带模块那版同一套冻结统计量)"
+# ⚠️ run_attack 在某个配对缺模型时【不报错】:警告打在最前面、跳过该对、照样写出
+#    summary.json,里面的 AUC 是子集上算的。tail 一定看不到那句,所以全量进独立日志再 grep。
+python -u scripts/run_attack.py --design "$DSN" --cohort "$COH" --runs "$OUT" \
+    --out results/matrix/attack/igfm_$CELL --generator igfm > "$A" 2>&1 || ok=0
+if grep -q "missing a model" "$A"; then
+  echo "❌ 有配对缺模型,summary 是子集,不可用:"; grep "missing a model" "$A"; ok=0; fi
+tail -25 "$A"
+
+echo "== 逐病人 AUC"
+python -u scripts/subject_auc.py --runs "$OUT" --design results/matrix/design \
+    --cohort "$COH" --replicates 1 --out results/matrix/subject_auc/igfm_$CELL > "$B" 2>&1 || ok=0
+tail -18 "$B"
+
+echo "== 打乱地板控制(PITFALLS 第 20 条:地板是 7/26 不是 0,且每个 release 各算各的)"
+python -u scripts/leak_locus.py --design "$DSN" --cohort "$COH" --runs "$OUT" \
+    --out results/matrix/leak_locus/igfm_$CELL.json > "$F" 2>&1 || ok=0
+tail -18 "$F"
+
+[ "$ok" -eq 1 ] && echo "✅ IG-FM 原版 $CELL 分析全部完成" || { echo "❌ 分析有失败,重排本作业重试"; exit 1; }

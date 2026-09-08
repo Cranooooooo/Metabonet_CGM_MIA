@@ -37,7 +37,10 @@ PY
 echo "===== $(date '+%F %T')  $GEN / $CELL  ${NSHARD} 分片 ====="
 echo "参数: $P"
 python -u scripts/run_loo.py --design "$DSN" --cohort "$COH" --out "$OUT" \
-    --generator "$GEN" --params "$P" --seed 2026 --list | head -3
+    --generator "$GEN" --params "$P" --seed 2026 --list | awk 'NR<=3'
+# awk 而不是 head:head 读满 3 行就关掉管道,上游 run_loo 还在 print,于是
+# 抛 BrokenPipeError 并打一整段 traceback。它无害(只是这行预览),但会让
+# 日志里出现一个看起来像训练崩了的 Traceback,而真正的失败长得一模一样。
 
 pids=()
 for s in $(seq 0 $((NSHARD-1))); do
