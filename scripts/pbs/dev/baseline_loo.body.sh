@@ -17,7 +17,7 @@ BUDGET=6400000; BS=64
 case "$GEN" in
   diffusion_ts) P="{\"max_epochs\":$((BUDGET/BS)),\"batch_size\":$BS,\"gradient_accumulate_every\":1,\"timesteps\":500}" ;;
   diffwave)     P="{\"total_iters\":$((BUDGET/BS)),\"batch_size\":$BS}" ;;
-  fourier_diff) P="{\"max_epochs\":$(( (BUDGET+5741-1)/5741 )),\"batch_size\":$BS}" ;;
+  fourier_diff) P="{\"max_epochs\":$(( (BUDGET+5741-1)/5741 )),\"batch_size\":$BS,\"keep_best\":false}" ;;
   *) echo "❌ 不认识的生成器 $GEN"; exit 2 ;;
 esac
 OUT="results/runs/bl_${GEN}_${CELL}"; COH="data/cohort/matrix_$CELL"
@@ -25,7 +25,9 @@ DSN=results/matrix/design/rep1
 
 # base 必须已经存在且参数一致 —— 不检查的话会拿一个别的预算训出来的 base
 # 当对照,而 meta.json 看上去完全正常。
-if [ ! -s "$OUT/base/samples.npy" ]; then echo "❌ $OUT/base 还没有样本,先训 base"; exit 3; fi
+if [ "${ALLOW_NO_BASE:-0}" != "1" ] && [ ! -s "$OUT/base/samples.npy" ]; then
+  echo "❌ $OUT/base 还没有样本,先训 base(或设 ALLOW_NO_BASE=1 让本作业连 base 一起训)"; exit 3; fi
+if [ -s "$OUT/base/meta.json" ]; then
 python - "$OUT/base/meta.json" "$P" <<'PY' || exit 3
 import json, sys
 have = json.load(open(sys.argv[1]))["params"]; want = json.loads(sys.argv[2])
@@ -33,6 +35,7 @@ bad = {k: (have.get(k), v) for k, v in want.items() if have.get(k) != v}
 print(f"[check] base 参数比对: {'一致' if not bad else bad}")
 sys.exit(1 if bad else 0)
 PY
+fi
 
 echo "===== $(date '+%F %T')  $GEN / $CELL  ${NSHARD} 分片 ====="
 echo "参数: $P"

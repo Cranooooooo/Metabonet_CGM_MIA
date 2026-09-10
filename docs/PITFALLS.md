@@ -694,3 +694,53 @@ WHAT TO DO.
 2. If a count is quoted, **quote the measured floor in the same sentence**, never an
    assumed one.
 3. Run the floor control in any new cell. It costs one extra transform in the same job.
+
+---
+
+## 21. ⚠️ Silent: a best-epoch rule turns every model's published quality into a lottery ticket, and the single `base` holds one of them
+
+`fourier_diff` kept the lowest-loss epoch rather than the last one (added 2026-07-27,
+because the vendor's last-epoch behaviour collapses into a score≡0 solution and 35 folds
+were hit). Applied identically to `base` and all 26 `include_t`, which sounds fair and is
+not.
+
+The loss plateaus long before the budget ends. Measured on d1_c2: eight epochs sit within
+1% of the minimum, spread over epochs 220–444, and consecutive epochs at the tail differ by
+2.5%. The chosen epoch therefore ranged from **129 to 560 across the 26 models** — a 4.3×
+spread that is *not* evidence that some subject is harder to train, since the models differ
+by one subject in 476. It is an argmin over noise.
+
+The spread alone would only add variance. What makes it a bias is that **there is one
+`base` and it is shared by all 26 comparisons**, so its single draw offsets every one of
+them in the same direction. On d1_c2 the base's kept epoch scored better than 21 of 26
+includes, so every include looked *farther* from its target than base did, and the
+per-subject AUC fell below chance:
+
+| | shuffled floor | measured | difference |
+|---|---|---|---|
+| d1_c2, keep_best on | **0.3814** | 0.3309 | −0.051 |
+| d1_c2, keep_best off | **0.4969** | 0.4938 | −0.003 |
+| d1_c1, keep_best on | 0.5200 | 0.4389 | −0.081 |
+| d1_c1, keep_best off | **0.5083** | 0.4797 | −0.029 |
+
+**The tell is the floor, not the result.** Shuffling destroys the time axis, so the floor
+must sit at 0.5 by construction; 0.38 says the two arms differ by something that has
+nothing to do with membership. Every other check passed — budget fingerprint identical
+across all 27, sample range and NaN fraction normal, zero collapse warnings, `fit_seconds`
+consistent. Nothing but the floor was wrong.
+
+Two hypotheses were tested and **falsified** before the right one was found, and both are
+worth recording because they are the obvious guesses: (a) *different effective training
+lengths* — no, the plateau is flat, so epoch 129 and epoch 560 are equally converged;
+(b) *degenerate low-variance samples* — no, on d1_c1 this arm had the **highest** sample
+std of any generator (0.216) and still read −0.081.
+
+Fixed by publishing the last epoch for every model, which restores one rule for all 27.
+The collapse guard at the end of `fit()` is independent of `keep_best` and still runs, so
+the reason the rule existed is still covered. Old runs kept under
+`results/runs/bl_fourier_diff_d1_c*_keepbest/` as the evidence.
+
+**Generalises past this adapter:** any per-model selection rule — best epoch, best seed,
+early stopping on a noisy criterion — interacts with the single shared `base` the same way.
+If a release's shuffled floor is not near 0.5, suspect the selection rule before the
+generator.

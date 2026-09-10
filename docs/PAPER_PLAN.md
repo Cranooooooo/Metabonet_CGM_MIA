@@ -124,12 +124,40 @@ risk. Two reasons for that shape, and the second is not obvious:
    and cannot distinguish the two, so it leaves a reviewer free to answer that our model
    is simply worse.
 
-   Note that the curve itself is a hypothesis at this point: we have one generator
-   measured, so Step 2's first job is to establish that the trade-off exists and is
-   monotone before anything can be said about breaking it. If it turns out not to exist —
-   if some architecture is both better and safer — that is a more interesting result,
-   because it would mean existing methods are merely unoptimised rather than up against
-   something fundamental.
+   **RESOLVED 2026-09-10, and the answer is the second one.** Both one-day cells now
+   carry all seven arms. The trade-off is not monotone, and it is not a curve: of seven
+   generators spanning a 48× range in Context-FID, **exactly one leaks** — DiM-TS, which
+   is neither the best nor the worst on quality. Everything else sits on its own shuffled
+   floor, at both ends of the quality axis.
+
+   | arm | cFID d1_c1 | measured − floor | cFID d1_c2 | measured − floor |
+   |---|---|---|---|---|
+   | IG-FM (stock) | 0.0429 | +0.008 | 0.0552 | −0.000 |
+   | IG-FM + 2 modules | 0.0437 | +0.000 | 0.0606 | −0.008 |
+   | **DiM-TS** | 0.0891 | **+0.150** | 0.1767 | **+0.072** |
+   | FourierDiffusion | 0.2538 | −0.029 | 1.4037 | −0.003 |
+   | DiffWave | 0.3675 | +0.067 | 0.4905 | +0.015 |
+   | Diffusion-TS | 0.4224 | −0.003 | 2.0576 | −0.007 |
+
+   So the claim to make is **not** "we pushed the frontier out". It is stronger and it is
+   what the data says: **leakage is not the price of quality.** Five of six generators are
+   unreadable by this attack, and the five include both the best and the worst. What
+   distinguishes IG-FM is that it reaches the floor *while being the best on quality* —
+   the others reach it by fitting the distribution poorly enough that there is no
+   individual left to recover. That is the difference between moving along a curve and not
+   being on one.
+
+   **This puts the burden on explaining DiM-TS rather than on explaining us**, and §3b
+   already supplies a candidate: its risk peaks at about 20% of the budget and then keeps
+   climbing while its quality degrades, i.e. it is trained past the point where fitting the
+   distribution and memorising individuals stop being the same thing. Whether that is
+   architectural or a budget artefact is the open question, and it is answerable by reading
+   its own trajectory rather than by running more baselines.
+
+   ⚠️ Read `PITFALLS.md` §21 before quoting any arm here. A per-model selection rule
+   (best epoch, best seed) interacts with the single shared `base` and can push a whole
+   cell below chance; FourierDiffusion's first pass did exactly that and had to be re-run.
+   The diagnostic is the shuffled floor, which must sit near 0.5.
 2. **Single points are not comparable across baselines.** Step 3b shows risk rises and
    then falls with training length. Comparing models at one fixed budget compares each at
    an arbitrary point on its own trajectory. The comparable quantity is each model's
@@ -137,12 +165,25 @@ risk. Two reasons for that shape, and the second is not obvious:
 
 ### Status
 
-| generator | state |
-|---|---|
-| DiM-TS | all four conditions plus a full training trajectory — **complete** |
-| copy-paste | positive control: a generator that replays training data verbatim — **complete** |
-| TimeVAE | **fails the quality gate.** Its samples are trivially distinguishable from real data and its Context-FID is 0.856, 9× that of DiM-TS. Ruled out after a single-model pilot |
-| PaD-TS, Diffusion-TS, DiffWave, FourierDiffusion, IG-FM | not started |
+| generator | d1_c1 | d1_c2 | d7_c1 | d7_c2 |
+|---|---|---|---|---|
+| DiM-TS | complete | complete | complete | complete |
+| copy-paste (positive control) | complete | complete | complete | complete |
+| IG-FM stock | complete | complete | — | — |
+| IG-FM + 2 privacy modules | complete | complete | base 88% | base 88% |
+| Diffusion-TS | complete | complete | — | — |
+| DiffWave | complete | complete | base only | base only |
+| FourierDiffusion | complete (re-run, `keep_best` off) | complete (re-run) | infeasible, see below | infeasible |
+| TimeVAE | **fails the quality gate** (Context-FID 0.856, 9× DiM-TS). Ruled out on one pilot |
+| PaD-TS | **excluded**: its population term is a strict lower-triangular channel index set, empty at C=1, and an empty tensor's `.mean()` returns NaN rather than raising — two of four cells are C=1. Also needs `timm`, which is not in the environment |
+
+**Both one-day cells are complete for every arm.** 14 of 28 MIA cells done; the 14 open
+ones are all in the seven-day columns and are blocked on the two IG-FM `d7` base models.
+
+FourierDiffusion at T=2016 needs 46.5 GiB for a single evaluation forward pass (two
+hardcoded 512-window batches, since chunked — `PITFALLS.md` §21 and the adapter comments);
+whether it fits after that fix has not been re-probed.
+
 
 ### Two prerequisites
 

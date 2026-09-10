@@ -1,14 +1,19 @@
 #!/bin/bash
-#PBS -N fd_c1
+#PBS -N fdk_c1
 #PBS -P 11704243
 #PBS -l select=1:ncpus=64:ngpus=4:mem=440gb
 #PBS -l walltime=23:00:00
 #PBS -j oe
 #PBS -o logs/blloo_fourier_diff_d1_c1.log
 #
-# fourier_diff 在 d1_c1 上的 26 个 include。队列由 (ngpus=4, walltime=23:00:00) 决定,不指名。
-# 走长队列而不是 gdev:一次跑完,不用接力,也不会有模型卡在 2 小时墙上被丢掉
-# —— 这三个适配器【没有断点续训】,模型内部没有部分学分。
+# FourierDiffusion d1_c1 全部 27 个模型重训,keep_best=false。
+#
+# 为什么连 base 一起重训:新旧规则混用等于换个方式制造同样的偏置。keep_best 让
+# 每个模型发布的权重成为损失平台上的一次抽签(平台内相邻 epoch 只差 2.5%,
+# best epoch 从 129 到 560 都有),而 base 只有一个 —— 它那一签的运气会同方向
+# 偏置全部 26 个比较。实测 d1_c2 的 base 优于 21/26 个 include,逐病人 AUC
+# 因此塌到 0.331(自身地板 0.381),两个数都远低于 0.5。
+# 旧结果留档在 results/runs/bl_fourier_diff_d1_c1_keepbest。
 source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
 conda activate "$ENV_PREFIX"
-GEN=fourier_diff CELL=d1_c1 NSHARD=4 bash scripts/pbs/dev/baseline_loo.body.sh
+ALLOW_NO_BASE=1 GEN=fourier_diff CELL=d1_c1 NSHARD=4 bash scripts/pbs/dev/baseline_loo.body.sh

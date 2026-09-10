@@ -1,0 +1,35 @@
+{
+  "runs": "results/runs/bl_diffusion_ts_d1_c1",
+  "replicates": [
+    1
+  ],
+  "n_subjects": 26,
+  "statistic": "per-subject Mann-Whitney AUC over windows, set_reduce=min",
+  "note": "secondary/exploratory; the frozen primary statistic is min x mean and its result is unchanged by anything here",
+  "by_group": {
+    "outlier": {
+      "n": 13,
+      "median": 0.5454545454545454,
+      "mean": 0.5685109012100533,
+      "max": 0.75,
+      "q1": 0.52,
+      "q3": 0.56,
+      "n_over_0_55": 6
+    },
+    "control": {
+      "n": 13,
+      "median": 0.4846938775510204,
+      "mean": 0.47771185942336014,
+      "max": 0.625,
+      "q1": 0.4567901234567901,
+      "q3": 0.5206611570247934,
+      "n_over_0_55": 1
+    }
+  },
+  "exploratory_arm_auc_of_aucs": 0.8017751479289941,
+  "exploratory_arm_p": 0.0047346815106004405,
+  "spearman_auc_vs_n_windows": {
+    "rho": 0.18859064471868617,
+    "p": 0.35618944526426954
+  }
+}

@@ -30,7 +30,13 @@ params_for() {          # $1=gen $2=cell
     diffusion_ts) echo "{\"max_epochs\":$((BUDGET/bs)),\"batch_size\":$bs,\"gradient_accumulate_every\":1,\"timesteps\":500}" ;;
     diffwave)     echo "{\"total_iters\":$((BUDGET/bs)),\"batch_size\":$bs}" ;;
     fourier_diff) local n=5741; local per=$n   # vendor 的 DataLoader 没有 drop_last(datamodules.py),一个 epoch 就是 N 条
-                  echo "{\"max_epochs\":$(( (BUDGET+per-1)/per )),\"batch_size\":$bs}" ;;
+                  # keep_best 关闭:它每个 epoch 取一次 argmin,而损失平台上相邻 epoch
+                  # 只差 2.5%,于是「最好」基本由噪声决定。base 只有一个,它那一次抽签
+                  # 会把全部 26 个比较推向同一方向 —— 实测 d1_c2 的 base 优于 21/26 个
+                  # include,逐病人 AUC 因此塌到 0.331(地板 0.381)。统一发布最后一个
+                  # epoch,规则对 base 和 include 完全一致。塌缩仍由 fit() 末尾的
+                  # collapse_ratio 闸拦住,那道检查与 keep_best 无关。
+                  echo "{\"max_epochs\":$(( (BUDGET+per-1)/per )),\"batch_size\":$bs,\"keep_best\":false}" ;;
     *) echo "❌ 不认识的生成器 $g" >&2; return 1 ;;
   esac
 }

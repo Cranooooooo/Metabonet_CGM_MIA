@@ -1,0 +1,35 @@
+{
+  "runs": "results/runs/bl_fourier_diff_d1_c1",
+  "replicates": [
+    1
+  ],
+  "n_subjects": 26,
+  "statistic": "per-subject Mann-Whitney AUC over windows, set_reduce=min",
+  "note": "secondary/exploratory; the frozen primary statistic is min x mean and its result is unchanged by anything here",
+  "by_group": {
+    "outlier": {
+      "n": 13,
+      "median": 0.5663265306122449,
+      "mean": 0.5753088296570658,
+      "max": 0.8576388888888888,
+      "q1": 0.3950617283950617,
+      "q3": 0.75,
+      "n_over_0_55": 8
+    },
+    "control": {
+      "n": 13,
+      "median": 0.4,
+      "mean": 0.3994849669842101,
+      "max": 0.72,
+      "q1": 0.30785123966942146,
+      "q3": 0.4489795918367347,
+      "n_over_0_55": 1
+    }
+  },
+  "exploratory_arm_auc_of_aucs": 0.7455621301775148,
+  "exploratory_arm_p": 0.017720506333585323,
+  "spearman_auc_vs_n_windows": {
+    "rho": 0.003828652332718064,
+    "p": 0.9851903199201837
+  }
+}
