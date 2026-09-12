@@ -1,0 +1,28 @@
+#!/bin/bash
+#PBS -N d7c2mid
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=08:00:00
+#PBS -j oe
+#PBS -o logs/d7c2_mid.log
+#
+# 只打 d7_c2 的 12000/18000 两点 —— 决定「容量到顶」还是「还能靠预算救」的两个点。
+#
+# 墙钟 8 小时而不是 2.5:打分耗时取决于【样本有多真】,不是数据量。判别器指标要
+# 训到能分开真假,样本差时秒收敛(2k/6k 是 127 秒/run),样本好时要跑满(12k/18k
+# 实测约 1.1 小时/run)。上一版给 2.5 小时,算完 d7_c1 两点就被切了。
+#
+# 一个格子一个 run 地写盘,被切也保住已算的。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"; export PYTHONNOUSERSITE=1
+set -uo pipefail
+for m in 12000 18000; do
+  d="results/matrix/curve/d7_c2/m$m"
+  [ -s "$d/samples.npy" ] || { echo "❌ $d 没有样本"; continue; }
+  echo "===== $(date '+%F %T') d7_c2 m$m"
+  python -u scripts/eval_quality_tsgem.py --runs "$d" \
+      --cohort data/cohort/matrix_d7_c2 --design results/matrix/design/rep1 \
+      --seed 2026 --label "curve_d7_c2_m$m" \
+      --out "results/matrix/curve/d7_c2_quality_m$m.json" 2>&1 | tail -4
+  echo "  m$m 完成,累计 $SECONDS 秒"
+done

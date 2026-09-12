@@ -135,7 +135,7 @@ risk. Two reasons for that shape, and the second is not obvious:
    | IG-FM (stock) | 0.0429 | +0.008 | 0.0552 | −0.000 |
    | IG-FM + 2 modules | 0.0437 | +0.000 | 0.0606 | −0.008 |
    | **DiM-TS** | 0.0891 | **+0.150** | 0.1767 | **+0.072** |
-   | FourierDiffusion | 0.2538 | −0.029 | 1.4037 | −0.003 |
+   | FourierDiffusion | 0.1000 | −0.029 | 0.1943 | −0.003 |
    | DiffWave | 0.3675 | +0.067 | 0.4905 | +0.015 |
    | Diffusion-TS | 0.4224 | −0.003 | 2.0576 | −0.007 |
 
@@ -153,6 +153,18 @@ risk. Two reasons for that shape, and the second is not obvious:
    distribution and memorising individuals stop being the same thing. Whether that is
    architectural or a budget artefact is the open question, and it is answerable by reading
    its own trajectory rather than by running more baselines.
+
+   **FourierDiffusion's numbers here are the re-run with `keep_best` off** (PITFALLS §21).
+   Turning that rule off did not merely remove the bias — it made the generator markedly
+   *better*: Context-FID 0.2538 → **0.1000** on d1_c1 and 1.4037 → **0.1943** on d1_c2, with
+   the real-vs-fake score improving 2× and 3.9× alongside. The rule had been selecting
+   worse models all along, because it takes an argmin over DSM loss and DSM loss is not
+   sample fidelity: the model keeps improving its distribution after the loss plateaus.
+   So FourierDiffusion is not the second-worst generator in this table, it is the third
+   best — which strengthens the finding rather than weakening it, because it now sits at
+   **DiM-TS's quality level (0.1943 against 0.1767 on d1_c2) with an order of magnitude
+   less leakage** (−0.003 against +0.072). The two are matched on quality and separated on
+   privacy, so "DiM-TS leaks because it is good" is not available as an explanation.
 
    ⚠️ Read `PITFALLS.md` §21 before quoting any arm here. A per-model selection rule
    (best epoch, best seed) interacts with the single shared `base` and can push a whole
@@ -637,3 +649,56 @@ and should be argued rather than defaulted into.
 6. **The discriminative score is read over repeated fits, not one.** A single classifier
    fit may miss the discrepancy; we refit repeatedly and report the best fit and the
    spread. A single fit has twice given the wrong answer, once with the sign reversed.
+
+---
+
+## Step 4 addendum — the seven-day base models, measured 2026-09-11/12
+
+Both `d7` base models for IG-FM + 2 privacy modules finished (25,000 iterations each,
+**67.8 h and 67.9 h measured**, 62.4 h training plus 5.4 h sampling; the cost probe had
+predicted 109 h, so the probe was conservative by 1.6×). All 13 checkpoints were kept,
+which is what made everything below possible without retraining.
+
+### The quality gate splits the two cells
+
+| cell | IG-FM + 2 modules | DiM-TS same cell | verdict |
+|---|---|---|---|
+| `d7_c1` | **0.0943** (disc 0.0025) | 0.3256 | passes, 3.5× better |
+| `d7_c2` | 0.4195 (disc 0.0712) | 0.2836 | **fails at 25,000** |
+
+This is the first gate failure anywhere in the campaign, and it is the direction that was
+flagged in advance: the one-day curve said "past 12,000 the change is inside the noise",
+with the caveat that harder cells drift later and extrapolating to `d7` was a guess.
+`d7_c2` is the hardest cell — 7× the sequence length *and* two channels — against a model
+width that never changed (`hidden=144`, 2.09 M parameters at T=288 and 2.34 M at T=2016,
+the difference being position embeddings).
+
+### The budget curve, read from the kept checkpoints
+
+| iteration | `d7_c1` | `d7_c2` |
+|---|---|---|
+| 2,000 | 12.9649 | 11.5827 |
+| 6,000 | 0.6415 | 0.5199 |
+| 12,000 | 0.1267 | 0.2311 |
+| 18,000 | 0.1085 | **0.1991** |
+| 25,000 | 0.0943 | 0.4195 ⚠️ |
+
+**`d7_c1` is monotone and flat after 12,000** (12k→25k buys 26%), so its 26 include models
+can run at 12,000 rather than 25,000: **1,376 GPU-hours instead of 2,847**, and 0.1267
+still beats DiM-TS's 0.3256 by 2.6×.
+
+**`d7_c2` has a checkpoint that passes the gate.** At 18,000 it reads **0.1991**, better
+than DiM-TS's 0.2836. So the cell is not lost and no capacity increase is needed to reach a
+publishable base.
+
+⚠️ **The 25,000 point is not yet apples-to-apples.** The four points from 2,000 to 18,000
+were drawn by `igfm_budget_curve.py`, which reseeds immediately before each `sample()` so
+all milestones integrate the same noise. The 0.4195 comes from the base run's own
+`samples.npy`, a different draw. Whether `d7_c2` genuinely turns up after 18,000 —
+overtraining, as DiM-TS does on this same cell — or whether the base simply drew a bad
+sample, is settled by scoring the curve's own `m25000`, which is sampled and pending.
+
+**Either answer leaves the same action**: train the 26 include models at the budget the
+curve selects (12,000 for `d7_c1`, 18,000 for `d7_c2`), not at 25,000. What changes is the
+interpretation — a genuine upturn would be a second instance of the Step 3b effect in the
+same cell, and worth reporting as such.

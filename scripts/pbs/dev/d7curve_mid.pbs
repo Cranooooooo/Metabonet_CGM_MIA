@@ -1,0 +1,26 @@
+#!/bin/bash
+#PBS -N d7cmid
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=02:30:00
+#PBS -j oe
+#PBS -o logs/d7curve_mid.log
+#
+# 给 12000/18000 两个里程碑打分。它们已经采完,但上一个打分作业启动时还没落盘。
+# 实测每个 run 约 127 秒(T=2016),4 个 run 约 9 分钟,2.5 小时墙钟是给排队和波动留的。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"; export PYTHONNOUSERSITE=1
+set -uo pipefail
+for c in d7_c1 d7_c2; do
+  dirs=""
+  for m in 12000 18000; do
+    [ -s "results/matrix/curve/$c/m$m/samples.npy" ] && dirs="$dirs results/matrix/curve/$c/m$m"
+  done
+  [ -z "$dirs" ] && { echo "$c: 12000/18000 还没采完"; continue; }
+  echo "===== $c: $dirs"
+  python -u scripts/eval_quality_tsgem.py --runs $dirs \
+      --cohort "data/cohort/matrix_$c" --design results/matrix/design/rep1 \
+      --seed 2026 --label "curve_${c}_mid" \
+      --out "results/matrix/curve/${c}_quality_mid.json" 2>&1 | tail -4
+done
+echo "总耗时 $SECONDS 秒"

@@ -1,0 +1,30 @@
+#!/bin/bash
+#PBS -N d7cpart
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+# 6 小时不是 1 小时:T=2016 上 ts2vec 编码的数据量是 d1 的 7 倍,
+# 上一版 1 小时连 2 个 run 都没算完就被墙钟切了(walltime 3685 > 3600)。
+#PBS -l walltime=06:00:00
+#PBS -j oe
+#PBS -o logs/d7curve_partial.log
+#
+# 给【已经采完】的里程碑提前打分,不等整条曲线跑完。
+# 目的:2000/6000 两个早期点配上已知的 25000(c1=0.0943, c2=0.4195),
+# 已经足以区分「过训」和「欠训/容量」—— 如果早期点明显优于 25000,就是过训,
+# 换存档即可,免费。写到单独的 _partial.json,不碰最终产物。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"; export PYTHONNOUSERSITE=1
+set -uo pipefail
+for c in d7_c1 d7_c2; do
+  dirs=""
+  for m in 2000 6000 12000 18000 25000; do
+    [ -s "results/matrix/curve/$c/m$m/samples.npy" ] && dirs="$dirs results/matrix/curve/$c/m$m"
+  done
+  [ -z "$dirs" ] && { echo "$c: 还没有采完的里程碑"; continue; }
+  echo "===== $c 打分: $dirs"
+  python -u scripts/eval_quality_tsgem.py --runs $dirs \
+      --cohort "data/cohort/matrix_$c" --design results/matrix/design/rep1 \
+      --seed 2026 --label "curve_${c}_partial" \
+      --out "results/matrix/curve/${c}_quality_partial.json" 2>&1 | tail -5
+  echo "  $c 打分耗时到此: $SECONDS 秒"
+done

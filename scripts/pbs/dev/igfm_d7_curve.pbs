@@ -1,0 +1,63 @@
+#!/bin/bash
+#PBS -N d7curve
+#PBS -P 11704243
+#PBS -l select=1:ncpus=64:ngpus=4:mem=440gb
+#PBS -l walltime=23:00:00
+#PBS -j oe
+#PBS -o logs/igfm_d7_curve.log
+#
+# d7 两个格子自己的预算曲线。【不重训】—— base 已经训满 25000 并留下 13 个存档,
+# 这里只从存档重采样再打分。
+#
+# 为什么必须读曲线:d7_c2 的 base 没过质量闸(cFID 0.4195 对 DiM-TS 的 0.2836)。
+# 训练损失还在降(末段每 5000 迭代改善 5.2%),但这【不能】说明欠训 —— PITFALLS
+# 里那条恰好就是在 d7_c2 上测的:损失单调降的同时 Context-FID 翻倍,两者朝相反
+# 方向走。曲线一次分开三种可能:
+#   仍在下降 -> 欠训,加预算
+#   见顶回升 -> 过训,直接换早期存档,【免费】
+#   走平在 0.42 -> 容量不够,要加宽重训
+# 第二种有先例:DiM-TS 在 d7_c2 上就是 20% 处见顶后烂到 2.5 倍。
+#
+# 5 个里程碑而不是 13 个:要的是【形状】不是分辨率,而 d7 采一次 5.4 小时。
+# 10 次采样 / 4 卡 = 每卡 2-3 次 ≈ 11-16 小时,23 小时墙钟有余量。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+export PYTHONNOUSERSITE=1
+set -uo pipefail
+mkdir -p logs results/matrix/curve
+DSN=results/matrix/design/rep1
+
+run_subset() {                     # $1=cell $2=dev $3=milestones
+  local c="$1" dev="$2" ms="$3"
+  local COH="data/cohort/matrix_$c" RUN="results/runs/igfm_priv_$c/base"
+  echo "===== $(date '+%F %T') $c 卡$dev 里程碑 $ms ====="
+  CUDA_VISIBLE_DEVICES="$dev" python -u scripts/igfm_budget_curve.py \
+      --run "$RUN" --cohort "$COH" --design "$DSN" --job base \
+      --milestones "$ms" --out-root "results/matrix/curve/$c" --seed 2026 \
+      > "logs/d7curve_${c}_${dev}.log" 2>&1
+  echo "  $c 卡$dev 退出码 $?"
+}
+
+# 先确认存档都在,缺了就别白跑 11 小时
+for c in d7_c1 d7_c2; do
+  for m in 2000 6000 12000 18000 25000; do
+    [ -s "results/runs/igfm_priv_$c/base/iter-$m.pt" ] || { echo "❌ $c 缺 iter-$m.pt"; exit 2; }
+  done
+done
+echo "[check] 两个格子的 5 个存档都在"
+
+run_subset d7_c2 0 "2000,12000,25000" &
+run_subset d7_c2 1 "6000,18000"       &
+run_subset d7_c1 2 "2000,12000,25000" &
+run_subset d7_c1 3 "6000,18000"       &
+wait
+
+for c in d7_c1 d7_c2; do
+  dirs=""; for m in 2000 6000 12000 18000 25000; do dirs="$dirs results/matrix/curve/$c/m$m"; done
+  python -u scripts/eval_quality_tsgem.py --runs $dirs --cohort "data/cohort/matrix_$c" \
+      --design "$DSN" --seed 2026 --label "curve_$c" \
+      --out "results/matrix/curve/${c}_quality.json" 2>&1 | tail -8
+  n=$(grep -c '"context_fid"' "results/matrix/curve/${c}_quality.json" 2>/dev/null || echo 0)
+  echo "  $c 曲线打出 ${n}/5 个点"
+done
+echo "===== 完成 $(date '+%F %T') ====="

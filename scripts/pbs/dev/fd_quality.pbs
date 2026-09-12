@@ -1,0 +1,21 @@
+#!/bin/bash
+#PBS -N fdqual
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=01:30:00
+#PBS -j oe
+#PBS -o logs/fd_quality.log
+#
+# 重训后的 FourierDiffusion base(keep_best=false)的质量分。
+# 旧的是 9/5 跑的、对应 keep_best=true 的那份权重,已改名 tsgem_keepbest.json 留档。
+# 拿旧质量分配新泄漏数就是混口径 —— 发布的是最后一个 epoch,损失比 best 高约 20%,
+# 质量大概率变差,而这正是关掉 keep_best 的代价,必须量出来。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"; export PYTHONNOUSERSITE=1
+for c in d1_c1 d1_c2; do
+  echo "===== $c ====="
+  python -u scripts/eval_quality_tsgem.py \
+      --runs "results/runs/bl_fourier_diff_$c/base" --cohort "data/cohort/matrix_$c" \
+      --design results/matrix/design/rep1 \
+      --out "results/bl_fourier_diff_$c/tsgem.json" --label "bl_fourier_diff_$c" 2>&1 | tail -6
+done

@@ -1,0 +1,25 @@
+{
+ "run": "results/runs/igfm_priv_d7_c2/base",
+ "cohort": "data/cohort/matrix_d7_c2",
+ "K": 5741,
+ "job_seed": 3742878366,
+ "milestones": [
+  2000,
+  12000,
+  25000
+ ],
+ "rows": [
+  {
+   "milestone": 2000,
+   "sample_seconds": 19405.83
+  },
+  {
+   "milestone": 12000,
+   "sample_seconds": 19512.63
+  },
+  {
+   "milestone": 25000,
+   "sample_seconds": 19490.6
+  }
+ ]
+}

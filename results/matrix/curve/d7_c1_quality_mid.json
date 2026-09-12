@@ -1,0 +1,40 @@
+{
+ "results/matrix/curve/d7_c1/m12000": {
+  "correlational": 4.072668128666616e-14,
+  "mdd": 0.0017710440840628856,
+  "acd": 0.05001911722000571,
+  "skewness_diff": 0.02570191830701544,
+  "kurtosis_diff": 0.15743175089066921,
+  "vds": 0.0009388045485441884,
+  "fdds": 0.0,
+  "context_fid": 0.1267155666100087,
+  "discriminative": 0.019999980926513672,
+  "predictive": 0.010128260657191277,
+  "run": "results/matrix/curve/d7_c1/m12000",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2026,
+  "label": "curve_d7_c1_mid"
+ },
+ "results/matrix/curve/d7_c1/m18000": {
+  "correlational": 2.241170212376649e-14,
+  "mdd": 0.00142421135970409,
+  "acd": 0.10550618996372642,
+  "skewness_diff": 0.030600072488074614,
+  "kurtosis_diff": 0.14897602010704394,
+  "vds": 0.0005335350385090957,
+  "fdds": 0.0,
+  "context_fid": 0.10853850479910236,
+  "discriminative": 0.021250009536743164,
+  "predictive": 0.009833729766309262,
+  "run": "results/matrix/curve/d7_c1/m18000",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2026,
+  "label": "curve_d7_c1_mid"
+ }
+}

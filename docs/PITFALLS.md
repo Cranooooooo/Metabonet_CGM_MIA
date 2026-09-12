@@ -744,3 +744,36 @@ the reason the rule existed is still covered. Old runs kept under
 early stopping on a noisy criterion — interacts with the single shared `base` the same way.
 If a release's shuffled floor is not near 0.5, suspect the selection rule before the
 generator.
+
+
+**Addendum 2026-09-12 — the rule was not merely biased, it was picking worse models.**
+Re-running with `keep_best` off improved Context-FID from 0.2538 to **0.1000** on d1_c1 and
+from 1.4037 to **0.1943** on d1_c2, with the real-vs-fake score improving 2× and 3.9×. The
+reason is that the rule takes an argmin over **DSM loss**, and DSM loss is not sample
+fidelity: the model keeps improving its distribution after the loss has plateaued, so the
+"best" checkpoint is an early one that is measurably worse to release. A selection rule is
+only as good as the agreement between its criterion and the thing you actually ship on.
+
+---
+
+## 22. ⚠️ Silent: scoring time depends on how GOOD the samples are, not on how much data there is
+
+Budgeting a scoring job by data size is wrong by more than an order of magnitude. Measured
+on identical hardware, same node, same script, same T=2016 cohort, 4 runs each:
+
+| milestones scored | Context-FID of those samples | wall time |
+|---|---|---|
+| 2,000 and 6,000 | 11.58 and 0.52 | **507 s** |
+| 12,000 and 18,000 | 0.23 and 0.20 | **> 2.5 h, killed before finishing** |
+
+The statistical metrics are flat in cost (6–40 s). The **discriminative** metric is not: it
+trains a classifier to separate real from released, and when the release is bad the
+classifier converges almost immediately, while a good release drives it to its epoch limit.
+So **the better the generator, the slower it is to score** — which is exactly backwards from
+the intuition that a bad model is the expensive case, and it means a scoring job sized on
+an early checkpoint will be killed on a late one.
+
+Two consequences worth building in. Size scoring walltime on the *best* checkpoint you
+expect, not the first one. And write one output file per run rather than one per job, so a
+walltime kill keeps whatever finished — the run that died here had already computed and
+discarded two usable points.

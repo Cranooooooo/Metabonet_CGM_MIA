@@ -1,0 +1,21 @@
+{
+ "results/runs/bl_fourier_diff_d1_c2/base": {
+  "correlational": 0.0024802351546432213,
+  "mdd": 0.060764301660136986,
+  "acd": 0.5030777525513893,
+  "skewness_diff": 0.24052503523929214,
+  "kurtosis_diff": 1.6755595347759067,
+  "vds": 0.0628432451436917,
+  "fdds": 0.15551204979419708,
+  "context_fid": 1.4037164107055973,
+  "discriminative": 0.14749997854232788,
+  "predictive": 0.12877654004096986,
+  "run": "results/runs/bl_fourier_diff_d1_c2/base",
+  "job": "base",
+  "n_real": 5741,
+  "n_fake": 5741,
+  "subsample": 2000,
+  "seed": 2026,
+  "label": "bl_fourier_diff_d1_c2"
+ }
+}
