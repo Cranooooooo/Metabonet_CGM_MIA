@@ -1,0 +1,49 @@
+#!/bin/bash
+#PBS -P 11704243
+#PBS -j oe
+#
+# d7 的 26 个 include —— 一条泳道的一轮。资源(卡数、墙钟)、作业名、日志名和
+# -v CELL/SHARDS/NS 全部由 scripts/pbs/dev/launch_igfm_d7_loo.sh 在命令行上给,
+# 所以四条泳道、两个格子、十几轮共用这一个文件。只有 -P 和 -j 写死在这里。
+#
+# 每一轮都是幂等的,这是整条链能被随便重排的前提:
+#   * 已经有 samples.npy 的 job,run_loo 直接跳过(并且核对 subjects_sha1,
+#     不是只看文件在不在);
+#   * 训到一半被墙钟切掉的,fit() 从 iter-*.pt 续,每 500 步存一次(见下面的 save_every);
+#   * 存档读不了时 fit() 会【抛】,不会带着半截权重从头训(PITFALLS 第 24 条);
+#   * 采样被切掉的,下一轮 fit() 走 start_it >= total_iters 的提前返回,只补采样;
+#   * 27 个齐了才做分析,靠 mkdir 原子锁保证只做一次。
+#
+# 为什么一个模型要跨好几轮:七天的一个 include 是 55.3 小时(d7_c1 @12000)到 80.5 小时
+# (d7_c2 @18000)——按探针的 14.96 / 15.01 秒每步算,不是按 base 的 meta 里那个
+# fit_seconds 算(那只是续训最后一段,覆盖 15000 步)——而 g1/g2/g3 的墙钟是 24 小时。glong 是 120 小时但每人只能
+# 同时跑一个作业(max_run=[u:PBS_GENERIC=1]),所以四条泳道加起来 12 张卡是这台机器
+# 上一个人能同时拿到的上限。
+#
+# 不要直接 qsub 这个文件:没有 -v 就会在 body 的第一行 : "${CELL:?}" 上停掉。
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+
+: "${CELL:?qsub -v CELL=d7_c1|d7_c2}"
+# PBS 的 -v 是按逗号切的,值里带空格靠不住(仓库里既有的 -v 用法一个空格都没有)。
+# 所以分片列表在命令行上用下划线传,在这里还原成空格。
+: "${SHARDS_U:?qsub -v SHARDS_U=0_1_2_3}"
+SHARDS=${SHARDS_U//_/ }
+: "${NS:?qsub -v NS=12}"
+
+# 两个格子的档位是各自的曲线定的,写在这里而不是留给调用方,免得哪一轮漏传一个
+# steps 就悄悄按 25000 训 —— 那正是 d7_c2 过训失败的那个预算。
+case "$CELL" in
+  d7_c1) STEPS=12000 ;;
+  d7_c2) STEPS=18000 ;;
+  *) echo "❌ 这个泳道只跑 d7 的两个格子,收到 CELL=$CELL"; exit 1 ;;
+esac
+# save_every 从 2000 降到 500。2000 是在 T=288 上定的,那时一次存档是 21 分钟;
+# 在 T=2016 上 14.96 秒/步意味着【每 8.3 小时才存一次】,而 g* 泳道 24 小时就会被
+# 切一次 —— 平均白烧 4.2 小时,约占一轮的 17%。500 步 = 2.08 小时,白烧降到 1 小时
+# 以内。存档只是落盘节奏,不进训练路径,keep_checkpoints=2 仍然只留两份。
+EXTRA="\"micro_batch\":8, \"steps\":$STEPS, \"save_every\":500"
+
+echo "泳道:$CELL 分片 [$SHARDS] / $NS  预算 $STEPS 步"
+source scripts/pbs/dev/igfm_priv_loo_cell.body.sh

@@ -1,0 +1,107 @@
+#!/bin/bash
+#PBS -N d7stage
+#PBS -P 11704243
+#PBS -l select=1:ncpus=8:mem=32gb
+#PBS -l walltime=01:00:00
+#PBS -j oe
+#PBS -o logs/igfm_d7_stage_base.log
+#
+# 把两条预算曲线选中的里程碑摆成 d7 两个格子的配对 base,并把 26 个 include 的分片
+# 划分打印出来 —— 训练作业排上队之前,所有能在 CPU 上验的东西都在这一个作业里验完。
+#
+# 为什么要「摆」而不是重训:iter-12000.pt 就是一次配置成 12000 步的训练的终态。
+# 这个等价性不是嘴上说的,scripts/stage_base_from_curve.py 逐条检查了它依赖的前提
+# (没有 LR 调度、lambda_schedule 的第一个边界 100000 在整条轨迹之外、save_every
+# 整除里程碑、存档自己记的 iter 对得上)。重训一个要 30–45 卡时,摆一份是零。
+#
+# 为什么非得是同预算的 base:成员推断的一对模型必须【只差一个受试者】。include 训
+# 12000 步而 base 训 25000 步的话,两者相差的是一个受试者【加上】13000 步训练,
+# 而 d7_c2 在这 13000 步里 Context-FID 从 0.2019 烂到 0.4205 —— 攻击测到的东西会
+# 主要是预算差,不是成员差。
+#
+# 零 GPU + 墙钟 1 小时 -> qdev,一分钟内起跑(PITFALLS 第 7 条:login node 上不碰
+# python;第 8 条:CPU 作业必须写 mem=)。
+#
+#   qsub scripts/pbs/dev/igfm_d7_stage_base.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+case $- in *e*) ;; *) echo "❌ errexit 没打开,拒绝继续"; exit 1;; esac
+mkdir -p logs
+
+echo "===== 改过的三个 python 文件:语法 + 导入 + 单测 ====="
+# login node 上不能跑 python(PITFALLS 第 7 条),所以这里是这批改动第一次被执行。
+# 任何一步失败都不要往下走去摆 base —— 后面 3500 卡时都挂在这上面。
+python -m compileall -q src/cgmoutlier/generators/igfm.py \
+    src/cgmoutlier/loo/train.py scripts/stage_base_from_curve.py
+python -c "import cgmoutlier.generators.igfm, cgmoutlier.loo.train; print('[check] 两个模块导入正常')"
+python scripts/stage_base_from_curve.py --help > /dev/null \
+  && echo "[check] stage_base_from_curve.py 参数解析正常"
+python -m pytest tests/test_loo_train.py tests/test_generators.py tests/test_statistic.py \
+    tests/test_design.py -q
+echo
+
+NS=12                      # 12 张卡 = glong 4 + g3 4 + g2 3 + g1 1
+
+stage_one() {              # $1 = cell, $2 = 里程碑
+  local c="$1" m="$2"
+  echo; echo "===== $c @ m$m ====="
+  python -u scripts/stage_base_from_curve.py \
+      --from "results/matrix/curve/$c/m$m" \
+      --to   "results/runs/loo_igfm_priv_$c/base" \
+      --cohort "data/cohort/matrix_$c" \
+      --design results/matrix/design/rep1 --job base \
+      --milestone "$m" --seed 2026 --assert-resumed --accept-replayed-stream
+}
+
+# 档位来自 results/matrix/curve/d7_c{1,2}_quality.json —— 五个里程碑在【同一次
+# eval_quality_tsgem 调用】里打的分,所以彼此可比(PITFALLS 第 16/23 条:同一份样本
+# 在不同调用里分数会差百分之几,中途单点补打的那几个文件不能和这五个混着读)。
+#   d7_c1  2k 13.3493 | 6k 0.6087 | 12k 0.1265 | 18k 0.1093 | 25k 0.1035   单调,12k 之后走平
+#   d7_c2  2k 10.2306 | 6k 0.5159 | 12k 0.2326 | 18k 0.2019 | 25k 0.4205   U 形,18k 是最低点
+stage_one d7_c1 12000
+stage_one d7_c2 18000
+
+echo; echo "===== 26 个 include 怎么分到 12 个分片上 ====="
+# --list 只打印切片就退出,不碰 GPU。
+#
+# ⚠️ 这道核对【不能】检出 NS 漂移,别指望它:对任何 n,jobs[0::n] ∪ … ∪ jobs[n-1::n]
+# 恒等于整个列表,不重不漏,所以 NS=8 / 12 / 27 都会通过。它验的是另一件事 ——
+# design 目录里确实是 27 个 job。NS 一致性在下面单独跨文件核对。
+TMP=$(mktemp); trap 'rm -f "$TMP"' EXIT
+for s in $(seq 0 $((NS - 1))); do
+  echo "--- 分片 $s ---"
+  python -u scripts/run_loo.py --design results/matrix/design/rep1 \
+      --cohort data/cohort/matrix_d7_c1 --out results/runs/loo_igfm_priv_d7_c1 \
+      --generator igfm --shard "$s" --n-shards "$NS" --list \
+    | tee -a "$TMP" | grep -E "^      (base|include_|exclude_)" | sed "s/^      /    /"
+done
+NJOB=$(grep -E "^      (base|include_|exclude_)" "$TMP" | sed "s/^ *//" | sort -u | wc -l)
+NDUP=$(grep -cE "^      (base|include_|exclude_)" "$TMP")
+echo
+echo "12 个分片合计 $NDUP 个 job,去重后 $NJOB 个"
+[ "$NJOB" -eq 27 ] && [ "$NDUP" -eq 27 ] \
+  || { echo "❌ 期望不重不漏的 27 个(base + 26 include),停"; exit 1; }
+
+echo; echo "===== NS 一致性:本作业 vs 发链脚本 ====="
+# NS 在两个文件里各写了一份,泳道表里还有一份分片清单。三者对不上时最安静的后果是
+# 某条泳道拿到一个空切片(run_loo 打印「0 job(s)」后正常退出 0),每一轮都报绿而那
+# 几个模型永远不训。所以在这里把发链脚本的 NS 和分片清单读出来直接比。
+L=scripts/pbs/dev/launch_igfm_d7_loo.sh
+LNS=$(grep -oE '^NS=[0-9]+' "$L" | head -1 | cut -d= -f2)
+[ "${LNS:-}" = "$NS" ] || { echo "❌ 本作业 NS=$NS,而 $L 里 NS=${LNS:-读不到},停"; exit 1; }
+LSH=$(sed -n '/^LANES=(/,/^)/p' "$L" | sed -n 's/^ *"//; s/"$//p' \
+      | awk '{print $5}' | tr '_' '\n' | sort -n | tr '\n' ' ')
+WANT=$(seq 0 $((NS - 1)) | tr '\n' ' ')
+[ "$LSH" = "$WANT" ] || { echo "❌ 泳道表的分片清单是 [$LSH],期望恰好 [$WANT],停"; exit 1; }
+echo "  NS=$NS,四条泳道的分片清单恰好铺满 0..$((NS - 1)),不重不漏"
+
+echo; echo "===== 最终核对 ====="
+for c in d7_c1 d7_c2; do
+  printf '  %s base: ' "$c"
+  ls -l "results/runs/loo_igfm_priv_$c/base/samples.npy" | awk '{print $5" bytes  "$6" "$7" "$8}'
+  grep -oE '"budget_iters": [0-9]+|"K": [0-9]+|"subjects_sha1": "[0-9a-f]+"' \
+      "results/runs/loo_igfm_priv_$c/base/meta.json" | sed 's/^/    /'
+done
+echo "== 摆好了,可以发训练链:bash scripts/pbs/dev/launch_igfm_d7_loo.sh"

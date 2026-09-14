@@ -124,7 +124,11 @@ if fs < 3600:
     json.dump(d, open(p, "w"), indent=2)
     print(f"[warn] fit_seconds={fs:.1f}s -> 这是续训,已在 meta.json 里标记,别拿它估预算")
 else:
-    print(f"[ok] fit_seconds={fs:.1f}s = {fs/3600:.2f} 小时(单次训完)")
+    print(f"[ok] fit_seconds={fs:.1f}s = {fs/3600:.2f} 小时")
+    print("[warn] 这只说明本次进程训了 1 小时以上,【不】说明是一次训完的 —— "
+          "续训的最后一段同样可以是几十小时。真正的判据是适配器写的 fit_resumed / "
+          "fit_seconds_total(见 docs/PITFALLS.md 第 24 条);d7 的两个 base 就是"
+          "带着这句「单次训完」被记下来的,而它们都从 iter-10000 续过。")
 PY
 
   echo; echo "===== $c 质量打分 ====="

@@ -777,3 +777,153 @@ Two consequences worth building in. Size scoring walltime on the *best* checkpoi
 expect, not the first one. And write one output file per run rather than one per job, so a
 walltime kill keeps whatever finished — the run that died here had already computed and
 discarded two usable points.
+
+## 23. ⚠️ Silent: re-scoring a byte-identical sample file does not reproduce, and by more than the differences a budget curve is read on
+
+Measured 2026-09-12 on the seven-day budget curves. The **same** `samples.npy` files, the
+**same** `seed=2026`, the same `subsample=2000`, the same cohort and the same design job —
+scored twice, in two different PBS jobs:
+
+| milestone | earlier job | the five-in-one-call job | difference |
+|---|---|---|---|
+| `d7_c1` m2000 | 12.9649 | 13.3493 | **3.0%** |
+| `d7_c1` m6000 | 0.6415 | 0.6087 | **5.1%** |
+| `d7_c1` m12000 | 0.1267 | 0.1265 | 0.2% |
+| `d7_c2` m12000 | 0.2311 | 0.2326 | 0.6% |
+| `d7_c2` m18000 | 0.1991 | 0.2019 | 1.4% |
+
+**This is not §16.** That one was a missing seed, and it was fixed: `neural.py:context_fid`
+opens with `_seed_all(seed)` — numpy, torch and cuda — so every run in a multi-run call
+starts from the same state and run ORDER is not the explanation here.
+
+**What the explanation is has NOT been established, and the four readings do not separate
+the candidates**: the jobs ran on four different nodes (`x1000c2s2b0n1`, `x1000c0s3b0n1`,
+`x1000c0s2b0n1`, `x1000c0s7b0n1`), three of them with `threads=16` and one with `threads=64`,
+and they scored different numbers of runs per call. Any of GPU non-determinism in the
+TS2Vec fit (the encoder is *trained* per call, not loaded), a different BLAS thread count,
+or call composition would produce this. §15 is the precedent that says node identity alone
+is enough to move a number here. Separating them costs one job — score one milestone four
+times on one node — and it has not been run, so do not quote a mechanism.
+
+**What IS established, and is the part that matters.** `results/matrix/curve/*_quality*.json`
+files all record `"seed": 2026`, none records which job wrote it, and the same milestone
+appears in more than one of them with different values. Assembling a curve by taking each
+point from whichever file happens to have it — which is exactly what you do when a scoring
+job is killed partway and you re-run the missing points (§22: a good release is what makes
+it miss walltime) — mixes instruments, and nothing on disk shows it. Here the mixing would
+have changed `d7_c2`'s floor from 0.2019 to 0.1991 and `d7_c1`'s 6,000 point by 5%.
+
+**The rules.**
+1. Numbers that will be **compared to each other** come out of **one** call, in **one** job.
+   `igfm_budget_curve.py` is built that way and its docstring says why.
+2. Partial re-scores are for seeing a result early. Never assemble them into a curve; name
+   them so they cannot be mistaken for one (`*_partial.json`, `*_mid.json`, `*_m18000.json`).
+3. Comparisons that **must** cross jobs — a generator against another generator, a milestone
+   against the campaign base's own score — carry this **1–5% as instrument width**. Read
+   them against a gap much larger than it.
+
+   Be precise about *which* gap. The `d7` budget decision rests on **within-call** gaps of
+   15.2–22.2% (`d7_c1` 12,000 vs 25,000 = 0.1265 vs 0.1035; `d7_c2` 12,000 vs 18,000 =
+   0.2326 vs 0.2019), and the same-milestone cross-job re-scores available for those budgets are 0.2%
+   (`d7_c1` m12000) and 0.6% (`d7_c2` m12000) — note neither `m25000` was ever re-scored
+   in a second job, and `d7_c2` m18000's re-score differs by 1.4% (table above). The
+   decision survives comfortably either way. The 40% figure
+   (`d7_c2` 0.2019 against DiM-TS's 0.2836) is a *different* comparison, cross-generator
+   and cross-job, and it is the one that actually needs the 1–5% caveat.
+
+**Three more instances, all in numbers this repo quotes.** The same DiM-TS `d7` bases were
+scored twice each, and `PAPER_PLAN.md` quotes both readings in different tables:
+
+| run | one file | the other | Δ |
+|---|---|---|---|
+| `results/runs/matrix_d7_c1/base` | `d7_c1_st500.json` 0.33133 | `d7_c1_allmodels.json` 0.32556 | 1.7% |
+| `results/runs/matrix_d7_c2/base` | `d7_c2_st500.json` 0.28358 | `d7_c2.json` 0.29044 | 2.4% |
+| `d7_c1` m18000 | `_quality_mid.json` 0.10854 | `_quality.json` 0.10927 | 0.7% |
+
+Step 1's four-condition table reads 0.331 / 0.284 for those two models; the Step 4 addendum
+reads 0.3256 / 0.2836. Both are on disk and neither is wrong — which is the point.
+
+Related: §15 (a k-NN ordering that changed with the machine), §16 (the seeding bug this is
+*not*), §22 (why partial re-scores exist at all), §24 (the other way a rerun stops being
+the same run).
+
+## 24. ⛔ A resumed run reports only its LAST LEG in `fit_seconds`, and its `iter-N.pt` is not an N-step model
+
+Two distinct failures, one cause, and both landed on the seven-day IG-FM bases.
+
+`logs/igfm_priv_base_d7_c1.log:23` (and `c2`):
+
+```
+[igfm] resuming from iter-10000.pt: 10000/25000 done, 15000 to go
+```
+
+### Failure one: the cost field
+
+`loo/train.py:run()` times the one `gen.fit()` call in *its* process, so
+`meta.json`'s `fit_seconds: 224491` covers **15,000 iterations, not 25,000**. Nothing else
+on disk contradicts it. What followed:
+
+* it was read as 25,000 iterations → **8.98 s/iteration**, when the truth is 224491/15000 =
+  **14.97 s/iteration**;
+* a commit message and `PAPER_PLAN.md` recorded "67.8 h measured against a 109 h probe
+  estimate, so the probe was conservative by 1.6×". The probe (`results/probe/`) said
+  **14.9557 s/iteration** — accurate to **0.07%**. The 1.6× was exactly 25,000/15,000;
+* a 26-model campaign was then sized from it at **1.58× too small** (2,229 GPU-hours
+  against a true ≈3,530).
+
+**A guard for this existed and slept through it.** `igfm_priv_d7_bases.pbs` stamps
+`meta.json` when `fit_seconds < 3600`, on the reasoning that a resume of a *finished* run
+takes the `start_it >= total_iters` early return and costs seconds. A resume of an
+*unfinished* run costs a full leg — here 62 hours — and sails past. The threshold encodes
+one resume shape and silently blesses the other.
+
+### Failure two: the weights
+
+`generators/igfm.py` ran `torch.manual_seed(self.seed)` unconditionally at process start
+and restored model / EMA / optimiser from the checkpoint — but **not the RNG**. So on a
+resume at iteration *j*, iterations *j*… draw the batch indices a fresh run draws at
+iterations 0…: a **replay** of a stretch of the stream.
+
+Consequences, in order of how easy they are to get wrong:
+
+* `iter-N.pt` of a resumed run is **not** the end state of an N-step run. Any argument of
+  the form "we can substitute a checkpoint for a shorter training run" needs this premise,
+  and it is the one premise a checkpoint directory does not advertise.
+* The model is **not reproducible** from its command line.
+* It is **not** a statistical problem. Every job already derives its own `job_seed`
+  (`loo/train.py:_job_seed`) and therefore its own batch stream, so a replayed stretch adds
+  no systematic difference between two models being compared. Do not over-correct.
+
+### What changed on 2026-09-14
+
+* `generators/igfm.py` saves `rng_torch` / `rng_numpy` / `rng_cuda` and a cumulative
+  `wall_seconds` in every checkpoint, and restores them on resume. A checkpoint written
+  before this prints `⚠️ rng=未恢复` rather than resuming silently.
+* The adapter exposes `fit_seconds_total`, `fit_resumed`, `fit_resumed_from`,
+  `fit_rng_restored`; `loo/train.py:run()` writes all four into `meta.json` and stamps
+  `bit_reproducible` and a `stream_note` when a resume could not restore the stream.
+* `fit()` no longer has a "corrupt checkpoint -> train from scratch" path. It tried the
+  newest checkpoint, and on any exception reset the ITERATION COUNTER while leaving the
+  already-loaded WEIGHTS in place -- so the loop would restart at 0 on a model that had
+  seen N iterations, `_save` would write `iter-500.pt` only for `keep_checkpoints` pruning
+  to delete it immediately (a larger `iter-N.pt` was still on disk), and the lane would
+  burn a full walltime per round forever while logging one line that reads like a benign
+  retry. It now tries every checkpoint newest-first and RAISES if none can be read.
+* `scripts/stage_base_from_curve.py` detects a resume **from the checkpoint mtimes** -- a
+  run directory holds no pointer to its log, but a resume shows as one inter-checkpoint
+  interval whose seconds-per-iteration is far above the median -- and refuses to stage that
+  checkpoint as a paired base without `--accept-replayed-stream`. `--assert-resumed` turns
+  the heuristic into a check for the case where the log already says there was one.
+* `scripts/check_resume_equivalence.py` (+ `scripts/pbs/dev/igfm_resume_check.pbs`) tests
+  the property directly on a GPU: train straight through, train with a stop-and-resume, and
+  require the two to land within the hardware's own run-to-run noise -- with a positive
+  control (the same split, RNG stripped from the checkpoint) that must FAIL, so the test
+  cannot pass vacuously. It must run on a GPU: the batch indices come from the CUDA
+  generator, not the CPU one.
+
+**How to apply.** Size a campaign from `sec_per_iter` (a probe) or from
+`fit_seconds_total`, never from `fit_seconds` -- and note `fit_seconds_total` is USEFUL
+training time and a LOWER BOUND on the bill: `wall_seconds` only advances at a checkpoint,
+so work lost to a kill after the last save is uncounted and iterations redone after a
+resume are counted once. When a guard keys on a threshold, ask which
+shape of the failure the threshold encodes and whether the other shape passes.

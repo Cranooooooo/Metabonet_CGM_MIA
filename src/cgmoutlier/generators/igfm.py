@@ -174,27 +174,109 @@ class IGFMGenerator(GeneratorBase):
         # _checkpoint,所以没有 milestone 目录可以重采样)。
         resume_dir = cfg.get("resume_dir") or cfg.get("workdir")
         start_it = 0
+        # 续训必须把【随机数状态】也接回来,否则 iter-N.pt 不是「训了 N 步」的那个状态。
+        # 原来只接 model/ema/opt:第 148 行的 torch.manual_seed(self.seed) 每次进程启动
+        # 都无条件执行,而 start_it 是从存档恢复的,所以从第 j 步续上去之后,第 j..  步
+        # 抽到的是一次干净训练在第 0.. 步抽的那批下标 —— 同一段序列被重放一遍。
+        # 这已经真实发生过:两个 d7 base 都是从 iter-10000.pt 续的,所以它们的
+        # iter-12000.pt / iter-18000.pt 并不是「配置成 12000/18000 步跑一次」的终态。
+        # 统计上无害(每个 job 本来就有自己的 job_seed,批次流本来就各不相同),但它让
+        # 结果不可复现,而且让「差一个受试者、其余全同」这句话在续训过的模型上不成立。
+        # 七天的 26 个 include 在 24 小时墙钟上要续 2-3 次,所以这里必须补上。
+        prev_wall = 0.0
+        resumed_from = None
+        rng_restored = False
         if resume_dir:
             rd = Path(resume_dir); rd.mkdir(parents=True, exist_ok=True)
             cks = sorted(rd.glob("iter-*.pt"),
                          key=lambda q: int(q.stem.split("-")[1]))
-            if cks:
+            # 从新到旧逐个试,全都读不了才抛。
+            #
+            # ⚠️ 之前这里是「读最新的那个,失败就 start_it = 0 继续」,那是错的,而且错得
+            # 很安静:三行 load_state_dict 在读 iter / 恢复 RNG 之前就已经执行了,所以
+            # 异常发生在它们之后时,权重【已经是训过 N 步的】,而循环会从第 0 步重跑。
+            # 更糟的是 _save 写出的 iter-500.pt 会被 keep=2 的剪枝立刻删掉(盘上还有
+            # iter-N.pt 更大),于是这一轮什么都存不下,下一轮又从同一个坏存档开始 ——
+            # 泳道原地打转,每轮烧满墙钟,日志上只有一行「training from scratch」。
+            # 而若这一轮真的跑过了 N 步,_save(steps) 会把一个训了 2N 步的模型写成
+            # 「iter=steps」,下游每一道守卫都验得过(subjects_sha1、十个参数键、
+            # budget_iters 全对),攻击就拿它当同预算的成员模型用了。
+            #
+            # 所以:要么干净地接上一个能读的存档,要么响亮地失败。绝不带着半截权重从头跑。
+            errs = []
+            for cand in reversed(cks):
                 try:
-                    ck = torch.load(cks[-1], map_location=dev, weights_only=False)
+                    # 每个候选都从干净状态开始:rng_restored 是唯一不会在成功路径上被
+                    # 无条件重写的那个(它在 if ck.get("rng_torch") 里面),留着残值
+                    # 就会让一个没有 RNG 的旧存档报出 rng=已恢复。
+                    start_it, resumed_from, prev_wall, rng_restored = 0, None, 0.0, False
+                    ck = torch.load(cand, map_location=dev, weights_only=False)
                     self._model.load_state_dict(ck["model"])
                     self._ema.load_state_dict(ck["ema"])
                     opt.load_state_dict(ck["opt"])
                     start_it = int(ck["iter"])
-                    print(f"[igfm] resuming from {cks[-1].name}: {start_it}/{total_iters} "
-                          f"done, {total_iters - start_it} to go", flush=True)
-                except Exception as e:          # corrupt checkpoint -> restart, don't die
-                    print(f"[igfm] checkpoint {cks[-1].name} unreadable ({e}); "
-                          "training from scratch", flush=True)
-                    start_it = 0
+                    resumed_from = cand.name
+                    prev_wall = float(ck.get("wall_seconds") or 0.0)
+                    if ck.get("rng_torch") is not None:
+                        # ByteTensor,必须在 CPU 上交给 set_rng_state
+                        torch.set_rng_state(ck["rng_torch"].cpu())
+                        if ck.get("rng_numpy") is not None:
+                            np.random.set_state(ck["rng_numpy"])
+                        # ⚠️ 抽批次的是【CUDA】那条流,不是 CPU 那条:
+                        # idx = torch.randint(..., device=dev),以及 igfm_core 里的
+                        # randn_like / rand(B, device=device) / bernoulli 全在设备上。
+                        # CPU 流只负责几个标量分支。所以 cuda 状态没恢复成功时,批次流
+                        # 就【不是】精确的,rng_restored 不能置 True —— 否则
+                        # meta.json 里会写出一个假的 bit_reproducible: true。
+                        cuda_ok = True
+                        if torch.cuda.is_available() and dev.type == "cuda":
+                            saved = ck.get("rng_cuda")
+                            if saved is None:
+                                cuda_ok = False
+                            else:
+                                try:
+                                    torch.cuda.set_rng_state_all([s.cpu() for s in saved])
+                                except Exception as e:
+                                    print(f"[igfm] cuda rng 未恢复({e}) —— 批次流不精确",
+                                          flush=True)
+                                    cuda_ok = False
+                        rng_restored = cuda_ok
+                    print(f"[igfm] resuming from {cand.name}: {start_it}/{total_iters} "
+                          f"done, {total_iters - start_it} to go"
+                          + ("  rng=已恢复" if rng_restored else
+                             "  ⚠️ rng=未恢复(存档是加这段之前写的,或 cuda 状态没接上;"
+                             "批次流会重放)"),
+                          flush=True)
+                    if prev_wall:
+                        print(f"[igfm] 之前已累计训练 {prev_wall/3600:.2f} 小时", flush=True)
+                    break
+                except Exception as e:
+                    errs.append(f"{cand.name}: {e}")
+                    print(f"[igfm] checkpoint {cand.name} 读不了({e}),试更早的一个",
+                          flush=True)
+            else:
+                if cks:
+                    raise RuntimeError(
+                        "这个 run 目录里的存档一个都读不了,拒绝带着可能已被部分加载的"
+                        "权重从头训 —— 那会写出一个 iter 数对不上模型的存档,而下游"
+                        "每一道守卫都验得过。请人工看一眼再决定删掉重训还是修复:\n  "
+                        + "\n  ".join(errs))
+        # 这两个字段是给 loo/train.py:run() 写进 meta.json 的。fit_seconds 只量【本次
+        # 进程里那一段】,而 d7 base 的那一段是 15000 步 / 62 小时,被当成 25000 步的
+        # 成本读进了战役预算,错了 1.58 倍 —— 而 igfm_priv_d7_bases.pbs 里防这个的守卫
+        # 判据是 fit_seconds < 3600,62 小时的一段一声不响地穿过去了。
+        self.fit_resumed = resumed_from is not None
+        self.fit_resumed_from = resumed_from
+        self.fit_rng_restored = rng_restored
+        self.fit_seconds_total = None
         if start_it >= total_iters:
             print("[igfm] checkpoint shows training already complete, skipping", flush=True)
+            self.fit_seconds_total = prev_wall or None
             self._fitted = True
             return self
+
+        import time as _time
+        _leg_t0 = _time.time()
 
         def _save(it_done):
             if not resume_dir:
@@ -202,7 +284,14 @@ class IGFMGenerator(GeneratorBase):
             rd = Path(resume_dir)
             tmp = rd / f".iter-{it_done}.pt.tmp"
             torch.save({"model": self._model.state_dict(), "ema": self._ema.state_dict(),
-                        "opt": opt.state_dict(), "iter": it_done}, tmp)
+                        "opt": opt.state_dict(), "iter": it_done,
+                        # 见上:没有这三个,续训就是把同一段批次序列重放一遍
+                        "rng_torch": torch.get_rng_state(),
+                        "rng_numpy": np.random.get_state(),
+                        "rng_cuda": (torch.cuda.get_rng_state_all()
+                                     if torch.cuda.is_available() else None),
+                        # 累计训练墙钟,跨续训累加 —— 唯一能用来估成本的字段
+                        "wall_seconds": prev_wall + (_time.time() - _leg_t0)}, tmp)
             tmp.rename(rd / f"iter-{it_done}.pt")     # atomic: no half-written file
             olds = sorted(rd.glob("iter-*.pt"), key=lambda q: int(q.stem.split("-")[1]))
             for o in olds[:-keep]:
@@ -239,6 +328,10 @@ class IGFMGenerator(GeneratorBase):
                       f"lam={lam} | per-task L_imp: {per}", flush=True)
                 task_acc.clear()
         _save(total_iters)
+        # 跨续训累计的训练墙钟。loo/train.py:run() 量的 fit_seconds 只是【本次进程】
+        # 那一段,续训过就只是最后一段 —— 两个 d7 base 正是这样把 15000 步的 62 小时
+        # 当成 25000 步的成本写进了 meta.json。
+        self.fit_seconds_total = prev_wall + (_time.time() - _leg_t0)
         self._fitted = True
         return self
 

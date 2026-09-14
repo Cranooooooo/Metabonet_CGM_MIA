@@ -1,0 +1,28 @@
+#!/bin/bash
+#PBS -N igfmresume
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=00:30:00
+#PBS -j oe
+#PBS -o logs/igfm_resume_check.log
+#
+# 续训等价性检查 —— 七天战役的 3530 卡时全压在这条路径上。
+#
+# 52 个 include 每个 55-80 小时,墙钟 24 小时,所以每个都要续 2-3 次,加起来约 130 次
+# 走这段代码,而在今天之前它一次都没被执行过、也没有任何测试覆盖。2026-09-14 之前
+# 它是错的(不恢复 RNG),两个 d7 base 就是这么被训出来的。
+#
+# 必须要 GPU:抽批次的是 CUDA 那条随机流(idx = torch.randint(..., device=dev),
+# 以及 igfm_core 里的 randn_like / rand(B, device) / bernoulli),CPU 流只管几个标量
+# 分支。在 CPU 上跑这个检查会通过,而且测的不是要测的东西。
+#
+# 一分钟的作业,发训练链之前跑。
+#
+#   qsub scripts/pbs/dev/igfm_resume_check.pbs
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+case $- in *e*) ;; *) echo "❌ errexit 没打开,拒绝继续"; exit 1;; esac
+mkdir -p logs
+python -u scripts/check_resume_equivalence.py --steps 8

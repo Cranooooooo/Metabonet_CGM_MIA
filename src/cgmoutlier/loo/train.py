@@ -284,6 +284,45 @@ def run(job_file, cohort, out, generator="copy_paste", params=None, K=None,
                 cohort=str(cohort), cohort_windows=int(man["n_windows"]),
                 fit_seconds=round(t_fit, 2), sample_seconds=round(t_sample, 2),
                 sample_range=[float(S.min()), float(S.max())])
+
+    # `fit_seconds` measures the ONE `gen.fit()` call in THIS process. If training was
+    # resumed from a checkpoint it is only the last leg, and nothing else on disk says
+    # so. That is not hypothetical: both seven-day IG-FM bases resumed at iteration
+    # 10,000, their `fit_seconds` covered 15,000 of 25,000 iterations, and a campaign was
+    # sized from it at 1.58x too small while a guard written for exactly this case
+    # (`fit_seconds < 3600`) slept through a 62-hour leg. See docs/PITFALLS.md §24.
+    #
+    # Adapters that can tell us the truth are asked; ones that cannot are unchanged.
+    for attr in ("fit_seconds_total", "fit_resumed", "fit_resumed_from",
+                 "fit_rng_restored"):
+        v = getattr(gen, attr, None)
+        if v is not None:
+            meta[attr] = round(v, 2) if isinstance(v, float) else v
+    if meta.get("fit_resumed"):
+        # A resume that could not restore the RNG replays a stretch of the batch
+        # sequence, so the weights are not the ones an uninterrupted run of this length
+        # would reach -- same data, same hyperparameters, a different stream.
+        meta["bit_reproducible"] = bool(meta.get("fit_rng_restored"))
+        meta["fit_seconds_note"] = (
+            "RESUMED from %s. `fit_seconds` (%.0f s) is the LAST LEG ONLY -- size a "
+            "campaign from `fit_seconds_total` (%s s), never from this field. Note "
+            "fit_seconds_total is USEFUL training time and a LOWER BOUND on the bill: "
+            "wall_seconds only advances at each checkpoint, so work done after the last "
+            "save and then lost to a kill is not counted, and iterations redone after a "
+            "resume are counted once."
+            % (meta.get("fit_resumed_from"), t_fit,
+               meta.get("fit_seconds_total", "unavailable")))
+        if not meta.get("fit_rng_restored"):
+            meta["stream_note"] = (
+                "The batch stream was NOT restored -- either the checkpoint predates RNG "
+                "capture, or its CUDA generator state was missing or could not be set "
+                "(the batch indices are drawn on the device, so the CPU state alone is "
+                "not enough). `torch.manual_seed` at the top of fit() therefore "
+                "restarted the stream: iterations after the resume point "
+                "drew the indices a fresh run draws from iteration 0. Statistically "
+                "harmless (every job already has its own job_seed) but this model is NOT "
+                "reproducible from its command line, and iter-N.pt here is NOT the end "
+                "state of an N-step run.")
     (out / "meta.json").write_text(json.dumps(meta, indent=2))
     if verbose:
         print(f"[loo] {job['name']}: fit {t_fit/60:.1f} min, sample {t_sample/60:.1f} "

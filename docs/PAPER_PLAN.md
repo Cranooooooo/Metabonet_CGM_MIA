@@ -652,16 +652,26 @@ and should be argued rather than defaulted into.
 
 ---
 
-## Step 4 addendum — the seven-day base models, measured 2026-09-11/12
+## Step 4 addendum — the seven-day base models and their budget, settled 2026-09-12/14
 
-Both `d7` base models for IG-FM + 2 privacy modules finished (25,000 iterations each,
-**67.8 h and 67.9 h measured**, 62.4 h training plus 5.4 h sampling; the cost probe had
-predicted 109 h, so the probe was conservative by 1.6×). All 13 checkpoints were kept,
-which is what made everything below possible without retraining.
+Both `d7` base models for IG-FM + 2 privacy modules reached 25,000 iterations and kept all
+13 checkpoints, which is what made everything below answerable by re-sampling instead of
+retraining.
+
+⚠️ **Both runs were killed and resumed at iteration 10,000** (`logs/igfm_priv_base_d7_c1.log:23`,
+same for `c2`). Two things follow, and an earlier version of this section got both wrong:
+
+* **Their `fit_seconds` covers 15,000 iterations, not 25,000.** `loo/train.py:run()` times
+  the one `gen.fit()` call in *its* process. The "67.8 h / 67.9 h measured" figure quoted
+  here before was that last leg. See `PITFALLS.md` §24.
+* **`iter-N.pt` is not the state an uninterrupted N-step run would reach.** Until
+  2026-09-14 `fit()` restored model/EMA/optimiser on resume but not the RNG, while
+  `torch.manual_seed` ran unconditionally at process start — so iterations after 10,000
+  replayed the batch indices a fresh run draws from iteration 0.
 
 ### The quality gate splits the two cells
 
-| cell | IG-FM + 2 modules | DiM-TS same cell | verdict |
+| cell | IG-FM + 2 modules @ 25,000 | DiM-TS same cell | verdict |
 |---|---|---|---|
 | `d7_c1` | **0.0943** (disc 0.0025) | 0.3256 | passes, 3.5× better |
 | `d7_c2` | 0.4195 (disc 0.0712) | 0.2836 | **fails at 25,000** |
@@ -675,30 +685,181 @@ the difference being position embeddings).
 
 ### The budget curve, read from the kept checkpoints
 
-| iteration | `d7_c1` | `d7_c2` |
-|---|---|---|
-| 2,000 | 12.9649 | 11.5827 |
-| 6,000 | 0.6415 | 0.5199 |
-| 12,000 | 0.1267 | 0.2311 |
-| 18,000 | 0.1085 | **0.1991** |
-| 25,000 | 0.0943 | 0.4195 ⚠️ |
+Five milestones per cell, re-sampled by `igfm_budget_curve.py` (which reseeds immediately
+before each `sample()`, so the points are paired on noise) and **scored in one
+`eval_quality_tsgem` call per cell** — `results/matrix/curve/d7_c{1,2}_quality.json`:
 
-**`d7_c1` is monotone and flat after 12,000** (12k→25k buys 26%), so its 26 include models
-can run at 12,000 rather than 25,000: **1,376 GPU-hours instead of 2,847**, and 0.1267
-still beats DiM-TS's 0.3256 by 2.6×.
+| iteration | `d7_c1` Context-FID | disc | `d7_c2` Context-FID | disc |
+|---|---|---|---|---|
+| 2,000 | 13.3493 | 0.2175 | 10.2306 | 0.3287 |
+| 6,000 | 0.6087 | 0.0362 | 0.5159 | 0.0562 |
+| 12,000 | **0.1265** | 0.0200 | 0.2326 | 0.0288 |
+| 18,000 | 0.1093 | 0.0213 | **0.2019** | 0.0263 |
+| 25,000 | 0.1035 | 0.0175 | 0.4205 ⚠️ | 0.0763 |
 
-**`d7_c2` has a checkpoint that passes the gate.** At 18,000 it reads **0.1991**, better
-than DiM-TS's 0.2836. So the cell is not lost and no capacity increase is needed to reach a
-publishable base.
+⚠️ These are **not** the numbers in the mid-run files (`*_quality_mid.json`,
+`*_quality_m12000.json`, `*_quality_m18000.json`, `*_quality_partial.json`), which scored
+the same sample files in other jobs and disagree by up to 5% — see `PITFALLS.md` §23. The
+five-in-one-call figures above are the ones comparable to each other, and they are what the
+budget decision rests on.
 
-⚠️ **The 25,000 point is not yet apples-to-apples.** The four points from 2,000 to 18,000
-were drawn by `igfm_budget_curve.py`, which reseeds immediately before each `sample()` so
-all milestones integrate the same noise. The 0.4195 comes from the base run's own
-`samples.npy`, a different draw. Whether `d7_c2` genuinely turns up after 18,000 —
-overtraining, as DiM-TS does on this same cell — or whether the base simply drew a bad
-sample, is settled by scoring the curve's own `m25000`, which is sampled and pending.
+**`d7_c1` is monotone and flat after 12,000.** 12,000 → 25,000 buys 18% of Context-FID
+(0.1265 → 0.1035) for 108% more training. Its 26 include models run at **12,000**, and
+0.1265 still beats DiM-TS's endpoint 0.3256 by 2.6× — but read the endpoint-vs-best
+qualifier below before quoting that number.
 
-**Either answer leaves the same action**: train the 26 include models at the budget the
-curve selects (12,000 for `d7_c1`, 18,000 for `d7_c2`), not at 25,000. What changes is the
-interpretation — a genuine upturn would be a second instance of the Step 3b effect in the
-same cell, and worth reporting as such.
+**`d7_c2` is U-shaped, and 18,000 is the floor.** 0.2326 → **0.2019** → 0.4205. The
+discriminative score moves with it (0.0288 → 0.0263 → 0.0763: at 25,000 a classifier can
+tell real from synthetic again), so this is not one metric's noise. Its include models run
+at **18,000**, where 0.2019 beats DiM-TS's endpoint 0.2836 — again, see the
+endpoint-vs-best qualifier below; this is the weakest margin in the section, not the
+strongest.
+
+**The upturn is real, not a bad draw.** The curve's own `m25000` reads **0.4205** against
+the base run's independently drawn **0.4195** — 0.24% apart, where the same-sample
+cross-job instrument width is 1–5% (§23). Two independent draws from the same weights
+agree, so the rise between 18,000 and 25,000 belongs to the model.
+
+That makes it **the second generator in this campaign to over-train on seven-day windows**
+— but not, as an earlier version of this section claimed, "in the same cell DiM-TS shows it
+in". DiM-TS's own trajectories are on disk (`results/matrix/sweep/quality_tsgem/*_ms*.json`,
+milestone *k* ≈ *k*×10,000 steps) and they say something more awkward:
+
+| DiM-TS Context-FID | 20k | 30k | 40k | 60k | 80k | 100k | best → end |
+|---|---|---|---|---|---|---|---|
+| `d7_c1` | **0.1306** | 0.1658 | 0.2123 | 0.2869 | 0.3413 | 0.3266 | **2.50×** |
+| `d7_c2` | 0.2598 | 0.2132 | **0.2003** | 0.2540 | 0.2428 | 0.2836 | **1.42×** |
+
+"Peaks at 20% and degrades to 2.5×" is **`d7_c1`** — as `igfm_budget_curve.py`'s own
+docstring says. On `d7_c2` DiM-TS turns at 40% and degrades only 1.42×.
+
+**So the inference inverts and must not be made.** DiM-TS over-trains hardest in `d7_c1`,
+which is the cell where IG-FM is *monotone improving*; IG-FM turns in `d7_c2`, where DiM-TS
+turns late and weakly. The two architectures turn in **different cells**, so "it is a
+property of the cell, not of the architecture" is not supported by this evidence. What the
+data does support is the weaker claim: **both generators degrade with over-training on
+seven-day windows, in cell- and architecture-specific ways.**
+
+### ⚠️ LIMITATION: the budget was chosen on quality, and the number being bought is a risk number
+
+**Step 3b of this document is the reason this has to be said out loud.** On `d1_c1`,
+DiM-TS's Context-FID moves 0.060 → 0.083 across 20,000 → 100,000 steps while the arm AUC
+moves 0.633 → 0.840 → **0.515** and the count of patients above AUC 0.55 goes 15/26 →
+**22/26**. Quality is nearly flat exactly where risk swings hardest. So *"Context-FID is
+flat after 12,000"* carries **no** information about whether the membership statistic is
+flat there.
+
+Two consequences that must travel with every `d7` number this arm produces:
+
+1. **`d7_c2` at 18,000 is the best of the TWO budgets that pass, not the only one.**
+   25,000 fails (0.4205). But 12,000 also clears the gate at 0.2326 against DiM-TS's
+   0.2836, and choosing 18,000 over it costs a further 26 × 25.2 h = **655 GPU-hours**.
+   So the two cells were not chosen by the same rule: `d7_c1` took the *cheapest adequate*
+   budget and `d7_c2` took the *best-quality* one.
+
+   The reason that asymmetry is defensible rather than merely inconsistent is in the
+   qualifier below: measured against DiM-TS's **best** milestone rather than its endpoint,
+   `d7_c2` at 18,000 is a tie (0.2019 vs 0.2003) while at 12,000 it is 16% worse. `d7_c1`
+   has no such cliff — it is within 3% of DiM-TS's best at 12,000 already. Say this
+   explicitly rather than letting the two budgets look like one rule applied twice.
+   at the only budget that passes is the honest thing to do and needs no apology.
+2. **`d7_c1` at 12,000 is a cost decision.** 25,000 passes the gate comfortably (0.0943),
+   and 12,000 was taken to save 1,404 GPU-hours. That makes IG-FM + 2 modules the **only**
+   arm in the `d7` columns read at a reduced budget, and it collides with this document's
+   own Step 2 framing — *"buying privacy with quality moves along the curve, and anything
+   does it: train fewer steps, shrink the model, add noise."* The claim for this arm is
+   that it sits **off** that curve, and under-training is the canonical way to look as
+   though you do. **State in the paper that the `d7` risk numbers for this arm are read at
+   a budget selected on the quality axis and are not budget-matched to the other arms**, or
+   pay the 1,404 GPU-hours and remove the objection.
+
+The same caveat weakens the `d1`↔`d7` rows of Step 3a's Spearman matrix **for this arm
+only**: those rows are labelled "differs in: window length", and for IG-FM + 2 modules they
+now differ in window length *and* training budget.
+
+### ⚠️ AND the gate compares IG-FM at a chosen budget against DiM-TS at its ENDPOINT
+
+Every "beats DiM-TS by N×" in this section uses DiM-TS's 100,000-step endpoint. Against
+DiM-TS's **best** milestone the margins are very different:
+
+| cell | IG-FM + 2 modules | DiM-TS endpoint (quoted above) | DiM-TS best | real margin |
+|---|---|---|---|---|
+| `d7_c1` | 0.1265 @ 12,000 | 0.3256 → "2.6×" | 0.1306 @ 20k | **1.03× — a tie** |
+| `d7_c2` | 0.2019 @ 18,000 | 0.2836 → "beats" | 0.2003 @ 40k | **0.8% worse** |
+
+This is the asymmetry Step 2's Limitation 2 already names — comparing models at one fixed
+budget compares each at an arbitrary point on its own trajectory — and this section makes a
+budget-trajectory argument for IG-FM three paragraphs above, so it cannot then ignore
+DiM-TS's.
+
+**Do not change the gate**: the same endpoint convention is applied at `d1` (DiM-TS best
+0.0590 vs endpoint 0.0948 on `d1_c1`; 0.0992 vs 0.1590 on `d1_c2`), so it is a pre-existing
+global convention rather than a `d7`-specific choice, and changing it here only would be
+worse. **Do change what is claimed from it.** "2.6× better than DiM-TS" must not appear in
+the paper without the endpoint qualifier; on a best-vs-best reading IG-FM + 2 modules and
+DiM-TS are level on generation quality in both `d7` cells, and the arm's case rests on
+leakage, not on quality.
+
+### What the budget buys, costed from `sec_per_iter` and not from `fit_seconds`
+
+Per-iteration cost comes from the probe (`results/probe/igfm_priv_d7_c{1,2}.json`):
+**14.9557 s** and **15.0133 s**. The two bases' resumed legs give 224,491 s / 15,000 =
+14.966 and 224,853 s / 15,000 = 14.990 — **the probe was accurate to 0.07% and 0.15%.**
+The earlier claim in this section that "the probe was conservative by 1.6×" was false; the
+1.6× was exactly the 25,000/15,000 ratio of the misread field. Sampling is a measured
+5.42 h / 5.43 h and does not scale with the training budget.
+
+| | at 25,000 | at the curve's budget | saved |
+|---|---|---|---|
+| `d7_c1` 26 includes | 26 × 109.28 h = 2,841 | 26 × 55.27 h = **1,437** | 1,404 |
+| `d7_c2` 26 includes | 26 × 109.68 h = 2,852 | 26 × 80.50 h = **2,093** | 759 |
+| | **5,693** | **3,530** | **2,163 GPU-hours** |
+
+The figures of 2,847 and 1,376 that this section previously called "superseded" were in
+fact the correct order of magnitude; the 2,229 that replaced them was the one built on the
+misread `fit_seconds`.
+
+**The gate failure still costs nothing to remove.** `d7_c2` needs neither more capacity nor
+more training — it needs *less*, and the checkpoint is already on disk.
+
+### The paired base has to move with the budget
+
+A membership pair must differ by one subject and nothing else. Include models trained to
+12,000 / 18,000 cannot be attacked against a base trained to 25,000: the two would differ
+by one subject *plus* 13,000 or 7,000 iterations, and on `d7_c2` that interval is where
+Context-FID doubles. So each cell's `base` is staged from the same milestone by
+`scripts/stage_base_from_curve.py`.
+
+That script checks the three premises that make a checkpoint substitutable for a training
+run — no LR schedule, `lambda_schedule`'s first boundary (100,000) past the whole
+trajectory, `save_every` dividing the milestone — and it **detects the fourth being
+violated** from the checkpoint mtimes, because these two runs were resumed. Staging a
+replayed-stream checkpoint requires `--accept-replayed-stream`, and the fact is written
+into the staged `meta.json`.
+
+Why that is acceptable: the weights are still an m-iteration model on the same data with
+the same hyperparameters, and **every job already carries its own `job_seed` and therefore
+its own batch stream** — so a replayed stretch adds no *systematic* difference between this
+base and the include models. What it costs is reproducibility, which is now recorded rather
+than lost. From 2026-09-14 `generators/igfm.py` checkpoints and restores the RNG, so the 52
+include models — which will each resume 2–3 times against a 24 h walltime — do not inherit
+the problem.
+
+### The draw is different too, and "it cancels" is the wrong reason it is harmless
+
+The staged base's samples were drawn by `igfm_budget_curve.py`, which seeds immediately
+before `sample()`; an uninterrupted run samples with the RNG training left it. Same weights,
+same distribution, a different draw.
+
+It introduces **no bias**, because a seeded draw and a training-RNG draw are both unbiased
+draws from the same model distribution. It does **not** "cancel between the arms" — an
+earlier version of this section claimed that, and it is wrong: `attack.statistic.gap_for_pair`
+computes `d_out` from *each target's own real windows* against the base release, so a
+different base draw perturbs every target by a target-specific amount rather than shifting
+both arms equally.
+
+What it does add is variance, and that matters for two of the three analyses the campaign
+runs: `subject_auc.py` and `leak_locus.py` report **per-subject absolute AUC levels and
+threshold counts** ("how many of 26 exceed 0.55"), where a shared nuisance does not divide
+out the way it does in a between-arm comparison. `d1` has the identical single-shared-base
+structure, so this is not a `d7`-specific asymmetry — but it is not a cancellation either.
