@@ -372,47 +372,139 @@ signal; limitations; what a custodian should do.
 \section{Methods}\label{sec:methods}
 
 \subsection{Sex as biological variable}\label{subsec:sex}
-TODO --- report the cohort's sex composition and state explicitly whether the
-analyses are sex-stratified. Mandatory for Nature Portfolio journals.
+The source release records a single self-reported \texttt{gender} field and no
+separate biological-sex variable. Across the 506 subjects of the cohort it takes
+the values female ($n=274$), male ($n=231$) and non-binary ($n=1$). This field
+was not used at any point: it does not enter the definition of atypical
+profiles, the matching of controls, the composition of the background set, or
+any model input, and no result reported here is stratified by it. Whether
+membership risk differs by sex is therefore an open question that this study is
+not powered to answer --- with 13 targets per arm, a sex-stratified contrast
+would rest on fewer than seven subjects per cell.
 
 \subsection{Cohort and data acquisition}\label{subsec:cohort}
-TODO.
+Recordings were drawn from a public multi-study continuous glucose monitoring
+release comprising 1{,}291 participants across twelve source studies. From these
+we retained the 506 subjects with at least 30 complete recording days on the
+glucose channel, giving 6{,}072 windows. The same subject set is used for both
+data compositions, so that the one-channel and two-channel results differ only
+in what is released and not in who is in the cohort.
 
 \subsection{Window construction and subject key}\label{subsec:windows}
-TODO --- the subject key is the pair (source study, participant id); the
-participant id alone is unique only within a source study.
+Recordings are sampled every five minutes. A window is one gap-free calendar day
+of 288 consecutive samples; partial and interrupted days are discarded rather
+than imputed, so no window contains interpolated values. Values are standardised
+per channel and clipped at five standard deviations; the glucose channel's
+constants are a mean of \mbox{145.94 mg/dL} and a standard deviation of
+\mbox{57.65 mg/dL}, and all clinical quantities in this paper are computed after
+inverting that transformation.
+
+\paragraph{Subject key.} Participant identifiers in the source release are unique
+only \emph{within} a source study: 241 of 1{,}291 identifiers (18.7\%) recur
+across two or more studies, and one identifier spans five. The subject key used
+throughout is therefore the pair (source study, participant identifier). Keying
+on the identifier alone merges distinct people into composite subjects, which in
+a membership design means holding several people in or out as a single unit.
 
 \subsection{Definition of atypical glycaemic profiles}\label{subsec:outliers}
-TODO.
+Atypical subjects were identified by consensus across thirteen distributional
+and variability metrics. For each metric, subjects in the top five per cent were
+flagged; a subject flagged by at least seven of the thirteen metrics was
+provisionally called atypical. The whole procedure was repeated under four
+random seeds and only subjects selected under all four were retained, giving 13
+atypical subjects. \emph{The threshold of seven votes is fixed for comparability
+with earlier work on this cohort and is not read off a mode in the vote
+histogram}, which is unimodal here.
 
 \subsection{Control matching}\label{subsec:matching}
-TODO.
+Each atypical subject was paired with one control drawn from the 493
+non-atypical subjects and matched on recording duration, since the number of
+released windows for a target scales with it and nearest-neighbour distance
+falls with the size of the released set. Matching was exact or near-exact:
+median relative gap in recording days was below one per cent and no pair
+exceeded tolerance. Controls were not matched on any glycaemic quantity, so the
+control arm remains a sample of ordinary physiology rather than a
+shape-matched twin of the atypical arm.
 
 \subsection{Paired membership-inference design}\label{subsec:design}
-TODO.
+For each of the 26 targets we trained one generator on a background set of 475
+subjects (5{,}741 windows) that contains no target, and one on that background
+plus the single target. Both members of a pair share the generator, its
+hyperparameters and its training seed; they differ by one subject and by nothing
+else. The background generator is shared across all 26 pairs, so the design is
+symmetric: both arms are membership pairs, and neither is a non-membership
+control. Each model releases a number of synthetic windows equal to its own
+training-set size, which is what a custodian releasing a dataset would do.
 
 \subsection{Generative models and training budgets}\label{subsec:generators}
-TODO.
+Seven arms were evaluated: a copy--paste construction that resamples its training
+windows with replacement, four published generators for physiological time
+series, the unmodified backbone of our own model, and the backbone with the two
+structural changes of Section~\ref{subsec:modules}. TODO --- name each published
+generator, its citation, its capacity and its training budget, and state that all
+arms were trained to the same budget on this cohort.
 
 \subsection{Membership statistic}\label{subsec:statistic}
-TODO --- including the matching of released-set size between the two arms.
+For a target $t$ with real windows $R_t$, let $d_{\mathrm{IN}}$ be the distance
+from $R_t$ to the release of the generator that saw $t$, and $d_{\mathrm{OUT}}$
+the distance to the release of the generator that did not. The statistic is the
+gap $d_{\mathrm{OUT}} - d_{\mathrm{IN}}$, positive when the target's own windows
+lie closer to the release that was trained on them. Distances are Euclidean over
+the flattened window, reduced across the released set by its minimum and across
+the target's windows by their mean. \emph{This variant was fixed on the
+copy--paste arm and frozen before any learned generator was attacked}, so that
+the test is not selected on the outcome.
+
+\paragraph{Matching the released-set size.} A generator trained with one
+additional subject also releases that subject's windows, roughly 0.1\% more than
+its paired background model. Nearest-neighbour distance falls with the size of
+the released set, so this alone would bias the gap upwards. Both releases are
+therefore cut to the same size, at random and with a fixed seed, before any
+distance is computed.
 
 \subsection{Permutation floor}\label{subsec:floor}
-TODO.
+Per-patient membership scores do not have a floor at chance. To measure the
+floor for each released dataset we destroyed all within-window structure by
+permuting the samples inside every window independently, then repeated the entire
+attack unchanged. The resulting count of patients scoring above \mbox{AUC 0.55}
+is the floor for that dataset. It is computed separately for every release
+rather than once for the study, because it depends on the released set's own
+size and dispersion.
 
 \subsection{Generation fidelity metrics}\label{subsec:fidelity}
-TODO.
+Fidelity is reported as Context-FID: a TS2Vec encoder is trained on the real
+half, real and released windows are embedded to full-series representations, and
+the Fréchet distance between the two representation sets is taken. We also
+report a discriminative score, the balanced accuracy of a recurrent classifier
+trained to separate real from released windows, for which 0.5 is indistinguishable.
+\emph{Scores for a given release are not exactly reproducible across compute
+jobs}; on byte-identical inputs with identical seeds we observe differences of
+one to five per cent, so quantities that are compared with one another were
+computed in a single job.
 
 \subsection{Glycaemic utility metrics}\label{subsec:utility}
-TODO --- per-chunk distributions with interquartile ranges and a distribution
-distance, not a single mean delta.
+Twenty established metrics of glycaemic variability, hypoglycaemia,
+hyperglycaemia and overall control were computed per window on the inverted
+mg/dL scale. Because these metrics are defined per recording rather than per
+cohort, we compare \emph{distributions} rather than means: each metric is
+summarised by its median and interquartile range across windows, and the
+distance between a released distribution and the real one is reported as both a
+Kolmogorov--Smirnov statistic and a Wasserstein distance. TODO --- cite the
+source of the metric definitions and their discriminative ratios, and note the
+deviation from its twelve-day windows.
 
 \subsection{Statistical analysis}\label{subsec:stats}
-TODO.
+Per-patient membership scores are Mann--Whitney statistics of the two distance
+distributions, normalised to the unit interval. The between-arm contrast is a
+Mann--Whitney test of the atypical arm's gaps against the control arm's.
+\emph{All 26 pairs share one background generator, so their gaps are
+correlated}; within a single replicate the resulting $p$-values are a screen
+rather than a test, and the corresponding test is the spread of the arm
+difference across independent replicates. \textbf{This study reports one
+replicate}, and conclusions that depend on the between-arm contrast alone are
+qualified accordingly in the Discussion.
 
-%%============================================================%%
-%% BACK MATTER — order follows the published reference.
-%%============================================================%%
+
 \backmatter
 
 \bmhead{Data availability}
