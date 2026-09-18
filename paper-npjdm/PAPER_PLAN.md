@@ -28,26 +28,43 @@ than adjacent to it.
 
 ---
 
-## 1. Format (verified against a real npj Digital Medicine article, PMC12081667)
+## 1. Format (measured from two real npj Digital Medicine articles)
 
-Nature Portfolio order. **There is no Related Work section** — background lives in the
-Introduction, comparison to prior work lives in the Discussion.
+Sources: Rafeletou et al. 2026, *A novel multiomics machine learning signature identifies
+rapid progression in clinically low risk prostate cancer*, doi 10.1038/s41746-026-03254-5
+(the reference supplied 2026-09-18); and PMC12081667. Nature Portfolio order.
+**There is no Related Work section** — background lives in the Introduction, comparison to
+prior work lives in the Discussion.
 
 ```
-Title
-Abstract                 one paragraph, unstructured, no subheadings, ~130-150 words
-Introduction             no subheadings
-Results                  WITH subheadings   <- comes before Methods
-Discussion               no subheadings (or few)
+Title / authors
+(abstract)               NO heading printed. One paragraph, unstructured.
+(introduction)           NO heading printed. Starts straight into the field.
+Results                  WITH subheadings   <- first visible heading in the paper
+Discussion               NO subheadings
 Methods                  WITH subheadings   <- at the END
 Data availability
 Code availability
+References               <- note: BEFORE the acknowledgements
 Acknowledgements
 Author contributions
+Funding
 Competing interests
-References
 Supplementary information
 ```
+
+**Abstract length: 150–220 words.** The two articles measured 138 and 220, so this is not
+a tight constraint. (A secondary source claiming a 70-word limit is wrong for Articles.)
+
+**Proportions, by length in the reference: Results : Discussion : Methods = 4 : 1 : 2.5.**
+Results dominates; the Discussion is short.
+
+**Results subheadings are DECLARATIVE SENTENCES that state the finding, not noun-phrase
+labels.** From the reference: *"NCCN prostate cancer risk groups are associated with
+distinct genomic profiles and survival outcomes"*, *"Machine learning identifies ZNF268 as
+a novel independent prognostic factor"*, *"Epigenetic dysregulation of ZNF268 is linked to
+metabolic reprogramming"*. Every subheading is a falsifiable claim. Our §5 subheadings are
+written this way below.
 
 Main text ~3,000–4,000 words. Display items: aim for **4 figures + 2 tables**; push
 everything else to Supplementary.
@@ -66,7 +83,7 @@ Pick 1 or 2 for a clinical readership — they name the patient, not the method.
 
 ---
 
-## 3. Abstract (~140 words, one paragraph)
+## 3. Abstract (150-220 words, one paragraph, no printed heading)
 
 Beats, in order:
 
@@ -110,7 +127,7 @@ Beats, in order:
 
 Six subsections. Each names its display item and the numbers it must carry.
 
-### 5.1 A paired design that the attack can actually resolve *(Fig. 1)*
+### 5.1 A paired design with a memorisation ceiling and a shuffle floor resolves membership signal *(Fig. 1)*
 
 Establish the instrument before any claim. Content: the symmetric design (base on 475
 background subjects; 26 `include` models each adding exactly one target); the statistic
@@ -126,7 +143,7 @@ background subjects; 26 `include` models each adding exactly one target); the st
 > ⚠️ This subsection is load-bearing. Reviewers of privacy papers reject on "your attack is
 > weak", and the floor is what stops us over-claiming in the other direction.
 
-### 5.2 Membership risk is concentrated, and it is the outliers *(Table 1)*
+### 5.2 Membership risk is not uniform across patients and concentrates in outliers *(Table 1)*
 
 The main benchmark table across seven arms × two settings. Report **three** columns per
 setting, not one:
@@ -149,7 +166,7 @@ Numbers on disk (`d1_c1` / `d1_c2`):
 **The story is the third column, not the second.** DiM-TS at 24→7 is +17 patients over its
 own floor; IG-FM + 2 modules is at ±0 in both settings.
 
-### 5.3 What is actually leaking: level and order *(Fig. 2)*
+### 5.3 The membership signal is carried by absolute glucose level and temporal ordering *(Fig. 2)*
 
 The ablation. Destroying the **absolute level** drops risk 0.65 → 0.55; destroying **time
 ordering** also drops it. Two independent coordinates, two different attacks.
@@ -157,12 +174,29 @@ ordering** also drops it. Two independent coordinates, two different attacks.
 This subsection is the bridge to the design and to the mitigation — without it, §5.5 is an
 unmotivated architecture choice.
 
-### 5.4 Adding insulin changes both axes, and the two must be read together *(Fig. 3)*
+### 5.4 Basal insulin is the identifying channel in real data, yet adding it does not raise measured leakage from the synthetic release *(Fig. 3)*
 
 **This answers the question Nick raised in the 09-01 meeting and Lucas said we had not
 answered.** The claim "adding basal insulin makes normal subjects harder to identify" is
 ambiguous between *privacy improved* and *the generator got worse*. We can now separate
 them because we have fidelity for both settings.
+
+⚠️ **Check the direction before writing this section — it is mixed, and an earlier draft of
+this plan over-claimed it.** Measured c1 -> c2 (arm AUC / patients above own floor):
+
+| arm | arm AUC | above floor |
+|---|---|---|
+| IG-FM + 2 modules | 0.698 -> 0.479 (down) | 0 -> 0 |
+| IG-FM stock | 0.515 -> 0.598 (up) | +1 -> +1 |
+| DiffWave | 0.639 -> 0.740 (up) | +4 -> +2 (down) |
+| FourierDiffusion | 0.710 -> 0.485 (down) | +2 -> +3 (up) |
+| Diffusion-TS | 0.828 -> 0.604 (down) | -1 -> +4 (up) |
+
+No arm moves consistently, and the two readings disagree within arms. So the defensible
+claim is NOT "insulin raises leakage" and NOT "insulin protects". It is: **basal is far
+more identifying than glucose in the REAL data, yet that does not show up as more leakage
+from the synthetic release — and fidelity falls in every arm when the second channel is
+added, which is the confound that has to be reported alongside.**
 
 Must also carry the identifiability result that explains the direction: on **real** windows,
 one day of **basal alone** identifies a subject **29.3%** of the time (61× chance) against
@@ -173,7 +207,7 @@ person-stable.
 > ⚠️ Gap: we have **no per-channel fidelity** — Context-FID is computed over all channels
 > jointly. Either add a per-channel decomposition or state the limitation explicitly.
 
-### 5.5 Two structural modules that remove the capacity rather than penalise its use *(Fig. 4)*
+### 5.5 Removing the capacity that stores level, rather than penalising its use, returns membership signal to the floor *(Fig. 4)*
 
 The method, presented as a result because its effect is measured.
 
@@ -195,7 +229,7 @@ of the masking module carries most of the effect. Say this; do not round it up.
 > pooling broadcasts). The pooling does the work. A reviewer who reads the code will find
 > this.
 
-### 5.6 A release-time mitigation a custodian can apply *(part of Fig. 4 or Table 2)*
+### 5.6 Stripping and re-offsetting absolute level preserves shape-based clinical metrics *(Table 2)*
 
 Strip the absolute level and re-offset with a random starting point (±10%). This is the
 deployable version of §5.3, it was endorsed as clinically sensible in the 09-01 meeting,
@@ -230,7 +264,9 @@ IQR, not a single mean delta — see §8/F1.
 
 ## 7. Methods (~1,200 words, at the END)
 
-Subsections: Cohort and windowing · Outlier definition (13 metrics, ≥7 votes, 4 seeds,
+Subsections: **Sex as biological variable** (a Nature Portfolio MANDATORY reporting item —
+the reference opens its Methods with it; state the cohort sex composition and that our
+analyses are not sex-stratified, if that is the case) · Cohort and windowing · Outlier definition (13 metrics, ≥7 votes, 4 seeds,
 intersection) · Control matching · The paired design and the 27 training jobs · Attack
 statistic and the frozen variant · The shuffle floor · Generators and budgets · Generation
 quality metrics · Statistical treatment.
