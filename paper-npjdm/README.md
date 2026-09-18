@@ -4,6 +4,9 @@ Target: **npj Digital Medicine**, Collection *"Synthetic Clinical Data and
 Privacy-Preserving Frameworks for Trustworthy Health AI"*
 (<https://www.nature.com/collections/gggjgihcjj>), deadline **2027-07-01**.
 
+* `main.tex` — the manuscript, on the official Springer Nature template (`sn-jnl.cls`, v3.1 Dec 2024) with the `sn-nature` reference style, which is the option for Nature Portfolio journals.
+* `sn-jnl.cls`, `sn-nature.bst` — vendored so the source is self-contained; Overleaf also supplies them.
+* `template/` — the untouched official template, its user manual and example bibliography, for reference.
 * `STRUCTURE.md` — the agreed paper skeleton, modelled on the reference. **Start here.**
 * `PAPER_PLAN.md` — section-by-section working notes, the numbers each section must carry,
   the open action items, and the claims we must not overstate. **Read this first.**

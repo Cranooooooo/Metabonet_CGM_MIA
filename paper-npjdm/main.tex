@@ -1,0 +1,264 @@
+%% npj Digital Medicine — Collection: Synthetic Clinical Data and
+%% Privacy-Preserving Frameworks for Trustworthy Health AI
+%% https://www.nature.com/collections/gggjgihcjj   (deadline 2027-07-01)
+%%
+%% Springer Nature LaTeX template v3.1 (December 2024), official download.
+%% sn-nature is THE option for Nature Portfolio journals; do not change it.
+%%
+%% Build:  pdflatex main && bibtex main && pdflatex main && pdflatex main
+%% NOTE: never compiled locally — this machine has no TeX toolchain. Compile on Overleaf.
+
+\documentclass[pdflatex,sn-nature]{sn-jnl}
+
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+\theoremstyle{thmstyleone}
+\newtheorem{theorem}{Theorem}
+
+\raggedbottom
+
+\begin{document}
+
+%%============================================================%%
+%% TITLE — declarative, clinical, mirrors the reference's form:
+%% instrument + active verb + finding + population
+%%============================================================%%
+\title[Membership risk in synthetic CGM]{Membership inference identifies
+concentrated re-identification risk in synthetic continuous glucose
+monitoring data}
+
+\author*[1]{\fnm{Ling} \sur{Cheng}}\email{lcheng2@ic.ac.uk}
+
+%% TODO co-authors and affiliations
+\affil*[1]{\orgdiv{TODO}, \orgname{Imperial College London},
+\orgaddress{\city{London}, \country{United Kingdom}}}
+
+%%============================================================%%
+%% ABSTRACT — one paragraph, unstructured, no subheadings.
+%% Target 150--220 words (two npj articles measured at 138 and 220).
+%% No citations, no equations.
+%%============================================================%%
+\abstract{TODO --- draft last, once the Results are final. Beats, in order:
+(i)~synthetic CGM is being shared and its public deposition is now required;
+(ii)~we built a paired membership-inference design over a 506-subject cohort and
+applied it to seven generators across two data compositions;
+(iii)~risk is not uniform --- the strongest published generator exposes 24 of 26
+patients above AUC 0.55 against that release's own permutation floor of 7;
+(iv)~the signal is carried by absolute glucose level and by temporal ordering;
+(v)~a generator whose bottleneck cannot store absolute level sits at the
+permutation floor in both compositions while achieving the best fidelity of any
+learned model tested; (vi)~level can be stripped and re-offset at release,
+preserving shape-based glycaemic metrics.}
+
+\keywords{synthetic data, membership inference, continuous glucose monitoring,
+privacy, generative models, type~1 diabetes}
+
+\maketitle
+
+%%============================================================%%
+%% INTRODUCTION
+%% The heading is dropped at typesetting in Nature Portfolio journals --- the
+%% published article opens straight into the field. Keep the \section here for
+%% the submission file; production removes it.
+%% ~600 words, four paragraphs, NO roadmap paragraph, NO related-work section.
+%%============================================================%%
+\section{Introduction}\label{sec:intro}
+
+TODO~1. Continuous glucose monitoring is among the most valuable and least
+shareable physiological records; synthetic data is the proposed route; this
+collection, and a growing number of funders, \emph{require} public deposition of
+the synthetic dataset itself.
+
+TODO~2. The privacy of synthetic health data is usually argued from
+nearest-neighbour heuristics, or from the absence of any copied record.
+Membership inference against \emph{generative} models for physiological time
+series is barely measured, and CGM is widely assumed benign.
+
+TODO~3. Aggregate privacy metrics average away the people who matter. Rare
+physiology is simultaneously what sharing is meant to preserve and what is most
+identifying --- the sparse-population fairness question this collection asks.
+
+TODO~4. What we did, what we found, and what a data custodian should take from
+it. Three to four sentences. No ``the remainder of this paper''.
+
+%%============================================================%%
+%% RESULTS  — subheadings are DECLARATIVE SENTENCES stating a finding.
+%% Results : Discussion : Methods should end up near 4 : 1 : 2.5.
+%%============================================================%%
+\section{Results}\label{sec:results}
+
+\subsection{Membership signal in synthetic CGM is bounded between a memorisation
+ceiling and a permutation floor}\label{subsec:instrument}
+
+TODO --- Fig.~\ref{fig:design}. Establish that the measurement resolves, and
+correct how such numbers are read: ``patients above AUC 0.55'' has a floor of
+7--12 of 26, not ${\sim}1$, and the floor is computed per released dataset.
+
+\subsection{Re-identification risk is not uniform across patients and
+concentrates in those with atypical glucose profiles}\label{subsec:concentration}
+
+We applied the paired design to seven generators across the two data
+compositions (Table~\ref{tab:benchmark}). Read as a raw count, the number of
+patients whose membership is recoverable above \mbox{AUC 0.55} suggests that
+every generator leaks: the counts range from 5 to 24 of 26. The permutation
+floor removes that impression. Once each released dataset is compared against
+its own floor, the generators separate sharply, and the separation does not
+track generation fidelity.
+
+The strongest published generator in our comparison, DiM-TS, exposes
+\textbf{24 of 26} patients on the glucose-only composition against a floor of
+\textbf{7}, an excess of 17 patients, and 15 against a floor of 8 once basal
+insulin is added. No other learned generator approaches this. DiffWave, whose
+fidelity is an order of magnitude worse, sits at an excess of 4 and 2;
+Diffusion-TS at $-1$ and 4; FourierDiffusion at 2 and 3. Fidelity and exposure
+are therefore not two ends of a single axis: the two best-fitting learned
+generators in the table occupy opposite extremes of the exposure column.
+
+TODO --- the concentration within a leaking release. State the outlier/control
+split of the 24 exposed patients, the median per-patient AUC in each arm, and
+the identity and score of the most exposed subject.
+
+TODO --- one closing sentence carrying the clinical reading: the patients who
+are exposed are those whose glycaemic profiles least resemble the cohort's,
+which is precisely the population that data sharing exists to preserve.
+
+\begin{table}[t]
+\caption{Generation fidelity and membership exposure for seven generators on two
+data compositions. Context-FID is lower-is-better. ``Arm AUC'' contrasts the
+atypical arm against the matched control arm; 0.5 is no separation. ``Exposed''
+counts patients above \mbox{AUC 0.55} out of 26, given against that release's own
+permutation floor. The floor, not zero, is the reference.}\label{tab:benchmark}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+& \multicolumn{3}{c}{Glucose only} & \multicolumn{3}{c}{Glucose $+$ basal insulin} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+Generator & Context-FID & Arm AUC & Exposed & Context-FID & Arm AUC & Exposed \\
+\midrule
+Copy--paste (ceiling) & 0.034 & 0.562 & --- & 0.043 & 0.680 & --- \\
+\textbf{This work} & \textbf{0.038} & 0.698 & \textbf{10 vs 10} & \textbf{0.055} & 0.479 & \textbf{5 vs 5} \\
+Backbone, unmodified & --- & 0.515 & 6 vs 5 & 0.055 & 0.598 & 7 vs 6 \\
+DiM-TS & 0.095 & 0.562 & \textbf{24 vs 7} & 0.159 & 0.698 & \textbf{15 vs 8} \\
+FourierDiffusion & 0.100 & 0.710 & 7 vs 5 & 0.194 & 0.485 & 6 vs 3 \\
+DiffWave & 0.368 & 0.639 & 12 vs 8 & 0.491 & 0.740 & 13 vs 11 \\
+Diffusion-TS & 0.422 & 0.828 & 7 vs 8 & 2.058 & 0.604 & 8 vs 4 \\
+\botrule
+\end{tabular}
+\footnotetext{The copy--paste ceiling has no permutation floor computed; it is a
+construction rather than a fitted model. The unmodified backbone was not scored
+for fidelity on the glucose-only composition. TODO: close both gaps.}
+\end{table}
+
+\subsection{The membership signal is carried by absolute glucose level and by
+temporal ordering}\label{subsec:mechanism}
+
+TODO --- Fig.~\ref{fig:ablation}.
+
+\subsection{Basal insulin is the identifying channel in real recordings, yet
+adding it does not increase leakage from synthetic release}\label{subsec:channel}
+
+TODO --- Fig.~\ref{fig:channel}. Direction is mixed across arms; see
+\texttt{PAPER\_PLAN.md} \S5.4 before writing a direction into this text.
+
+\subsection{Removing the model capacity that stores absolute level returns
+membership signal to the permutation floor}\label{subsec:modules}
+
+TODO --- Fig.~\ref{fig:modules}. The method appears here, as a measured result.
+The recipe belongs in Methods.
+
+\subsection{Stripping and re-offsetting absolute level preserves shape-based
+glycaemic metrics}\label{subsec:mitigation}
+
+TODO --- Table~\ref{tab:utility}.
+
+%%============================================================%%
+%% DISCUSSION — continuous prose, NO subheadings, ~800 words.
+%% This is where comparison with prior work lives.
+%%============================================================%%
+\section{Discussion}\label{sec:discussion}
+
+TODO. In order: what the numbers license; comparison with prior work; the
+disagreement between the arm-level and per-patient readings on \texttt{d1\_c1},
+on a single replicate; whether the destroyed signal is the clinically useful
+signal; limitations; what a custodian should do.
+
+%%============================================================%%
+%% METHODS — LAST. Noun-phrase subheadings.
+%% "Sex as biological variable" is MANDATORY Nature Portfolio reporting.
+%%============================================================%%
+\section{Methods}\label{sec:methods}
+
+\subsection{Sex as biological variable}\label{subsec:sex}
+TODO --- report the cohort's sex composition and state explicitly whether the
+analyses are sex-stratified. Mandatory for Nature Portfolio journals.
+
+\subsection{Cohort and data acquisition}\label{subsec:cohort}
+TODO.
+
+\subsection{Window construction and subject key}\label{subsec:windows}
+TODO --- the subject key is the pair (source study, participant id); the
+participant id alone is unique only within a source study.
+
+\subsection{Definition of atypical glycaemic profiles}\label{subsec:outliers}
+TODO.
+
+\subsection{Control matching}\label{subsec:matching}
+TODO.
+
+\subsection{Paired membership-inference design}\label{subsec:design}
+TODO.
+
+\subsection{Generative models and training budgets}\label{subsec:generators}
+TODO.
+
+\subsection{Membership statistic}\label{subsec:statistic}
+TODO --- including the matching of released-set size between the two arms.
+
+\subsection{Permutation floor}\label{subsec:floor}
+TODO.
+
+\subsection{Generation fidelity metrics}\label{subsec:fidelity}
+TODO.
+
+\subsection{Glycaemic utility metrics}\label{subsec:utility}
+TODO --- per-chunk distributions with interquartile ranges and a distribution
+distance, not a single mean delta.
+
+\subsection{Statistical analysis}\label{subsec:stats}
+TODO.
+
+%%============================================================%%
+%% BACK MATTER — order follows the published reference.
+%%============================================================%%
+\backmatter
+
+\bmhead{Data availability}
+TODO --- must name the deposited synthetic dataset, its repository, its
+persistent identifier and its licence. The collection requires this at
+submission.
+
+\bmhead{Code availability}
+The code used to generate the results presented in this study is publicly
+available at \url{https://github.com/Cranooooooo/Metabonet_CGM_MIA}.
+
+\bmhead{Acknowledgements}
+TODO.
+
+\bmhead{Author contributions}
+TODO.
+
+\bmhead{Funding}
+TODO.
+
+\bmhead{Competing interests}
+The authors declare no competing interests.
+
+\bmhead{Supplementary information}
+TODO.
+
+\bibliography{refs}
+
+\end{document}
