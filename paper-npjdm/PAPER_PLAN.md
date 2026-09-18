@@ -135,7 +135,7 @@ background subjects; 26 `include` models each adding exactly one target); the st
 
 - **`copy_paste` ceiling** — a generator that memorises by construction must separate, or
   nothing downstream means anything.
-- **the shuffle floor** — "how many of 26 exceed AUC 0.55" has a floor of **7–12, not ~1**,
+- **the permutation floor** — "how many of 26 exceed AUC 0.55" has a floor of **3–11, median 7**,
   and the floor is computed **per release**.
 
 **Fig. 1** = design schematic + the two controls on one axis.

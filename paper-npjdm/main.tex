@@ -94,9 +94,32 @@ it. Three to four sentences. No ``the remainder of this paper''.
 \subsection{Membership signal in synthetic CGM is bounded between a memorisation
 ceiling and a permutation floor}\label{subsec:instrument}
 
-TODO --- Fig.~\ref{fig:design}. Establish that the measurement resolves, and
-correct how such numbers are read: ``patients above AUC 0.55'' has a floor of
-7--12 of 26, not ${\sim}1$, and the floor is computed per released dataset.
+Each released dataset is attacked through the same paired comparison: for every
+target patient we hold one generator that saw them and one that did not, and ask
+whether the patient's real windows lie closer to the former's output
+(Fig.~\ref{fig:design}). The two generators differ by that one patient and by
+nothing else. We bound the resulting statistic from both sides before reading
+any generator's score.
+
+The upper bound is a generator that memorises by construction, releasing its
+training windows unchanged. Its median gap is \textbf{0.077} on the glucose-only
+composition and \textbf{0.106} with basal insulin, against \textbf{0.010} and
+\textbf{0.018} for the strongest learned generator --- an order of magnitude
+larger, and significantly positive in both arms ($p < 0.001$). The statistic
+therefore responds to memorisation when memorisation is present. It does not,
+however, separate the atypical arm from the control arm for this generator, and
+it should not: a model that copies every patient equally memorises the typical
+and the atypical alike.
+
+The lower bound matters more, because it is the one the literature omits. We
+recompute the entire pipeline on permuted membership labels, so that no
+generator saw any target. Under permutation the count of patients recoverable
+above \mbox{AUC 0.55} is not near zero: across the twelve released datasets in
+this study it ranges from \textbf{3 to 11 of 26}, with a median of 7. The floor
+is a property of the released dataset rather than of the study, so it is
+computed separately for each one. Reported against zero, every generator in
+Table~\ref{tab:benchmark} would appear to leak; reported against its own floor,
+most do not.
 
 \subsection{Membership is recoverable for nearly every patient from glucose
 alone, and most confidently for those with atypical
@@ -165,7 +188,34 @@ for fidelity on the glucose-only composition. TODO: close both gaps.}
 \subsection{The membership signal is carried by absolute glucose level and by
 temporal ordering}\label{subsec:mechanism}
 
-TODO --- Fig.~\ref{fig:ablation}.
+To locate the signal we destroyed one coordinate of the released windows at a
+time and repeated the attack unchanged (Fig.~\ref{fig:ablation}). Removing
+within-hour detail, by averaging to hourly resolution, costs nothing: the
+strongest leaking release still exposes \textbf{23 of 26} patients with a median
+\mbox{AUC of 0.692}, against 24 and 0.653 untouched. Whatever is being
+recovered, it is not fine structure.
+
+Two coordinates do carry it. Differencing the windows, which removes absolute
+level while preserving shape, takes exposure from \textbf{24 to 13 of 26}.
+Sorting each window, which destroys temporal ordering while preserving the value
+distribution exactly, takes it to \textbf{13 of 26} as well. Neither alone
+reaches the floor.
+
+Destroying both does. With level and ordering removed together, exposure falls
+to \textbf{7 of 26} at a median \mbox{AUC of 0.487} --- the permutation floor for
+this release is 7 at 0.503. \emph{The two coordinates jointly account for the
+entire recoverable signal}; nothing measurable remains once they are gone.
+
+The two are not interchangeable with respect to who is protected. Removing
+temporal ordering leaves the atypical arm separated from the control arm (median
+\mbox{AUC 0.600} against 0.476), whereas removing absolute level collapses that
+separation (0.568 against 0.531). Level is thus the coordinate that carries the
+specifically atypical part of the signal, which is what motivates the
+intervention in Section~\ref{subsec:mitigation}.
+
+On the two-channel composition, level alone is sufficient: differencing takes
+exposure from 15 to \textbf{6 of 26} against a floor of 8, at or below chance
+without any need to touch the ordering.
 
 \subsection{Adding basal insulin protects typical patients but leaves atypical
 patients exposed}\label{subsec:channel}
@@ -201,14 +251,84 @@ Any two of them alone support the wrong conclusion.
 \subsection{Removing the model capacity that stores absolute level returns
 membership signal to the permutation floor}\label{subsec:modules}
 
-TODO --- Fig.~\ref{fig:modules}. The method appears here, as a measured result.
-The recipe belongs in Methods.
+Section~\ref{subsec:mechanism} names absolute level as the carrier. We therefore
+changed the generator so that level cannot be stored per timepoint, rather than
+adding a penalty that discourages storing it (Fig.~\ref{fig:modules}).
 
-\subsection{Stripping and re-offsetting absolute level preserves shape-based
-glycaemic metrics}\label{subsec:mitigation}
+Two changes were made. First, the training task masks whole coordinates instead
+of scattered cells: contiguous blocks of time, or the level of the whole window.
+Scattered-cell masking is solvable by interpolating between neighbours, and
+interpolation is exactly the local correlation in which identity resides.
+Second, the channels of the latent bottleneck that carry level are pooled along
+time and broadcast back, so that this part of the representation takes a single
+value for the entire window and is \emph{structurally unable} to hold a
+per-timepoint trace. The capacity is removed, not discouraged.
 
-TODO --- Table~\ref{tab:utility}.
+The released sets show no recoverable membership signal. The median gap is
+\textbf{0.0026} on the glucose-only composition and \textbf{0.0005} with basal
+insulin, and in neither composition is it significantly positive in either arm
+($p = 0.064$ and $0.682$; $p = 0.271$ and $0.249$) --- against $p < 0.001$ for
+the strongest learned baseline. Per patient, exposure is \textbf{10 against a
+floor of 10} and \textbf{5 against a floor of 5}. Fidelity is not paid for this:
+at Context-FID \textbf{0.038} and \textbf{0.055} the generator is the best
+learned model in Table~\ref{tab:benchmark} on both compositions, second only to
+the copy--paste ceiling.
 
+The mechanism behind the masking change can be read directly from training. The
+task that withholds absolute level should be harder than the original
+scattered-cell task if the model is genuinely being forced to generate level
+rather than to copy it. It is, in every setting we trained, but only by
+\textbf{12--24\%}. The contiguous-block task is harder by \textbf{2--5$\times$}.
+Most of the effect of this change therefore comes from forcing the model to
+generate temporal order, not from withholding level, and we report it that way.
+
+TODO --- state that the companion group-decorrelation loss cannot constrain the
+quantity the pooling preserves, since it z-scores along time and thereby removes
+exactly the window mean that the pooling broadcasts. The pooling does the work.
+
+
+\subsection{The released windows reproduce twenty clinical glycaemic metrics
+that the strongest baseline distorts}\label{subsec:mitigation}
+
+Fidelity measured in an embedding space does not establish that a release is
+clinically usable. We therefore computed twenty established glycaemic metrics
+per window and compared their distributions against the real cohort
+(Table~\ref{tab:utility}).
+
+The released windows reproduce the real distributions across every family of
+metric. Mean amplitude of glycaemic excursions is \textbf{51.22} against a real
+\textbf{51.23}; glucose variability percentage \textbf{42.44} against
+\textbf{42.79}; CONGA-1 \textbf{41.83} against \textbf{41.69}; time in range
+\textbf{74.3\%} against \textbf{74.0\%}; and time below \mbox{54 mg/dL}
+\textbf{0.55\%} against \textbf{0.58\%}.
+
+The strongest learned baseline does not. It understates short-term variability
+by a wide margin --- mean amplitude \textbf{38.28}, a \textbf{25\%} shortfall,
+and glucose variability percentage \textbf{26.81}, a \textbf{37\%} shortfall ---
+and it understates exposure to clinically significant hypoglycaemia by
+\textbf{45\%} (0.32\% against 0.58\% of time below \mbox{54 mg/dL}). A cohort
+built from that release would look less variable and safer than the patients it
+was derived from, which is the direction that matters for a dataset intended to
+support algorithm development.
+
+\paragraph{A release-time intervention for custodians who cannot retrain.}
+Section~\ref{subsec:mechanism} showed that removing absolute level takes
+exposure from 24 to 13 of 26 on the glucose-only composition, and from 15 to 6
+of 26 --- at or below the floor --- when basal insulin is present. That
+transformation is available to any custodian at release time: publish the window
+in a level-free form and re-offset it with a randomly drawn starting value.
+
+TODO --- the clinical cost of this transformation has NOT been measured. Compute
+the twenty metrics on level-stripped, re-offset releases and add them as a third
+column of Table~\ref{tab:utility}. Metrics defined on shape (variability,
+excursion amplitude, CONGA) should survive; metrics defined on the value scale
+(mean glucose, time in range, time below 54) cannot, and the section must say
+which of the twenty fall on each side rather than implying all are preserved.
+
+TODO --- report these as per-window distributions with interquartile ranges and
+a distribution distance, not as means with standard deviations. Two metrics can
+share a mean and a standard deviation and still have different distributions,
+and the clinical reading depends on the tails.
 %%============================================================%%
 %% DISCUSSION — continuous prose, NO subheadings, ~800 words.
 %% This is where comparison with prior work lives.

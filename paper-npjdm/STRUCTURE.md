@@ -84,8 +84,8 @@ frequently diagnosed…"*.
 *Fig. 1 — design schematic; ceiling and floor on one axis.*
 
 Establishes that the measurement resolves at all, and corrects how such numbers are read:
-"patients above AUC 0.55" has a floor of **7–12 of 26, not ~1**, and the floor is computed
-**per released dataset**. A copy-paste generator, which memorises by construction, sets the
+"patients above AUC 0.55" has a floor of **3–11 of 26, median 7** — measured across the twelve
+released datasets in this study — not ~1, and the floor is computed **per released dataset**. A copy-paste generator, which memorises by construction, sets the
 ceiling. *This is a finding about the instrument, not a methods paragraph.*
 
 ### R2. Membership is recoverable for nearly every patient from glucose alone, and most confidently for those with atypical profiles
@@ -133,7 +133,7 @@ removed, not penalised. Result: **at the floor in both compositions** (10→10, 
 best fidelity of any learned model (0.0383 / 0.0551). Report the honest magnitudes: the
 level-task prediction holds by 12–24 %, while the block-masking half moves 2–5×.
 
-### R6. Stripping and re-offsetting absolute level preserves shape-based glycaemic metrics
+### R6. The released windows reproduce twenty clinical glycaemic metrics that the strongest baseline distorts
 *Table 2 — glycaemic metrics before/after, per-chunk distributions with IQR.*
 
 The release-time version of R3, for custodians who cannot retrain: remove the absolute
