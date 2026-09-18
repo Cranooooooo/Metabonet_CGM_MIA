@@ -47,6 +47,25 @@ _hourly = lambda X: X[:, :X.shape[1] // 12 * 12].reshape(
               len(X), X.shape[1] // 12, 12, X.shape[2]).mean(2)
 _zscore = lambda X: (X - X.mean(1, keepdims=True)) / (X.std(1, keepdims=True) + 1e-6)
 
+# 释放时的缓解手段本身,不是它的近似。
+# 已有的 `diff` 是差分、`zscore` 连幅度一起缩掉了 —— 两者都不是「把窗口的整体水平
+# 拿掉再重新分配一个」。论文 R6 提的那个做法需要它自己的读数,不能借用 diff 的。
+_level = lambda X: X - X.mean(1, keepdims=True)
+
+
+def _reoffset(X):
+    """剥离水平,再从同一批窗口的水平分布里随机重配一个。
+
+    用置换而不是重新抽样:整批的水平边缘分布逐值不变,变的只是「哪个水平配给哪条
+    曲线」。所以任何靠水平【分布】做的临床读数不受影响,而靠「这条曲线在什么水平上」
+    认人的通路被切断。这正是把可识别信息和临床效用分开的那一刀。
+
+    固定种子,可复现。和 _floor 一样在函数内部播种,所以加这个变体不会挪动别的变体。
+    """
+    rng = np.random.default_rng(20260901)
+    mu = X.mean(1, keepdims=True)
+    return X - mu + mu[rng.permutation(len(X))]
+
 
 def _floor(X):
     """地板对照:把每个窗口内部的数值彻底打乱,同一份数据、同一套距离计算,
@@ -68,6 +87,8 @@ TRANSFORMS = {
     "sorted":         ("时序",                    _sorted),
     "hourly":         ("一小时内的细节",          _hourly),
     "zscore":         ("水平 + 幅度",             _zscore),
+    "level":          ("水平(只剥离)",           _level),
+    "reoffset":       ("水平(剥离并随机重配)",   _reoffset),
     # ---- 两项同时破坏 ----
     "diff+sorted":    ("水平 + 时序",             lambda X: _sorted(_diff(X))),
     "zscore+sorted":  ("水平 + 幅度 + 时序",      lambda X: _sorted(_zscore(X))),

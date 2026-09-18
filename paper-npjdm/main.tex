@@ -312,24 +312,49 @@ was derived from, which is the direction that matters for a dataset intended to
 support algorithm development.
 
 \paragraph{A release-time intervention for custodians who cannot retrain.}
-Section~\ref{subsec:mechanism} showed that removing absolute level takes
-exposure from 24 to 13 of 26 on the glucose-only composition, and from 15 to 6
-of 26 --- at or below the floor --- when basal insulin is present. That
-transformation is available to any custodian at release time: publish the window
-in a level-free form and re-offset it with a randomly drawn starting value.
+Section~\ref{subsec:mechanism} identified absolute level as the coordinate that
+carries the specifically atypical part of the signal. A custodian can remove it
+from an already-trained generator's output: publish each window with its own
+level subtracted, and restore a level drawn by permutation from the levels of
+the other released windows. The permutation preserves the marginal distribution
+of levels across the release exactly, while severing which level belongs to
+which curve.
 
-TODO --- the clinical cost of this transformation has NOT been measured. Compute
-the twenty metrics on level-stripped, re-offset releases and add them as a third
-column of Table~\ref{tab:utility}. Metrics defined on shape (variability,
-excursion amplitude, CONGA) should survive; metrics defined on the value scale
-(mean glucose, time in range, time below 54) cannot, and the section must say
-which of the twenty fall on each side rather than implying all are preserved.
+We measured what this costs clinically, for each of the twenty metrics, as the
+Kolmogorov--Smirnov distance between the released distribution and the real one
+(Table~\ref{tab:utility}). The metrics fall into two groups, and the split is by
+construction rather than by luck.
 
-TODO --- report these as per-window distributions with interquartile ranges and
-a distribution distance, not as means with standard deviations. Two metrics can
-share a mean and a standard deviation and still have different distributions,
-and the clinical reading depends on the tails.
-%%============================================================%%
+Metrics defined on shape are \emph{exactly} unchanged, because subtracting a
+constant from a window does not move them: mean amplitude of glycaemic
+excursions stays at \mbox{KS 0.040}, CONGA-1 at 0.017, standard deviation at
+0.016, MAGE at 0.026, glucose variability percentage at 0.046, and the lability
+index and average absolute rate of change likewise do not move by a single
+digit.
+
+Metrics defined on the value scale are destroyed by stripping alone and
+\emph{restored by the re-offset}. Time below \mbox{54 mg/dL} moves from
+\mbox{KS 0.006} in the untouched release to \textbf{1.000} once the level is
+removed --- a complete loss --- and back to \textbf{0.192} once a level is
+restored. Time in range goes 0.012, 0.977, \textbf{0.126}. Mean glucose goes
+0.022, 1.000, and \textbf{0.022}: exactly back, because a permutation leaves the
+marginal untouched. Level-stripping alone is therefore not a usable release;
+level-stripping with re-offsetting is.
+
+What the re-offset does not restore, and cannot, is the association between a
+patient's glycaemic shape and the level they sit at. That association is the
+privacy gain and it is also a genuine loss of utility: a study asking whether
+patients with greater variability run higher mean glucose cannot be run on such
+a release, and the release must say so.
+
+TODO --- add the privacy side of this exact transformation, now computing, as a
+column of Table~\ref{tab:utility}. The numbers in
+Section~\ref{subsec:mechanism} are for differencing, which is a different
+transformation, and must not be reused here.
+
+TODO --- Table~\ref{tab:utility}: twenty metrics $\times$ (released,
+level-stripped, re-offset) $\times$ (median, interquartile range, KS, Wasserstein),
+built from \texttt{results/clinical/after\_strip.json}.
 %% DISCUSSION — continuous prose, NO subheadings, ~800 words.
 %% This is where comparison with prior work lives.
 %%============================================================%%

@@ -1,0 +1,31 @@
+#!/bin/bash
+#PBS -N locusstrip
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=06:00:00
+#PBS -j oe
+#PBS -o logs/locus_strip.log
+#
+# 论文 R6 的隐私侧:新加的 level / reoffset 两个变体,在泄漏最严重的 arm 上。
+# ⚠️ 写到【新路径】,不覆盖已发表的 leak_locus 结果 —— 旧变体应当逐位复现,
+#    但拿重算去覆盖原件是没有必要的风险。
+#
+#   qsub scripts/pbs/dev/locus_strip.pbs
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+mkdir -p logs results/matrix/leak_locus
+for c in d1_c1 d1_c2; do
+  echo "===== DiM-TS $c ====="
+  python -u scripts/leak_locus.py \
+      --design results/matrix/design/rep1 \
+      --cohort "data/cohort/matrix_$c" \
+      --runs "results/runs/matrix_$c" \
+      --out "results/matrix/leak_locus/${c}_withstrip.json"
+done
+echo "===== 我们的模型 d1_c1(对照) ====="
+python -u scripts/leak_locus.py \
+    --design results/matrix/design/rep1 \
+    --cohort data/cohort/matrix_d1_c1 \
+    --runs results/runs/loo_igfm_priv_d1_c1 \
+    --out results/matrix/leak_locus/igfm_priv_d1_c1_withstrip.json
