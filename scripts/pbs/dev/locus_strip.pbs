@@ -1,14 +1,21 @@
 #!/bin/bash
 #PBS -N locusstrip
 #PBS -P 11704243
-#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
-#PBS -l walltime=06:00:00
+#PBS -l select=1:ncpus=16:mem=64gb
+#PBS -l walltime=04:00:00
 #PBS -j oe
 #PBS -o logs/locus_strip.log
 #
 # 论文 R6 的隐私侧:新加的 level / reoffset 两个变体,在泄漏最严重的 arm 上。
-# ⚠️ 写到【新路径】,不覆盖已发表的 leak_locus 结果 —— 旧变体应当逐位复现,
-#    但拿重算去覆盖原件是没有必要的风险。
+#
+# ⚠️ 零 GPU,这是刻意的。第一版要了 1 张卡 + 6 小时,被路由到 g1,而 g1 的唯一槽位
+#    被 d7 战役的 D 泳道长期占着(每队列每人只能跑一个作业),于是它排了一整天没动,
+#    报的是 "User has reached queue g1 running job limit"。leak_locus 只用 NumPy 和
+#    SciPy,statistic.py 里一行 torch 都没有 —— 要 GPU 纯属浪费,而且会和自己的战役抢队列。
+#
+# ⚠️ CPU 作业必须写 mem=(PITFALLS 第 8 条),否则拿队列默认值然后被 OOM 杀掉。
+#
+# ⚠️ 写到【新路径】,不覆盖已发表的 leak_locus 结果。
 #
 #   qsub scripts/pbs/dev/locus_strip.pbs
 source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
@@ -23,9 +30,11 @@ for c in d1_c1 d1_c2; do
       --runs "results/runs/matrix_$c" \
       --out "results/matrix/leak_locus/${c}_withstrip.json"
 done
-echo "===== 我们的模型 d1_c1(对照) ====="
-python -u scripts/leak_locus.py \
-    --design results/matrix/design/rep1 \
-    --cohort data/cohort/matrix_d1_c1 \
-    --runs results/runs/loo_igfm_priv_d1_c1 \
-    --out results/matrix/leak_locus/igfm_priv_d1_c1_withstrip.json
+for c in d1_c1 d1_c2; do
+  echo "===== 我们的模型 $c ====="
+  python -u scripts/leak_locus.py \
+      --design results/matrix/design/rep1 \
+      --cohort "data/cohort/matrix_$c" \
+      --runs "results/runs/loo_igfm_priv_$c" \
+      --out "results/matrix/leak_locus/igfm_priv_${c}_withstrip.json"
+done

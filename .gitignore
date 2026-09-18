@@ -67,3 +67,12 @@ logs/
 
 # Editor/sed backups.
 *.bak
+
+# LaTeX 编译产物(在 HPC 上用 /data/.../texlive 编,不入库)
+paper-npjdm/*.aux
+paper-npjdm/*.log
+paper-npjdm/*.out
+paper-npjdm/*.bbl
+paper-npjdm/*.blg
+paper-npjdm/*.spl
+.build/
