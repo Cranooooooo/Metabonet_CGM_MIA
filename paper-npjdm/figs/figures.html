@@ -1,0 +1,1131 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Figures — membership inference in synthetic CGM</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+  :root{
+    --surface-1:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e;
+    --text-muted:#8a8985; --rule:#d8d7d2; --grid:#ecebe6;
+    --s1:#2a78d6;  /* blue   — glucose only / ours          */
+    --s2:#eb6834;  /* orange — glucose+basal / DiM-TS       */
+    --s3:#1baf7a;  /* aqua   — third series where needed    */
+    --floor:#8a8985;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#f4f3ef;color:var(--text-primary);
+       font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  header{max-width:1120px;margin:0 auto;padding:28px 24px 6px}
+  h1{font-size:19px;margin:0 0 4px;letter-spacing:-0.01em}
+  header p{margin:0;color:var(--text-secondary);max-width:70ch}
+  .fig{max-width:1120px;margin:22px auto;background:var(--surface-1);
+       border:1px solid var(--rule);border-radius:10px;padding:20px 22px 24px}
+  .fig-head{display:flex;align-items:baseline;gap:12px;margin-bottom:2px}
+  .fig-head h2{font-size:14px;margin:0;letter-spacing:.02em;text-transform:uppercase;
+               color:var(--text-secondary)}
+  .fig-head button{margin-left:auto;font:inherit;font-size:12px;padding:5px 11px;
+       border:1px solid var(--rule);background:#fff;border-radius:6px;cursor:pointer;
+       color:var(--text-secondary)}
+  .fig-head button:hover{border-color:var(--text-secondary);color:var(--text-primary)}
+  .cap{color:var(--text-secondary);margin:2px 0 14px;max-width:96ch;font-size:12.5px}
+  .cap b{color:var(--text-primary);font-weight:600}
+  svg{display:block;overflow:visible}
+  .panel-letter{font-weight:700;font-size:13px;fill:var(--text-primary)}
+  .ax text{fill:var(--text-secondary);font-size:11px}
+  .ax line,.ax path{stroke:var(--rule);shape-rendering:crispEdges}
+  .gridline{stroke:var(--grid);shape-rendering:crispEdges}
+  .lab{font-size:11px;fill:var(--text-secondary)}
+  .lab-strong{font-size:11px;fill:var(--text-primary);font-weight:600}
+  .note{font-size:10.5px;fill:var(--text-muted)}
+  .legend{font-size:11px;fill:var(--text-secondary)}
+  .tip{position:fixed;pointer-events:none;background:#fff;border:1px solid var(--rule);
+       border-radius:6px;padding:6px 9px;font-size:11.5px;box-shadow:0 2px 10px rgba(0,0,0,.08);
+       opacity:0;transition:opacity .08s;z-index:9}
+</style>
+<header>
+  <h1>Membership inference in synthetic continuous glucose monitoring</h1>
+  <p>Figures for the npj Digital Medicine submission. One-day windows only
+     (<i>glucose</i> and <i>glucose + basal insulin</i>). Every number is read from the
+     result files in <code>results/</code>; nothing here is illustrative.
+     Each panel exports to SVG for placement in the manuscript.</p>
+</header>
+<div id="figs"></div>
+<div class="tip" id="tip"></div>
+<script>
+const DATA =
+{
+  "perSubject": {
+    "dimts_c1": [
+      {
+        "s": "Loop/1142",
+        "g": "outlier",
+        "v": 0.890625
+      },
+      {
+        "s": "DCLP5/81",
+        "g": "outlier",
+        "v": 0.8125
+      },
+      {
+        "s": "DCLP3/91",
+        "g": "outlier",
+        "v": 0.8
+      },
+      {
+        "s": "Loop/633",
+        "g": "outlier",
+        "v": 0.8
+      },
+      {
+        "s": "DCLP5/52",
+        "g": "outlier",
+        "v": 0.8148148148148148
+      },
+      {
+        "s": "Loop/100",
+        "g": "outlier",
+        "v": 0.96
+      },
+      {
+        "s": "Loop/19",
+        "g": "outlier",
+        "v": 0.8214285714285714
+      },
+      {
+        "s": "Loop/1153",
+        "g": "outlier",
+        "v": 0.5512465373961218
+      },
+      {
+        "s": "Loop/342",
+        "g": "outlier",
+        "v": 0.64
+      },
+      {
+        "s": "Loop/467",
+        "g": "outlier",
+        "v": 0.5041322314049587
+      },
+      {
+        "s": "Loop/727",
+        "g": "outlier",
+        "v": 0.5433884297520661
+      },
+      {
+        "s": "Loop/1120",
+        "g": "outlier",
+        "v": 0.625
+      },
+      {
+        "s": "Loop/968",
+        "g": "outlier",
+        "v": 0.56
+      },
+      {
+        "s": "Loop/317",
+        "g": "control",
+        "v": 0.6354166666666666
+      },
+      {
+        "s": "DCLP3/114",
+        "g": "control",
+        "v": 0.75
+      },
+      {
+        "s": "DCLP3/111",
+        "g": "control",
+        "v": 0.7
+      },
+      {
+        "s": "DCLP3/135",
+        "g": "control",
+        "v": 0.56
+      },
+      {
+        "s": "DCLP3/102",
+        "g": "control",
+        "v": 0.6666666666666666
+      },
+      {
+        "s": "DCLP3/171",
+        "g": "control",
+        "v": 0.6
+      },
+      {
+        "s": "DCLP3/134",
+        "g": "control",
+        "v": 0.6989795918367347
+      },
+      {
+        "s": "Loop/1116",
+        "g": "control",
+        "v": 0.6094182825484764
+      },
+      {
+        "s": "DCLP3/43",
+        "g": "control",
+        "v": 0.6
+      },
+      {
+        "s": "DCLP3/10",
+        "g": "control",
+        "v": 0.8677685950413223
+      },
+      {
+        "s": "Loop/1071",
+        "g": "control",
+        "v": 0.5867768595041323
+      },
+      {
+        "s": "DCLP3/144",
+        "g": "control",
+        "v": 0.875
+      },
+      {
+        "s": "DCLP3/68",
+        "g": "control",
+        "v": 0.6
+      }
+    ],
+    "dimts_c2": [
+      {
+        "s": "Loop/1142",
+        "g": "outlier",
+        "v": 0.5034722222222222
+      },
+      {
+        "s": "DCLP5/81",
+        "g": "outlier",
+        "v": 0.75
+      },
+      {
+        "s": "DCLP3/91",
+        "g": "outlier",
+        "v": 0.78
+      },
+      {
+        "s": "Loop/633",
+        "g": "outlier",
+        "v": 1.0
+      },
+      {
+        "s": "DCLP5/52",
+        "g": "outlier",
+        "v": 0.7654320987654321
+      },
+      {
+        "s": "Loop/100",
+        "g": "outlier",
+        "v": 0.72
+      },
+      {
+        "s": "Loop/19",
+        "g": "outlier",
+        "v": 0.7040816326530612
+      },
+      {
+        "s": "Loop/1153",
+        "g": "outlier",
+        "v": 0.5041551246537396
+      },
+      {
+        "s": "Loop/342",
+        "g": "outlier",
+        "v": 0.6
+      },
+      {
+        "s": "Loop/467",
+        "g": "outlier",
+        "v": 0.5206611570247934
+      },
+      {
+        "s": "Loop/727",
+        "g": "outlier",
+        "v": 0.5950413223140496
+      },
+      {
+        "s": "Loop/1120",
+        "g": "outlier",
+        "v": 0.5625
+      },
+      {
+        "s": "Loop/968",
+        "g": "outlier",
+        "v": 0.56
+      },
+      {
+        "s": "Loop/317",
+        "g": "control",
+        "v": 0.6423611111111112
+      },
+      {
+        "s": "DCLP3/114",
+        "g": "control",
+        "v": 0.625
+      },
+      {
+        "s": "DCLP3/111",
+        "g": "control",
+        "v": 0.54
+      },
+      {
+        "s": "DCLP3/135",
+        "g": "control",
+        "v": 0.44
+      },
+      {
+        "s": "DCLP3/102",
+        "g": "control",
+        "v": 0.49382716049382713
+      },
+      {
+        "s": "DCLP3/171",
+        "g": "control",
+        "v": 0.68
+      },
+      {
+        "s": "DCLP3/134",
+        "g": "control",
+        "v": 0.4846938775510204
+      },
+      {
+        "s": "Loop/1116",
+        "g": "control",
+        "v": 0.5124653739612188
+      },
+      {
+        "s": "DCLP3/43",
+        "g": "control",
+        "v": 0.6
+      },
+      {
+        "s": "DCLP3/10",
+        "g": "control",
+        "v": 0.4628099173553719
+      },
+      {
+        "s": "Loop/1071",
+        "g": "control",
+        "v": 0.5867768595041323
+      },
+      {
+        "s": "DCLP3/144",
+        "g": "control",
+        "v": 0.5
+      },
+      {
+        "s": "DCLP3/68",
+        "g": "control",
+        "v": 0.52
+      }
+    ],
+    "ours_c1": [
+      {
+        "s": "Loop/1142",
+        "g": "outlier",
+        "v": 0.9409722222222222
+      },
+      {
+        "s": "DCLP5/81",
+        "g": "outlier",
+        "v": 0.5625
+      },
+      {
+        "s": "DCLP3/91",
+        "g": "outlier",
+        "v": 0.59
+      },
+      {
+        "s": "Loop/633",
+        "g": "outlier",
+        "v": 0.6
+      },
+      {
+        "s": "DCLP5/52",
+        "g": "outlier",
+        "v": 0.48148148148148145
+      },
+      {
+        "s": "Loop/100",
+        "g": "outlier",
+        "v": 0.6
+      },
+      {
+        "s": "Loop/19",
+        "g": "outlier",
+        "v": 0.5357142857142857
+      },
+      {
+        "s": "Loop/1153",
+        "g": "outlier",
+        "v": 0.628808864265928
+      },
+      {
+        "s": "Loop/342",
+        "g": "outlier",
+        "v": 0.72
+      },
+      {
+        "s": "Loop/467",
+        "g": "outlier",
+        "v": 0.4628099173553719
+      },
+      {
+        "s": "Loop/727",
+        "g": "outlier",
+        "v": 0.5206611570247934
+      },
+      {
+        "s": "Loop/1120",
+        "g": "outlier",
+        "v": 0.375
+      },
+      {
+        "s": "Loop/968",
+        "g": "outlier",
+        "v": 0.4
+      },
+      {
+        "s": "Loop/317",
+        "g": "control",
+        "v": 0.5069444444444444
+      },
+      {
+        "s": "DCLP3/114",
+        "g": "control",
+        "v": 0.5625
+      },
+      {
+        "s": "DCLP3/111",
+        "g": "control",
+        "v": 0.48
+      },
+      {
+        "s": "DCLP3/135",
+        "g": "control",
+        "v": 0.56
+      },
+      {
+        "s": "DCLP3/102",
+        "g": "control",
+        "v": 0.49382716049382713
+      },
+      {
+        "s": "DCLP3/171",
+        "g": "control",
+        "v": 0.52
+      },
+      {
+        "s": "DCLP3/134",
+        "g": "control",
+        "v": 0.4642857142857143
+      },
+      {
+        "s": "Loop/1116",
+        "g": "control",
+        "v": 0.49584487534626037
+      },
+      {
+        "s": "DCLP3/43",
+        "g": "control",
+        "v": 0.32
+      },
+      {
+        "s": "DCLP3/10",
+        "g": "control",
+        "v": 0.5454545454545454
+      },
+      {
+        "s": "Loop/1071",
+        "g": "control",
+        "v": 0.512396694214876
+      },
+      {
+        "s": "DCLP3/144",
+        "g": "control",
+        "v": 0.5625
+      },
+      {
+        "s": "DCLP3/68",
+        "g": "control",
+        "v": 0.48
+      }
+    ],
+    "ours_c2": [
+      {
+        "s": "Loop/1142",
+        "g": "outlier",
+        "v": 0.5520833333333334
+      },
+      {
+        "s": "DCLP5/81",
+        "g": "outlier",
+        "v": 0.5
+      },
+      {
+        "s": "DCLP3/91",
+        "g": "outlier",
+        "v": 0.49
+      },
+      {
+        "s": "Loop/633",
+        "g": "outlier",
+        "v": 0.8
+      },
+      {
+        "s": "DCLP5/52",
+        "g": "outlier",
+        "v": 0.6049382716049383
+      },
+      {
+        "s": "Loop/100",
+        "g": "outlier",
+        "v": 0.6
+      },
+      {
+        "s": "Loop/19",
+        "g": "outlier",
+        "v": 0.5408163265306123
+      },
+      {
+        "s": "Loop/1153",
+        "g": "outlier",
+        "v": 0.481994459833795
+      },
+      {
+        "s": "Loop/342",
+        "g": "outlier",
+        "v": 0.44
+      },
+      {
+        "s": "Loop/467",
+        "g": "outlier",
+        "v": 0.49586776859504134
+      },
+      {
+        "s": "Loop/727",
+        "g": "outlier",
+        "v": 0.49793388429752067
+      },
+      {
+        "s": "Loop/1120",
+        "g": "outlier",
+        "v": 0.3125
+      },
+      {
+        "s": "Loop/968",
+        "g": "outlier",
+        "v": 0.48
+      },
+      {
+        "s": "Loop/317",
+        "g": "control",
+        "v": 0.5225694444444444
+      },
+      {
+        "s": "DCLP3/114",
+        "g": "control",
+        "v": 0.3125
+      },
+      {
+        "s": "DCLP3/111",
+        "g": "control",
+        "v": 0.4
+      },
+      {
+        "s": "DCLP3/135",
+        "g": "control",
+        "v": 0.44
+      },
+      {
+        "s": "DCLP3/102",
+        "g": "control",
+        "v": 0.5308641975308642
+      },
+      {
+        "s": "DCLP3/171",
+        "g": "control",
+        "v": 0.48
+      },
+      {
+        "s": "DCLP3/134",
+        "g": "control",
+        "v": 0.6173469387755102
+      },
+      {
+        "s": "Loop/1116",
+        "g": "control",
+        "v": 0.5207756232686981
+      },
+      {
+        "s": "DCLP3/43",
+        "g": "control",
+        "v": 0.52
+      },
+      {
+        "s": "DCLP3/10",
+        "g": "control",
+        "v": 0.4380165289256198
+      },
+      {
+        "s": "Loop/1071",
+        "g": "control",
+        "v": 0.48760330578512395
+      },
+      {
+        "s": "DCLP3/144",
+        "g": "control",
+        "v": 0.5
+      },
+      {
+        "s": "DCLP3/68",
+        "g": "control",
+        "v": 0.52
+      }
+    ]
+  },
+  "ablation": {
+    "c1": [
+      {
+        "k": "raw",
+        "n": 24,
+        "med": 0.6533333333333333
+      },
+      {
+        "k": "diff",
+        "n": 13,
+        "med": 0.5486980609418283
+      },
+      {
+        "k": "sorted",
+        "n": 13,
+        "med": 0.5358264462809917
+      },
+      {
+        "k": "hourly",
+        "n": 23,
+        "med": 0.6918518518518519
+      },
+      {
+        "k": "zscore",
+        "n": 15,
+        "med": 0.56
+      },
+      {
+        "k": "diff+sorted",
+        "n": 7,
+        "med": 0.48728023065181747
+      },
+      {
+        "k": "zscore+sorted",
+        "n": 6,
+        "med": 0.52
+      },
+      {
+        "k": "hourly+diff",
+        "n": 16,
+        "med": 0.5938169574533211
+      },
+      {
+        "k": "hourly+sorted",
+        "n": 11,
+        "med": 0.52
+      },
+      {
+        "k": "hourly+zscore",
+        "n": 17,
+        "med": 0.5680244270964493
+      },
+      {
+        "k": "shuffle",
+        "n": 7,
+        "med": 0.5031106201781095
+      }
+    ],
+    "c2": [
+      {
+        "k": "raw",
+        "n": 15,
+        "med": 0.5746384297520661
+      },
+      {
+        "k": "diff",
+        "n": 6,
+        "med": 0.513816075639294
+      },
+      {
+        "k": "sorted",
+        "n": 11,
+        "med": 0.5186805555555556
+      },
+      {
+        "k": "hourly",
+        "n": 18,
+        "med": 0.5798611111111112
+      },
+      {
+        "k": "zscore",
+        "n": 14,
+        "med": 0.56
+      },
+      {
+        "k": "diff+sorted",
+        "n": 5,
+        "med": 0.4896263774104683
+      },
+      {
+        "k": "zscore+sorted",
+        "n": 7,
+        "med": 0.5068381519274376
+      },
+      {
+        "k": "hourly+diff",
+        "n": 12,
+        "med": 0.5454545454545454
+      },
+      {
+        "k": "hourly+sorted",
+        "n": 12,
+        "med": 0.5130864197530864
+      },
+      {
+        "k": "hourly+zscore",
+        "n": 15,
+        "med": 0.56125
+      },
+      {
+        "k": "shuffle",
+        "n": 8,
+        "med": 0.503099173553719
+      }
+    ]
+  }
+}
+;
+/* ---------- constants read off the result files (see commit log for provenance) ---------- */
+const GAPS = [                       // frozen min/mean variant, median gap, outlier arm
+  {arm:"Copy–paste (ceiling)", c1:0.0769, c2:0.1056, kind:"ceiling"},
+  {arm:"DiM-TS",               c1:0.0101, c2:0.0181, kind:"learned"},
+  {arm:"DiffWave",             c1:0.0038, c2:0.0049, kind:"learned"},
+  {arm:"FourierDiffusion",     c1:0.0044, c2:-0.0002,kind:"learned"},
+  {arm:"Diffusion-TS",         c1:0.0017, c2:0.0010, kind:"learned"},
+  {arm:"Backbone, unmodified", c1:0.0005, c2:0.0001, kind:"learned"},
+  {arm:"This work",            c1:0.0026, c2:0.0005, kind:"ours"}
+];
+const FLOORS = [                     // permutation floor, patients of 26, per release
+  {r:"DiM-TS",           c1:7,  c2:8},
+  {r:"This work",        c1:10, c2:5},
+  {r:"Backbone",         c1:5,  c2:6},
+  {r:"Diffusion-TS",     c1:8,  c2:4},
+  {r:"DiffWave",         c1:8,  c2:11},
+  {r:"FourierDiffusion", c1:5,  c2:3}
+];
+const EXPOSED = [                    // raw count above AUC 0.55, patients of 26
+  {r:"DiM-TS",           c1:24, c2:15},
+  {r:"This work",        c1:10, c2:5},
+  {r:"Backbone",         c1:6,  c2:7},
+  {r:"Diffusion-TS",     c1:7,  c2:8},
+  {r:"DiffWave",         c1:12, c2:13},
+  {r:"FourierDiffusion", c1:7,  c2:6}
+];
+const IDENT = [                      // real windows, leave-one-day-out top-1, within study
+  {ch:"Basal insulin alone", v:29.3},
+  {ch:"Glucose alone",       v:2.6},
+  {ch:"Chance",              v:0.114}
+];
+const ARMSPLIT = [                   // DiM-TS: exposed patients, by arm
+  {arm:"Matched controls", c1:13, c2:5,  n:13},
+  {arm:"Atypical",         c1:11, c2:10, n:13}
+];
+const FIDELITY = [                   // Context-FID of the base release
+  {arm:"Copy–paste",        c1:0.0335, c2:0.0425},
+  {arm:"This work",         c1:0.0383, c2:0.0551},
+  {arm:"DiM-TS",            c1:0.0948, c2:0.1590},
+  {arm:"FourierDiffusion",  c1:0.1000, c2:0.1943},
+  {arm:"DiffWave",          c1:0.3675, c2:0.4905},
+  {arm:"Diffusion-TS",      c1:0.4224, c2:2.0576}
+];
+const C = {s1:"var(--s1)", s2:"var(--s2)", s3:"var(--s3)", floor:"var(--floor)"};
+const tip = d3.select("#tip");
+const show = (ev, html) => tip.style("opacity",1).html(html)
+  .style("left",(ev.clientX+14)+"px").style("top",(ev.clientY-10)+"px");
+const hide = () => tip.style("opacity",0);
+
+function figure(id, title, caption){
+  const box = d3.select("#figs").append("section").attr("class","fig");
+  const head = box.append("div").attr("class","fig-head");
+  head.append("h2").text(title);
+  head.append("button").text("Download SVG").on("click",()=>exportSVG(id,title));
+  box.append("div").attr("class","cap").html(caption);
+  return box.append("svg").attr("id",id);
+}
+function exportSVG(id,title){
+  const node = document.getElementById(id).cloneNode(true);
+  // inline the computed colours so the file stands alone outside this page
+  const cs = getComputedStyle(document.documentElement);
+  let s = new XMLSerializer().serializeToString(node);
+  ["--s1","--s2","--s3","--floor","--text-primary","--text-secondary","--text-muted",
+   "--rule","--grid","--surface-1"].forEach(v=>{
+    s = s.split(`var(${v})`).join(cs.getPropertyValue(v).trim());
+  });
+  s = s.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
+  const url = URL.createObjectURL(new Blob([s],{type:"image/svg+xml"}));
+  const a = document.createElement("a");
+  a.href = url; a.download = title.toLowerCase().replace(/[^a-z0-9]+/g,"-")+".svg";
+  a.click(); URL.revokeObjectURL(url);
+}
+function panelLetter(g,letter,x=-34,y=-10){
+  g.append("text").attr("class","panel-letter").attr("x",x).attr("y",y).text(letter);
+}
+function axis(g,scale,orient,opts={}){
+  const ax = orient==="bottom" ? d3.axisBottom(scale) : d3.axisLeft(scale);
+  if(opts.ticks) ax.ticks(opts.ticks);
+  if(opts.fmt) ax.tickFormat(opts.fmt);
+  if(opts.values) ax.tickValues(opts.values);
+  const sel = g.append("g").attr("class","ax").call(ax.tickSizeOuter(0));
+  sel.select(".domain").attr("stroke","var(--rule)");
+  return sel;
+}
+/* ===================== FIGURE 1 — the instrument ===================== */
+{
+const svg = figure("fig1","Figure 1",
+  "<b>The membership statistic resolves between a memorisation ceiling and a permutation floor.</b> "+
+  "<b>a</b>, Each target patient yields one pair of generators that differ by that patient and nothing "+
+  "else; the statistic is how much closer the patient's real windows sit to the release that saw them. "+
+  "<b>b</b>, Median gap by generator. A construction that memorises by definition sits an order of "+
+  "magnitude above every learned model. <b>c</b>, The count of patients recoverable above AUC 0.55 under "+
+  "<i>permuted</i> membership — the floor — is 3 to 11 of 26 across the twelve released datasets, not near zero.");
+const W=1060,H=300; svg.attr("viewBox",`0 0 ${W} ${H}`).attr("width","100%");
+
+/* --- a: schematic --- */
+const a = svg.append("g").attr("transform","translate(52,46)");
+panelLetter(a,"a");
+const boxw=150,boxh=44;
+const draw=(x,y,fill,stroke,t1,t2)=>{
+  a.append("rect").attr("x",x).attr("y",y).attr("width",boxw).attr("height",boxh).attr("rx",7)
+    .attr("fill",fill).attr("stroke",stroke).attr("stroke-width",1.5);
+  a.append("text").attr("x",x+boxw/2).attr("y",y+18).attr("text-anchor","middle")
+    .attr("class","lab-strong").text(t1);
+  a.append("text").attr("x",x+boxw/2).attr("y",y+33).attr("text-anchor","middle")
+    .attr("class","lab").text(t2);
+};
+draw(0,0,"#fff","var(--rule)","Background","475 subjects");
+draw(0,74,"#fff",C.s1,"Background + 1","+ target t");
+a.append("text").attr("x",boxw/2).attr("y",boxh+22).attr("text-anchor","middle")
+  .attr("class","note").text("identical seed, params, budget");
+[0,74].forEach((y,i)=>{
+  a.append("path").attr("d",`M${boxw+8},${y+boxh/2} L${boxw+52},${y+boxh/2}`)
+    .attr("stroke",i?C.s1:"var(--rule)").attr("stroke-width",2).attr("fill","none");
+  a.append("text").attr("x",boxw+62).attr("y",y+boxh/2+4).attr("class","lab")
+    .text(i?"release seen by t":"release blind to t");
+});
+a.append("text").attr("x",0).attr("y",152).attr("class","lab-strong")
+  .text("gap = d(real t → blind release) − d(real t → seen release)");
+a.append("text").attr("x",0).attr("y",170).attr("class","note")
+  .text("26 pairs: 13 atypical targets, 13 duration-matched controls.");
+a.append("text").attr("x",0).attr("y",186).attr("class","note")
+  .text("All pairs share one background generator, so gaps are correlated.");
+
+/* --- b: ceiling --- */
+const b = svg.append("g").attr("transform","translate(430,46)");
+panelLetter(b,"b");
+const bw=250,bh=184;
+const y=d3.scaleBand().domain(GAPS.map(d=>d.arm)).range([0,bh]).padding(0.34);
+const x=d3.scaleLinear().domain([0,0.11]).range([0,bw]);
+x.ticks(4).forEach(t=>b.append("line").attr("class","gridline")
+  .attr("x1",x(t)).attr("x2",x(t)).attr("y1",0).attr("y2",bh));
+GAPS.forEach(d=>{
+  const col = d.kind==="ceiling"?C.floor : d.kind==="ours"?C.s1:C.s2;
+  b.append("rect").attr("x",x(0)).attr("y",y(d.arm)).attr("height",y.bandwidth())
+    .attr("width",Math.max(1.5,x(Math.max(d.c1,0))-x(0))).attr("rx",3).attr("fill",col)
+    .on("mousemove",e=>show(e,`<b>${d.arm}</b><br>median gap ${d.c1.toFixed(4)}`)).on("mouseleave",hide);
+  b.append("text").attr("x",x(Math.max(d.c1,0))+6).attr("y",y(d.arm)+y.bandwidth()/2+3.5)
+    .attr("class","lab").text(d.c1.toFixed(4));
+});
+axis(b.append("g").attr("transform",`translate(0,${bh})`),x,"bottom",{ticks:4});
+GAPS.forEach(d=>b.append("text").attr("x",-8).attr("y",y(d.arm)+y.bandwidth()/2+3.5)
+  .attr("text-anchor","end").attr("class",d.kind==="ours"?"lab-strong":"lab").text(d.arm));
+b.append("text").attr("x",bw/2).attr("y",bh+34).attr("text-anchor","middle").attr("class","lab")
+  .text("median gap, glucose only");
+
+/* --- c: floor --- */
+const c = svg.append("g").attr("transform","translate(800,46)");
+panelLetter(c,"c");
+const cw=200,ch=184;
+const cx=d3.scaleLinear().domain([0,13]).range([0,cw]);
+const cy=d3.scaleBand().domain(FLOORS.map(d=>d.r)).range([0,ch]).padding(0.4);
+[0,5,10].forEach(t=>c.append("line").attr("class","gridline")
+  .attr("x1",cx(t)).attr("x2",cx(t)).attr("y1",-6).attr("y2",ch));
+FLOORS.forEach(d=>{
+  c.append("line").attr("x1",cx(d.c1)).attr("x2",cx(d.c2))
+    .attr("y1",cy(d.r)+cy.bandwidth()/2).attr("y2",cy(d.r)+cy.bandwidth()/2)
+    .attr("stroke","var(--rule)").attr("stroke-width",2);
+  [["c1",C.s1],["c2",C.s2]].forEach(([k,col])=>{
+    c.append("circle").attr("cx",cx(d[k])).attr("cy",cy(d.r)+cy.bandwidth()/2).attr("r",5)
+      .attr("fill",col).attr("stroke","var(--surface-1)").attr("stroke-width",2)
+      .on("mousemove",e=>show(e,`<b>${d.r}</b><br>floor ${d[k]} of 26 (${k==="c1"?"glucose":"glucose+basal"})`))
+      .on("mouseleave",hide);
+  });
+  c.append("text").attr("x",-8).attr("y",cy(d.r)+cy.bandwidth()/2+3.5).attr("text-anchor","end")
+    .attr("class","lab").text(d.r);
+});
+axis(c.append("g").attr("transform",`translate(0,${ch})`),cx,"bottom",{values:[0,5,10]});
+c.append("text").attr("x",cw/2).attr("y",ch+34).attr("text-anchor","middle").attr("class","lab")
+  .text("floor: patients of 26 above AUC 0.55");
+const lg=c.append("g").attr("transform",`translate(0,${-26})`);
+[["Glucose only",C.s1,0],["Glucose + basal",C.s2,96]].forEach(([t,col,dx])=>{
+  lg.append("circle").attr("cx",dx+4).attr("cy",-4).attr("r",4.5).attr("fill",col);
+  lg.append("text").attr("x",dx+13).attr("y",-0.5).attr("class","legend").text(t);
+});
+}
+/* ===================== FIGURE 2 — where the signal lives ===================== */
+{
+const ORDER = ["raw","hourly","sorted","diff","zscore","diff+sorted","shuffle"];
+const NAME  = {raw:"Untouched", hourly:"Within-hour detail\nremoved",
+  sorted:"Temporal ordering\ndestroyed", diff:"Absolute level\nremoved",
+  zscore:"Level + amplitude\nremoved", "diff+sorted":"Level AND ordering\nremoved",
+  shuffle:"All structure\ndestroyed (floor)"};
+const get=(cell,k)=>DATA.ablation[cell].find(d=>d.k===k);
+const svg = figure("fig2","Figure 2",
+  "<b>Two coordinates carry the entire recoverable signal.</b> Patients of 26 recoverable above "+
+  "AUC 0.55 after destroying one coordinate of the released windows and repeating the attack unchanged, "+
+  "for the strongest learned generator. Removing within-hour detail costs nothing. Removing absolute "+
+  "level, or temporal ordering, each roughly halves exposure. Removing <i>both</i> reaches the "+
+  "permutation floor — nothing measurable is left. Dashed rules mark each release's own floor.");
+const W=1060,H=330; svg.attr("viewBox",`0 0 ${W} ${H}`).attr("width","100%");
+const g = svg.append("g").attr("transform","translate(58,30)");
+const w=940,h=214;
+const x=d3.scaleBand().domain(ORDER).range([0,w]).padding(0.3);
+const xi=d3.scaleBand().domain(["c1","c2"]).range([0,x.bandwidth()]).padding(0.16);
+const y=d3.scaleLinear().domain([0,26]).range([h,0]);
+[0,5,10,15,20,25].forEach(t=>g.append("line").attr("class","gridline")
+  .attr("x1",0).attr("x2",w).attr("y1",y(t)).attr("y2",y(t)));
+ORDER.forEach(k=>{
+  ["c1","c2"].forEach(cell=>{
+    const d=get(cell,k); if(!d) return;
+    const col = k==="shuffle" ? C.floor : (cell==="c1"?C.s1:C.s2);
+    g.append("rect").attr("x",x(k)+xi(cell)).attr("y",y(d.n))
+      .attr("width",xi.bandwidth()).attr("height",h-y(d.n)).attr("rx",4).attr("fill",col)
+      .on("mousemove",e=>show(e,`<b>${NAME[k].replace("\n"," ")}</b><br>`+
+        `${cell==="c1"?"glucose only":"glucose + basal"}<br>${d.n} of 26 · median AUC ${d.med.toFixed(3)}`))
+      .on("mouseleave",hide);
+    g.append("text").attr("x",x(k)+xi(cell)+xi.bandwidth()/2).attr("y",y(d.n)-6)
+      .attr("text-anchor","middle").attr("class","lab").text(d.n);
+  });
+});
+// per-cell floor rules
+[["c1",C.s1],["c2",C.s2]].forEach(([cell,col])=>{
+  const f=get(cell,"shuffle").n;
+  g.append("line").attr("x1",0).attr("x2",w).attr("y1",y(f)).attr("y2",y(f))
+    .attr("stroke",col).attr("stroke-width",1.5).attr("stroke-dasharray","5 4").attr("opacity",.65);
+  g.append("text").attr("x",w+6).attr("y",y(f)+3.5).attr("class","lab").attr("fill",col)
+    .text(`floor ${f}`);
+});
+axis(g,y,"left",{values:[0,5,10,15,20,25]});
+g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-38)
+  .attr("text-anchor","middle").attr("class","lab").text("patients recoverable, of 26");
+ORDER.forEach(k=>{
+  const lines=NAME[k].split("\n");
+  lines.forEach((ln,i)=>g.append("text").attr("x",x(k)+x.bandwidth()/2)
+    .attr("y",h+18+i*13).attr("text-anchor","middle")
+    .attr("class",k==="shuffle"?"note":"lab").text(ln));
+});
+const lg=g.append("g").attr("transform",`translate(0,${h+62})`);
+[["Glucose only",C.s1,0],["Glucose + basal insulin",C.s2,120]].forEach(([t,col,dx])=>{
+  lg.append("rect").attr("x",dx).attr("y",-9).attr("width",11).attr("height",11).attr("rx",2.5).attr("fill",col);
+  lg.append("text").attr("x",dx+17).attr("y",0).attr("class","legend").text(t);
+});
+}
+
+/* ===================== FIGURE 3 — the channel question ===================== */
+{
+const svg = figure("fig3","Figure 3",
+  "<b>Basal insulin is the identifying channel in real recordings, yet adding it lowers measured "+
+  "exposure — by degrading the release.</b> <b>a</b>, Leave-one-day-out subject retrieval on <i>real</i> "+
+  "windows, ranked within source study. <b>b</b>, Patients exposed by the strongest generator, by arm: "+
+  "adding basal takes matched controls from 13 of 13 to 5, while atypical patients barely move. "+
+  "<b>c</b>, Every generator fits two channels worse. All three panels are needed: any two of them "+
+  "support the wrong conclusion.");
+const W=1060,H=300; svg.attr("viewBox",`0 0 ${W} ${H}`).attr("width","100%");
+
+/* a — real identifiability */
+const a=svg.append("g").attr("transform","translate(58,44)");
+panelLetter(a,"a");
+const aw=210,ah=176;
+const ay=d3.scaleBand().domain(IDENT.map(d=>d.ch)).range([0,ah]).padding(0.42);
+const ax=d3.scaleLinear().domain([0,32]).range([0,aw]);
+[0,10,20,30].forEach(t=>a.append("line").attr("class","gridline")
+  .attr("x1",ax(t)).attr("x2",ax(t)).attr("y1",0).attr("y2",ah));
+IDENT.forEach((d,i)=>{
+  a.append("rect").attr("x",0).attr("y",ay(d.ch)).attr("height",ay.bandwidth())
+    .attr("width",Math.max(2,ax(d.v))).attr("rx",3)
+    .attr("fill",i===0?C.s2:i===1?C.s1:C.floor)
+    .on("mousemove",e=>show(e,`<b>${d.ch}</b><br>top-1 ${d.v}%`)).on("mouseleave",hide);
+  a.append("text").attr("x",Math.max(2,ax(d.v))+6).attr("y",ay(d.ch)+ay.bandwidth()/2+4)
+    .attr("class","lab-strong").text(d.v+"%");
+  a.append("text").attr("x",0).attr("y",ay(d.ch)-6).attr("class","lab").text(d.ch);
+});
+axis(a.append("g").attr("transform",`translate(0,${ah})`),ax,"bottom",{values:[0,10,20,30],fmt:d=>d+"%"});
+a.append("text").attr("x",aw/2).attr("y",ah+36).attr("text-anchor","middle").attr("class","lab")
+  .text("one real day identifies its subject");
+
+/* b — exposure by arm */
+const b=svg.append("g").attr("transform","translate(420,44)");
+panelLetter(b,"b");
+const bw=190,bh=176;
+const bx=d3.scalePoint().domain(["c1","c2"]).range([14,bw-14]);
+const by=d3.scaleLinear().domain([0,14]).range([bh,0]);
+[0,5,10].forEach(t=>b.append("line").attr("class","gridline")
+  .attr("x1",0).attr("x2",bw).attr("y1",by(t)).attr("y2",by(t)));
+ARMSPLIT.forEach((d,i)=>{
+  const col=i===0?C.s3:C.s2;
+  b.append("path").attr("d",`M${bx("c1")},${by(d.c1)} L${bx("c2")},${by(d.c2)}`)
+    .attr("stroke",col).attr("stroke-width",2.5).attr("fill","none");
+  ["c1","c2"].forEach(k=>b.append("circle").attr("cx",bx(k)).attr("cy",by(d[k])).attr("r",5.5)
+    .attr("fill",col).attr("stroke","var(--surface-1)").attr("stroke-width",2)
+    .on("mousemove",e=>show(e,`<b>${d.arm}</b><br>${d[k]} of ${d.n} exposed`)).on("mouseleave",hide));
+  b.append("text").attr("x",bx("c1")-10).attr("y",by(d.c1)+4).attr("text-anchor","end")
+    .attr("class","lab-strong").attr("fill",col).text(d.c1);
+  b.append("text").attr("x",bx("c2")+10).attr("y",by(d.c2)+4)
+    .attr("class","lab-strong").attr("fill",col).text(d.c2);
+  b.append("text").attr("x",bx("c2")+10).attr("y",by(d.c2)+18).attr("class","lab").text(d.arm);
+});
+axis(b,by,"left",{values:[0,5,10]});
+["Glucose","+ basal"].forEach((t,i)=>b.append("text").attr("x",bx(i?"c2":"c1"))
+  .attr("y",bh+18).attr("text-anchor","middle").attr("class","lab").text(t));
+b.append("text").attr("transform","rotate(-90)").attr("x",-bh/2).attr("y",-32)
+  .attr("text-anchor","middle").attr("class","lab").text("patients exposed (of 13 per arm)");
+
+/* c — fidelity */
+const c=svg.append("g").attr("transform","translate(740,44)");
+panelLetter(c,"c");
+const cw=230,chh=176;
+const cxs=d3.scalePoint().domain(["c1","c2"]).range([14,cw-14]);
+const cys=d3.scaleLog().domain([0.03,2.2]).range([chh,0]);
+[0.03,0.1,0.3,1,2].forEach(t=>c.append("line").attr("class","gridline")
+  .attr("x1",0).attr("x2",cw).attr("y1",cys(t)).attr("y2",cys(t)));
+FIDELITY.forEach(d=>{
+  const ours=d.arm==="This work";
+  const col=ours?C.s1:(d.arm==="Copy–paste"?C.floor:"var(--text-muted)");
+  c.append("path").attr("d",`M${cxs("c1")},${cys(d.c1)} L${cxs("c2")},${cys(d.c2)}`)
+    .attr("stroke",col).attr("stroke-width",ours?2.5:1.5).attr("fill","none").attr("opacity",ours?1:.8);
+  ["c1","c2"].forEach(k=>c.append("circle").attr("cx",cxs(k)).attr("cy",cys(d[k]))
+    .attr("r",ours?5:4).attr("fill",col).attr("stroke","var(--surface-1)").attr("stroke-width",1.5)
+    .on("mousemove",e=>show(e,`<b>${d.arm}</b><br>Context-FID ${d[k].toFixed(4)}`)).on("mouseleave",hide));
+  c.append("text").attr("x",cxs("c2")+8).attr("y",cys(d.c2)+3.5)
+    .attr("class",ours?"lab-strong":"lab").attr("fill",ours?C.s1:"var(--text-secondary)").text(d.arm);
+});
+axis(c,cys,"left",{values:[0.03,0.1,0.3,1,2],fmt:d3.format("~g")});
+["Glucose","+ basal"].forEach((t,i)=>c.append("text").attr("x",cxs(i?"c2":"c1"))
+  .attr("y",chh+18).attr("text-anchor","middle").attr("class","lab").text(t));
+c.append("text").attr("transform","rotate(-90)").attr("x",-chh/2).attr("y",-36)
+  .attr("text-anchor","middle").attr("class","lab").text("Context-FID (log, lower is better)");
+}
+/* ===================== FIGURE 4 — removing the capacity ===================== */
+{
+const svg = figure("fig4","Figure 4",
+  "<b>Removing the capacity that stores absolute level returns exposure to the floor, at no cost in "+
+  "fidelity.</b> <b>a</b>, Per-patient recoverability for the strongest baseline and for this work, "+
+  "glucose only. Each mark is one patient; the grey band is that release's own permutation floor "+
+  "region. <b>b</b>, Exposed patients against each release's own floor — the excess, not the raw count, "+
+  "is the signal. <b>c</b>, Median gap per arm with the within-arm significance of a positive gap.");
+const W=1060,H=320; svg.attr("viewBox",`0 0 ${W} ${H}`).attr("width","100%");
+
+/* a — per-patient strip */
+const a=svg.append("g").attr("transform","translate(58,44)");
+panelLetter(a,"a");
+const aw=330,ah=190;
+const rows=[{k:"dimts_c1",lab:"DiM-TS",floor:7},{k:"ours_c1",lab:"This work",floor:10}];
+const ay=d3.scalePoint().domain(rows.map(r=>r.lab)).range([44,ah-30]);
+const ax=d3.scaleLinear().domain([0.4,1]).range([0,aw]);
+a.append("rect").attr("x",ax(0.4)).attr("y",0).attr("width",ax(0.55)-ax(0.4)).attr("height",ah-14)
+  .attr("fill","var(--grid)").attr("opacity",.9);
+a.append("text").attr("x",ax(0.55)-4).attr("y",12).attr("text-anchor","end").attr("class","note")
+  .text("at or below 0.55");
+[0.4,0.6,0.8,1].forEach(t=>a.append("line").attr("class","gridline")
+  .attr("x1",ax(t)).attr("x2",ax(t)).attr("y1",0).attr("y2",ah-14));
+rows.forEach(r=>{
+  const pts=DATA.perSubject[r.k];
+  a.append("text").attr("x",0).attr("y",ay(r.lab)-20).attr("class","lab-strong").text(r.lab);
+  pts.forEach((p,i)=>{
+    const jitter=((i%5)-2)*3.4;
+    a.append("circle").attr("cx",ax(Math.max(0.4,Math.min(1,p.v)))).attr("cy",ay(r.lab)+jitter)
+      .attr("r",4).attr("fill",p.g==="outlier"?C.s2:C.s3)
+      .attr("fill-opacity",.82).attr("stroke","var(--surface-1)").attr("stroke-width",1.2)
+      .on("mousemove",e=>show(e,`<b>${p.s}</b><br>${p.g==="outlier"?"atypical":"matched control"} · AUC ${p.v.toFixed(3)}`))
+      .on("mouseleave",hide);
+  });
+});
+axis(a.append("g").attr("transform",`translate(0,${ah-14})`),ax,"bottom",{values:[0.4,0.6,0.8,1.0]});
+a.append("text").attr("x",aw/2).attr("y",ah+22).attr("text-anchor","middle").attr("class","lab")
+  .text("per-patient membership AUC, glucose only");
+const alg=a.append("g").attr("transform","translate(0,-24)");
+[["Atypical",C.s2,0],["Matched control",C.s3,78]].forEach(([t,col,dx])=>{
+  alg.append("circle").attr("cx",dx+4).attr("cy",-4).attr("r",4.5).attr("fill",col);
+  alg.append("text").attr("x",dx+13).attr("y",-0.5).attr("class","legend").text(t);
+});
+
+/* b — exposed vs own floor */
+const b=svg.append("g").attr("transform","translate(470,44)");
+panelLetter(b,"b");
+const bw=250,bh=190;
+const by=d3.scaleBand().domain(EXPOSED.map(d=>d.r)).range([0,bh]).padding(0.38);
+const bx=d3.scaleLinear().domain([0,26]).range([0,bw]);
+[0,10,20].forEach(t=>b.append("line").attr("class","gridline")
+  .attr("x1",bx(t)).attr("x2",bx(t)).attr("y1",0).attr("y2",bh));
+EXPOSED.forEach(d=>{
+  const f=FLOORS.find(x=>x.r===d.r).c1, e=d.c1, excess=e-f;
+  const yy=by(d.r)+by.bandwidth()/2;
+  b.append("line").attr("x1",bx(Math.min(f,e))).attr("x2",bx(Math.max(f,e))).attr("y1",yy).attr("y2",yy)
+    .attr("stroke",excess>0?C.s2:"var(--rule)").attr("stroke-width",3).attr("opacity",.5);
+  b.append("circle").attr("cx",bx(f)).attr("cy",yy).attr("r",5).attr("fill","var(--surface-1)")
+    .attr("stroke",C.floor).attr("stroke-width",2)
+    .on("mousemove",e2=>show(e2,`<b>${d.r}</b><br>permutation floor ${f}`)).on("mouseleave",hide);
+  b.append("circle").attr("cx",bx(e)).attr("cy",yy).attr("r",5.5)
+    .attr("fill",d.r==="This work"?C.s1:C.s2)
+    .attr("stroke","var(--surface-1)").attr("stroke-width",1.5)
+    .on("mousemove",e2=>show(e2,`<b>${d.r}</b><br>exposed ${e} of 26 · floor ${f} · excess ${excess>0?"+":""}${excess}`))
+    .on("mouseleave",hide);
+  b.append("text").attr("x",bx(Math.max(f,e))+8).attr("y",yy+3.5)
+    .attr("class",excess>=7?"lab-strong":"lab").text((excess>0?"+":"")+excess);
+  b.append("text").attr("x",-8).attr("y",yy+3.5).attr("text-anchor","end")
+    .attr("class",d.r==="This work"?"lab-strong":"lab").text(d.r);
+});
+axis(b.append("g").attr("transform",`translate(0,${bh})`),bx,"bottom",{values:[0,10,20]});
+b.append("text").attr("x",bw/2).attr("y",bh+34).attr("text-anchor","middle").attr("class","lab")
+  .text("patients of 26 · ○ floor, ● exposed");
+
+/* c — gap and significance */
+const c=svg.append("g").attr("transform","translate(830,44)");
+panelLetter(c,"c");
+const cw=180,chh=190;
+const SIG=[{arm:"DiM-TS",g:0.0101,p:0.0001},{arm:"This work",g:0.0026,p:0.0636}];
+const cy2=d3.scaleBand().domain(SIG.map(d=>d.arm)).range([0,110]).padding(0.45);
+const cx2=d3.scaleLinear().domain([0,0.012]).range([0,cw]);
+[0,0.005,0.01].forEach(t=>c.append("line").attr("class","gridline")
+  .attr("x1",cx2(t)).attr("x2",cx2(t)).attr("y1",0).attr("y2",110));
+SIG.forEach(d=>{
+  const col=d.arm==="This work"?C.s1:C.s2;
+  c.append("rect").attr("x",0).attr("y",cy2(d.arm)).attr("height",cy2.bandwidth())
+    .attr("width",cx2(d.g)).attr("rx",3).attr("fill",col)
+    .on("mousemove",e=>show(e,`<b>${d.arm}</b><br>median gap ${d.g.toFixed(4)}<br>p = ${d.p<0.001?"<0.001":d.p.toFixed(3)}`))
+    .on("mouseleave",hide);
+  c.append("text").attr("x",cx2(d.g)+7).attr("y",cy2(d.arm)+cy2.bandwidth()/2+3.5)
+    .attr("class","lab-strong").attr("fill",col)
+    .text(d.p<0.001?"p < 0.001":`p = ${d.p.toFixed(3)}`);
+  c.append("text").attr("x",0).attr("y",cy2(d.arm)-6).attr("class","lab").text(d.arm);
+});
+axis(c.append("g").attr("transform","translate(0,110)"),cx2,"bottom",{values:[0,0.005,0.01]});
+c.append("text").attr("x",cw/2).attr("y",144).attr("text-anchor","middle").attr("class","lab")
+  .text("median gap, atypical arm");
+c.append("text").attr("x",0).attr("y",172).attr("class","note")
+  .text("p is the within-arm test that the gap");
+c.append("text").attr("x",0).attr("y",186).attr("class","note")
+  .text("is positive at all, glucose only.");
+}
+
+/* palette validator — open the console to see the six checks */
+document.body.setAttribute("data-palette","#2a78d6,#eb6834,#1baf7a");
+console.log("%cPalette in use","font-weight:bold",
+  "#2a78d6 (blue) #eb6834 (orange) #1baf7a (aqua) — first three slots of the validated "+
+  "categorical theme, which is the set that clears the all-pairs gates in both modes.");
+</script>
