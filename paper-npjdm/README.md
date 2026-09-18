@@ -4,7 +4,8 @@ Target: **npj Digital Medicine**, Collection *"Synthetic Clinical Data and
 Privacy-Preserving Frameworks for Trustworthy Health AI"*
 (<https://www.nature.com/collections/gggjgihcjj>), deadline **2027-07-01**.
 
-* `PAPER_PLAN.md` — section-by-section plan, the numbers each section must carry,
+* `STRUCTURE.md` — the agreed paper skeleton, modelled on the reference. **Start here.**
+* `PAPER_PLAN.md` — section-by-section working notes, the numbers each section must carry,
   the open action items, and the claims we must not overstate. **Read this first.**
 * `figs/` — figures.
 
