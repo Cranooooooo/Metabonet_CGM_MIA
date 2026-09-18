@@ -88,11 +88,15 @@ Establishes that the measurement resolves at all, and corrects how such numbers 
 **per released dataset**. A copy-paste generator, which memorises by construction, sets the
 ceiling. *This is a finding about the instrument, not a methods paragraph.*
 
-### R2. Re-identification risk is not uniform across patients and concentrates in those with atypical glucose profiles
-*Table 1 — seven generators × two compositions × (fidelity, arm AUC, above-floor count).*
+### R2. Membership is recoverable for nearly every patient from glucose alone, and most confidently for those with atypical profiles
+*Table 1 — seven generators × two compositions × (fidelity, arm AUC, exposed vs floor).*
 
-The headline. DiM-TS: **24 of 26** above 0.55 against its own floor of 7 (`d1_c1`);
-**15 vs 8** (`d1_c2`). Report the floor-adjusted excess, not the raw count.
+The headline, and **not** the one an earlier draft assumed. DiM-TS exposes **24 of 26**
+from glucose alone against its own floor of **7** — but of those 24, **13 of 13 are matched
+controls** and only 11 of 13 are atypical. By count, exposure is *universal*, not
+concentrated. The concentration is in **severity**: median per-patient AUC **0.80** in the
+atypical arm against **0.635** in the control arm, where permuted membership gives 0.51 and
+0.50. Most exposed patient reaches **0.96**. A threshold count alone hides this.
 
 ### R3. The membership signal is carried by absolute glucose level and by temporal ordering
 *Fig. 2 — ablation of each coordinate.*
@@ -100,15 +104,25 @@ The headline. DiM-TS: **24 of 26** above 0.55 against its own floor of 7 (`d1_c1
 Destroying absolute level drops risk 0.65 → 0.55; destroying temporal order drops it too.
 Two separable coordinates. This is the mechanism, and it licenses both interventions below.
 
-### R4. Basal insulin is the identifying channel in real recordings, yet adding it does not increase leakage from synthetic release
-*Fig. 3 — real-data identifiability vs measured leakage vs fidelity.*
+### R4. Adding basal insulin protects typical patients but leaves atypical patients exposed
+*Fig. 3 — real-data identifiability, measured exposure by arm, and fidelity, on one panel.*
 
-On **real** windows, one day of basal alone identifies a subject **29.3 %** of the time
-(61× chance) against **1.5–2.6 %** for glucose. Basal is a programmed schedule — level-like,
-and therefore identifying, which connects back to R3. But the synthetic-release attack does
-**not** show more leakage when basal is added, and fidelity falls in every generator.
-⚠️ Direction is mixed across arms; see `PAPER_PLAN.md` §5.4 for the measured table.
+The composition change separates the arms that glucose alone left indistinguishable:
+matched controls fall **13/13 → 5/13**, atypical targets only **11/13 → 10/13**. The
+protection accrues almost entirely to patients who were already typical.
 
+This is the **opposite** of what the real recordings predict: one day of basal alone
+identifies its subject **29.3 %** of the time (chance 0.11 %) against **1.5–2.6 %** for
+glucose. Basal is a programmed schedule — person-stable and close in character to the
+absolute level R3 names as the carrier.
+
+The resolution is on the fidelity axis: **every** generator fits two channels worse, the
+release is noisier, and membership signal is lost along with fidelity. What survives is the
+signal that was strongest to begin with — the atypical patients. So adding an intrinsically
+more identifying channel lowers measured exposure by degrading the release, and leaves the
+most vulnerable patients where they were.
+
+⚠️ Any two of the three quantities support the wrong conclusion. Fig. 3 must carry all three.
 ### R5. Removing the model capacity that stores absolute level returns membership signal to the permutation floor
 *Fig. 4 — the two modules and their effect.*
 

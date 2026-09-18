@@ -98,8 +98,9 @@ TODO --- Fig.~\ref{fig:design}. Establish that the measurement resolves, and
 correct how such numbers are read: ``patients above AUC 0.55'' has a floor of
 7--12 of 26, not ${\sim}1$, and the floor is computed per released dataset.
 
-\subsection{Re-identification risk is not uniform across patients and
-concentrates in those with atypical glucose profiles}\label{subsec:concentration}
+\subsection{Membership is recoverable for nearly every patient from glucose
+alone, and most confidently for those with atypical
+profiles}\label{subsec:concentration}
 
 We applied the paired design to seven generators across the two data
 compositions (Table~\ref{tab:benchmark}). Read as a raw count, the number of
@@ -107,24 +108,33 @@ patients whose membership is recoverable above \mbox{AUC 0.55} suggests that
 every generator leaks: the counts range from 5 to 24 of 26. The permutation
 floor removes that impression. Once each released dataset is compared against
 its own floor, the generators separate sharply, and the separation does not
-track generation fidelity.
+track generation fidelity. The strongest published generator in our comparison,
+DiM-TS, exposes \textbf{24 of 26} patients from glucose alone against a floor of
+\textbf{7}. DiffWave, whose fidelity is an order of magnitude worse, sits at an
+excess of four patients over its floor; Diffusion-TS at $-1$; FourierDiffusion
+at two. The two best-fitting learned generators in the table occupy opposite
+extremes of the exposure column.
 
-The strongest published generator in our comparison, DiM-TS, exposes
-\textbf{24 of 26} patients on the glucose-only composition against a floor of
-\textbf{7}, an excess of 17 patients, and 15 against a floor of 8 once basal
-insulin is added. No other learned generator approaches this. DiffWave, whose
-fidelity is an order of magnitude worse, sits at an excess of 4 and 2;
-Diffusion-TS at $-1$ and 4; FourierDiffusion at 2 and 3. Fidelity and exposure
-are therefore not two ends of a single axis: the two best-fitting learned
-generators in the table occupy opposite extremes of the exposure column.
+Exposure at this level is not confined to unusual patients. Of the 24 patients
+DiM-TS exposes from glucose alone, \textbf{13 of 13 are matched controls} and 11
+of 13 are the atypical targets --- that is, every typical patient in the design
+is recoverable, and marginally more reliably than the atypical ones. A study
+that reported only the count would conclude that atypical physiology confers no
+additional risk.
 
-TODO --- the concentration within a leaking release. State the outlier/control
-split of the 24 exposed patients, the median per-patient AUC in each arm, and
-the identity and score of the most exposed subject.
+The severity of the exposure tells the opposite story. Within the same release
+the median per-patient AUC is \textbf{0.80} in the atypical arm against
+\textbf{0.635} in the matched control arm, where the same quantity computed on
+permuted membership sits at 0.51 and 0.50 respectively. The most exposed
+patient, an atypical one, reaches \mbox{AUC 0.96}; the second, also atypical,
+0.89. Atypical patients are therefore not exposed \emph{more often} under this
+composition --- they are exposed \emph{more confidently}, and the threshold count
+is the wrong instrument for seeing it.
 
-TODO --- one closing sentence carrying the clinical reading: the patients who
-are exposed are those whose glycaemic profiles least resemble the cohort's,
-which is precisely the population that data sharing exists to preserve.
+TODO --- one closing sentence carrying the clinical reading: from a
+glucose-only release the question is not whether a patient can be recovered but
+how securely, and the patients recovered most securely are those whose profiles
+least resemble the cohort's.
 
 \begin{table}[t]
 \caption{Generation fidelity and membership exposure for seven generators on two
@@ -157,11 +167,36 @@ temporal ordering}\label{subsec:mechanism}
 
 TODO --- Fig.~\ref{fig:ablation}.
 
-\subsection{Basal insulin is the identifying channel in real recordings, yet
-adding it does not increase leakage from synthetic release}\label{subsec:channel}
+\subsection{Adding basal insulin protects typical patients but leaves atypical
+patients exposed}\label{subsec:channel}
 
-TODO --- Fig.~\ref{fig:channel}. Direction is mixed across arms; see
-\texttt{PAPER\_PLAN.md} \S5.4 before writing a direction into this text.
+The second data composition separates the two arms that glucose alone had left
+indistinguishable by count. Releasing basal insulin alongside glucose reduces
+the number of exposed matched controls from \textbf{13 of 13 to 5 of 13}, while
+the atypical arm falls only from 11 of 13 to \textbf{10 of 13}
+(Fig.~\ref{fig:channel}). The protection is real but it is not distributed:
+it accrues almost entirely to the patients who were already typical.
+
+This is the opposite of what the real recordings predict. On real windows, a
+single day of basal insulin alone identifies its subject \textbf{29.3\%} of the
+time against a chance rate of 0.11\%, where a day of glucose alone manages
+\mbox{1.5--2.6\%}. Basal insulin is a programmed schedule --- person-specific,
+stable, and close in character to the absolute level that
+Section~\ref{subsec:mechanism} identifies as the carrier of the membership
+signal. By that logic, adding it should raise exposure, not lower it.
+
+The resolution is on the fidelity axis, and it is why the two axes must be read
+together. Every generator in Table~\ref{tab:benchmark} fits the two-channel
+composition worse than the one-channel composition. The released set is
+correspondingly noisier, and membership signal is lost with the fidelity. What
+survives that loss is the signal that was strongest to begin with, which is
+carried by the atypical patients. Adding a channel that is intrinsically more
+identifying therefore lowers measured exposure --- but it does so by degrading
+the release, and it leaves the most vulnerable patients where they were.
+
+TODO --- Fig.~\ref{fig:channel} must show all three quantities on one panel:
+real-data identifiability by channel, measured exposure by arm, and fidelity.
+Any two of them alone support the wrong conclusion.
 
 \subsection{Removing the model capacity that stores absolute level returns
 membership signal to the permutation floor}\label{subsec:modules}
