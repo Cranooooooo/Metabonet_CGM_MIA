@@ -360,15 +360,84 @@ built from \texttt{results/clinical/after\_strip.json}.
 %%============================================================%%
 \section{Discussion}\label{sec:discussion}
 
-TODO. In order: what the numbers license; comparison with prior work; the
-disagreement between the arm-level and per-patient readings on \texttt{d1\_c1},
-on a single replicate; whether the destroyed signal is the clinically useful
-signal; limitations; what a custodian should do.
+Synthetic continuous glucose monitoring data is being released on the premise
+that a record which was never copied cannot identify anyone. The measurements
+here do not support that premise, and they locate the failure precisely enough
+to act on. From a glucose-only release by the strongest generator we compared,
+membership was recoverable for 24 of 26 patients against a permutation floor of
+seven --- and the recovery was not confined to unusual physiology. Every one of
+the thirteen matched controls was recoverable. A study reporting only how many
+patients cross a threshold would have concluded that atypical patients carry no
+extra risk; the severity says otherwise, with a median per-patient score of 0.80
+in the atypical arm against 0.635 in the control arm, and the two most exposed
+patients both atypical. Atypical patients are not exposed more often under this
+composition. They are exposed more confidently, which is the reading a threshold
+count cannot produce.
 
-%%============================================================%%
-%% METHODS — LAST. Noun-phrase subheadings.
-%% "Sex as biological variable" is MANDATORY Nature Portfolio reporting.
-%%============================================================%%
+What changes that picture is not the model but the data composition. Releasing
+basal insulin alongside glucose drops the exposed controls from thirteen of
+thirteen to five, while the atypical arm barely moves. The protection is real
+and it is unequally distributed: it accrues almost entirely to the patients who
+were already ordinary. This is worth stating plainly because the intuition runs
+the other way. On real recordings a single day of basal insulin identifies its
+subject 29.3\% of the time against 1.5--2.6\% for glucose, so the channel that
+protects here is the one that is intrinsically most identifying. The
+reconciliation is that every generator we tested fits two channels worse than
+one, the release is correspondingly noisier, and membership signal is lost along
+with fidelity. Adding an identifying channel lowered measured exposure by
+degrading the release --- which is not a privacy mechanism anyone should adopt
+deliberately, and which leaves the most vulnerable patients where they were.
+
+The ablation is the part of this work that generalises beyond the generators we
+happened to test. Removing absolute level and removing temporal ordering each
+take exposure from 24 patients to 13; removing both takes it to seven, which is
+the permutation floor for that release. Two coordinates account for the entire
+recoverable signal, and fine within-hour structure accounts for none of it. The
+two are not interchangeable in who they protect: with ordering destroyed the
+atypical arm still separates from the control arm, while with level destroyed
+that separation collapses. Absolute level is therefore the coordinate carrying
+the specifically atypical part of the signal, and that is a statement about
+glucose traces rather than about any particular architecture.
+
+Both interventions we report follow from that. A model whose latent bottleneck
+is structurally unable to store level per timepoint --- capacity removed rather
+than penalised --- produces releases whose membership gap is not significantly
+positive in either arm under either composition, at the best fidelity of any
+learned generator we tested. For custodians who cannot retrain, stripping level
+at release and restoring it by permutation leaves every translation-invariant
+glycaemic metric exactly unchanged and returns the scale-dependent ones to
+usable agreement with the real distributions. TODO --- position both against
+prior work on privacy-preserving synthetic health data, differential privacy for
+generative models, and nearest-neighbour privacy heuristics; citations needed.
+
+Three things constrain what we can claim. First, and most importantly, our own
+two readings disagree on one cell. On the glucose-only composition the
+between-arm contrast for our model is 0.698 with $p=0.045$, which taken alone
+reads worse than the unmodified backbone at 0.515, while the per-patient count
+sits exactly on its own permutation floor and the backbone sits one above. With
+thirteen targets per arm the between-arm statistic takes discrete values and,
+within a single replicate whose 26 pairs share one background generator, it is a
+screen rather than a test. \textbf{We report one replicate.} The floor-referenced
+per-patient reading is the one we regard as load-bearing, and the honest position
+is that a second replicate is required to settle the contrast rather than that
+the disagreement can be argued away. Second, the intervention removes what is
+partly the clinically useful signal: mean glucose is both the strongest carrier
+of identity and a primary clinical quantity, and while the permutation re-offset
+restores its population distribution it permanently severs the association
+between a patient's glycaemic shape and the level they sit at. A release built
+this way cannot support a study asking whether more variable patients run higher
+mean glucose, and must say so. Third, atypical is defined here by one family of
+distributional metrics, on one cohort, at one window length; subjects unusual in
+some other sense may carry different risk.
+
+For a custodian preparing a deposit today, the practical readings are these.
+Report per-patient exposure against a permutation floor computed on the released
+dataset itself, because against zero every release appears to leak and the
+comparison is uninformative. Do not treat a lower aggregate leakage number as
+evidence of protection without checking the fidelity that produced it. And if
+the release is glucose alone, expect every patient to be recoverable, not only
+the unusual ones.
+
 \section{Methods}\label{sec:methods}
 
 \subsection{Sex as biological variable}\label{subsec:sex}
