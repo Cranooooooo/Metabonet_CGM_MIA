@@ -42,17 +42,25 @@ monitoring data}
 %% Target 150--220 words (two npj articles measured at 138 and 220).
 %% No citations, no equations.
 %%============================================================%%
-\abstract{TODO --- draft last, once the Results are final. Beats, in order:
-(i)~synthetic CGM is being shared and its public deposition is now required;
-(ii)~we built a paired membership-inference design over a 506-subject cohort and
-applied it to seven generators across two data compositions;
-(iii)~risk is not uniform --- the strongest published generator exposes 24 of 26
-patients above AUC 0.55 against that release's own permutation floor of 7;
-(iv)~the signal is carried by absolute glucose level and by temporal ordering;
-(v)~a generator whose bottleneck cannot store absolute level sits at the
-permutation floor in both compositions while achieving the best fidelity of any
-learned model tested; (vi)~level can be stripped and re-offset at release,
-preserving shape-based glycaemic metrics.}
+\abstract{Synthetic continuous glucose monitoring data is increasingly deposited
+in public repositories to enable sharing, on the premise that a release
+containing no copied record cannot identify anyone. We tested that premise
+directly. Using a public multi-study cohort of 506 people, we trained a
+generator on a background population and 26 further generators differing from it
+by exactly one patient, and asked whether that patient's real recordings lay
+closer to the release that had seen them. Exposure was bounded between a
+generator that memorises by construction and a permutation floor computed
+separately for each released dataset, which is not near zero. Of seven
+generators, the strongest exposed 24 of 26 patients against a floor of seven,
+and all thirteen matched controls were among them: from glucose alone, exposure
+is close to universal, and patients with atypical profiles are distinguished by
+the confidence of their recovery rather than by its occurrence. Two coordinates
+carry the entire recoverable signal, absolute level and temporal ordering, and
+removing both returns exposure to the floor. A generator whose latent bottleneck
+cannot store level per timepoint reaches that floor at the best fidelity we
+measured, and the same coordinate can be removed at release time by a custodian
+who cannot retrain, leaving translation-invariant glycaemic metrics exactly
+unchanged.}
 
 \keywords{synthetic data, membership inference, continuous glucose monitoring,
 privacy, generative models, type~1 diabetes}
@@ -68,27 +76,58 @@ privacy, generative models, type~1 diabetes}
 %%============================================================%%
 \section{Introduction}\label{sec:intro}
 
-TODO~1. Continuous glucose monitoring is among the most valuable and least
-shareable physiological records; synthetic data is the proposed route; this
-collection, and a growing number of funders, \emph{require} public deposition of
-the synthetic dataset itself.
+Continuous glucose monitoring produces one of the densest records in routine
+care: a value every five minutes, indefinitely, for millions of people living
+with diabetes. It is also among the hardest records to share. A trace carries
+sleep, meals, work patterns and illness alongside glycaemia, and the consent
+under which it was collected rarely anticipates secondary use. Synthetic data is
+the most widely proposed way out of that bind --- release a generated cohort that
+reproduces the statistics of the real one and share it without restriction ---
+and the proposal is now moving from argument to obligation, with journals and
+funders increasingly requiring that a synthetic dataset be deposited publicly,
+with a persistent identifier and an open licence, as a condition of publication.
+TODO --- citations for the clinical value of CGM, for synthetic data as a
+sharing route, and for the deposition requirements.
 
-TODO~2. The privacy of synthetic health data is usually argued from
-nearest-neighbour heuristics, or from the absence of any copied record.
-Membership inference against \emph{generative} models for physiological time
-series is barely measured, and CGM is widely assumed benign.
+The privacy of such a deposit is usually argued rather than measured. The common
+arguments are that no real record appears in the release, or that the distance
+from each synthetic record to its nearest real neighbour exceeds some threshold.
+Neither is a statement about what an adversary can infer. Membership inference
+--- asking whether a particular person's data was in the training set --- is the
+standard formulation of that question, and it has been studied extensively for
+classifiers and for images, but far less for generative models of physiological
+time series, where the attacker sees only released samples and never the model.
+Continuous glucose monitoring has attracted particularly little attention,
+partly because glucose is homeostatically bounded and a trace is widely assumed
+to be too constrained to identify anyone. TODO --- citations for membership
+inference, for its application to generative models, and for existing privacy
+evaluations of synthetic health data.
 
-TODO~3. Aggregate privacy metrics average away the people who matter. Rare
-physiology is simultaneously what sharing is meant to preserve and what is most
-identifying --- the sparse-population fairness question this collection asks.
+Where privacy of synthetic health data has been evaluated, it has usually been
+summarised as a single number for a whole cohort. That is precisely the summary
+that hides the patients who matter. Rare physiology is simultaneously the thing a
+shared dataset exists to preserve --- brittle control, frequent hypoglycaemia, an
+unusual response to insulin --- and the thing most likely to make its owner
+identifiable. A generator that is safe on average may still expose the people
+whose data motivated the release, and an aggregate metric will not say so. This
+is the sparse-population fairness question, and answering it requires attacking
+individual patients rather than scoring a distribution.
 
-TODO~4. What we did, what we found, and what a data custodian should take from
-it. Three to four sentences. No ``the remainder of this paper''.
+We measure it directly. Using a public multi-study cohort of 506 people, we
+train a generator on a background population and 26 further generators that each
+add exactly one target patient, so that a pair of models differs by one person
+and nothing else, and we ask whether that person's real recordings lie closer to
+the release that saw them. We bound the result between a generator that
+memorises by construction and a permutation floor computed for each released
+dataset --- a floor that is not near zero, and whose omission makes every release
+look as though it leaks. Across seven generators and two data compositions we
+find that exposure from glucose alone is close to universal rather than confined
+to unusual patients, that it is carried by two coordinates of the signal and no
+others, that removing the model capacity which stores one of them returns
+exposure to the floor without any cost in fidelity, and that the same coordinate
+can be removed at release time by a custodian who cannot retrain, leaving
+shape-based glycaemic metrics untouched.
 
-%%============================================================%%
-%% RESULTS  — subheadings are DECLARATIVE SENTENCES stating a finding.
-%% Results : Discussion : Methods should end up near 4 : 1 : 2.5.
-%%============================================================%%
 \section{Results}\label{sec:results}
 
 \subsection{Membership signal in synthetic CGM is bounded between a memorisation
