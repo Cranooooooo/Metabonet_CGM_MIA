@@ -2,7 +2,7 @@
 #PBS -N d7c1base
 #PBS -P 11704243
 #PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
-#PBS -l walltime=24:00:00
+#PBS -l walltime=72:00:00
 #PBS -j oe
 #
 # d7_c1 的【干净 base】—— 和 26 个 include 同一条流水线训 12000 步。
@@ -20,15 +20,17 @@
 # 参数逐字取自树里冻的指纹,保证和 include 完全同配置(JSON 后出现的键覆盖先出现的:
 # steps 12000、save_every 500、micro_batch 8)。
 #
-# 55.3 卡时 / 24 小时墙钟 -> 需要续训,而 igfm.py 现在会保存并恢复 RNG 状态,
+# 55.3 卡时 / 72 小时墙钟(glong)-> 一次跑完,不需要续训。若仍被切,igfm.py 现在会
 # 续训是逐位精确的(scripts/check_resume_equivalence.py 实测 A vs B = 0.000e+00)。
 #
-#   bash scripts/pbs/dev/launch_d7c1_cleanbase.sh
+#   qsub -N d7c1base -o logs/d7c1_cleanbase.log scripts/pbs/dev/d7c1_cleanbase.pbs
+#
+# ⚠️ 不要用 launch_d7c1_cleanbase.sh 的 4 轮链。afterany 会被 qdel 满足,所以撤掉第一轮
+#    就把后面几轮全放行了;72 小时的 glong 一次就能跑完 55.3 小时,根本不需要链。
 
 source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
 conda activate "$ENV_PREFIX"; cd "$REPO"
 set -euo pipefail
-case $- in *e*) ;; *) echo "❌ errexit 没打开"; exit 1;; esac
 mkdir -p logs
 
 TREE=results/runs/loo_igfm_priv_d7_c1
@@ -62,5 +64,9 @@ print(f"  bit_reproducible={d.get('bit_reproducible','(未标记,即未续训)')
 PY
   echo "  下一步:把它换进 $TREE/base(旧的留作 base_staged),然后重跑攻击。"
 else
-  echo "  还没训完,重排队会从存档续上。"
+  # set -euo pipefail 之下 run_loo 非零就已经退出了,所以这一支实际不可达;留着只为
+  # 写明恢复办法:重跑同一条 run_loo 命令。igfm 没有 resample(loo/train.py 的那条路要
+  # train.npy,而 igfm 从不写),但 fit() 会从存档续、RNG 也恢复,所以重跑给出的是
+  # 【和不中断时逐位相同】的那次采样,不是"等价的另一次"。
+  echo "  没有 samples.npy。恢复:重跑同一条 run_loo 命令(fit 会从 iter-*.pt 续)。"
 fi

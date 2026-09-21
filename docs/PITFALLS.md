@@ -162,7 +162,7 @@ Queue routing is by walltime band, and every band's upper edge belongs to that b
 <= 2:00:00     gdev / qdev   priority 100, 10 (GPU) or 100 (CPU) concurrent jobs
 2:00:01 ..     g1-g3 / q*    priority 10, ONE running job per queue per user
 .. 24:00:00    g1-g3         24:00:00 exactly is still g1, NOT glong
-> 24:00:00     glong         2 concurrent jobs
+> 24:00:00     glong         **1** concurrent job per user (`qstat -Qf glong` -> `max_run = [u:PBS_GENERIC=1]`; an earlier revision of this table said 2, which is wrong and caused a code review to flag a concurrent-write hazard that the queue actually prevents)
 ```
 
 Both edges have been hit here, in opposite directions:
