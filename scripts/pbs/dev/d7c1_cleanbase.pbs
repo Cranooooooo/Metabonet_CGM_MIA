@@ -1,0 +1,66 @@
+#!/bin/bash
+#PBS -N d7c1base
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+#
+# d7_c1 的【干净 base】—— 和 26 个 include 同一条流水线训 12000 步。
+#
+# 为什么要重训。原来的 base 是 stage_base_from_curve.py 从预算曲线的 m12000 摆进去的,
+# 而那个里程碑来自一个【续过训、批次流被重放】的源 run,采样也走曲线脚本的重新播种。
+# 26 个 include 则是 RNG 修复之后训的干净单流。于是 base 和 include 之间差的不只是
+# 一个受试者,还差了训练流的历史 —— 而成对设计的全部前提就是「只差一个受试者」。
+#
+# 数据已经证伪了「统计上无害」那个判断:两个臂【同时】出现负 gap
+# (离群 -0.0019、对照 -0.0017),逐病人中位 0.448 反而【低于】自己的打乱地板 0.504,
+# d_out - d_in = -0.0033 —— 都是「摆进来的 base 系统性地更贴近真实数据」的特征,
+# 不是「没有记忆」。d1 的两棵树(base 正常训练)没有这个征兆。
+#
+# 参数逐字取自树里冻的指纹,保证和 include 完全同配置(JSON 后出现的键覆盖先出现的:
+# steps 12000、save_every 500、micro_batch 8)。
+#
+# 55.3 卡时 / 24 小时墙钟 -> 需要续训,而 igfm.py 现在会保存并恢复 RNG 状态,
+# 续训是逐位精确的(scripts/check_resume_equivalence.py 实测 A vs B = 0.000e+00)。
+#
+#   bash scripts/pbs/dev/launch_d7c1_cleanbase.sh
+
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+case $- in *e*) ;; *) echo "❌ errexit 没打开"; exit 1;; esac
+mkdir -p logs
+
+TREE=results/runs/loo_igfm_priv_d7_c1
+OUT=results/runs/d7c1_cleanbase
+PARAMS=$(cat "$TREE/.params.json")
+echo "参数(与 include 同): $PARAMS"
+
+python - "$PARAMS" <<'PY'
+import json, sys
+d = json.loads(sys.argv[1])
+assert d["steps"] == 12000, d["steps"]
+assert d["micro_batch"] == 8 and d["save_every"] == 500
+assert d["coord_mask"] is True and d["iso_weight"] is False and d["level_dims"] == 48
+print(f"[check] steps={d['steps']} micro_batch={d['micro_batch']} save_every={d['save_every']}")
+PY
+
+python -u scripts/run_loo.py \
+    --design results/matrix/design/rep1 \
+    --cohort data/cohort/matrix_d7_c1 \
+    --out "$OUT" --generator igfm --job base --seed 2026 --params "$PARAMS"
+
+if [ -s "$OUT/base/samples.npy" ]; then
+  echo "===== 干净 base 训完 ====="
+  python - "$OUT/base/meta.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+print(f"  steps={d['params']['steps']}  K={d['K']}")
+print(f"  fit_seconds(本段)={d.get('fit_seconds')}  fit_seconds_total={d.get('fit_seconds_total')}")
+print(f"  fit_resumed={d.get('fit_resumed')}  fit_rng_restored={d.get('fit_rng_restored')}")
+print(f"  bit_reproducible={d.get('bit_reproducible','(未标记,即未续训)')}")
+PY
+  echo "  下一步:把它换进 $TREE/base(旧的留作 base_staged),然后重跑攻击。"
+else
+  echo "  还没训完,重排队会从存档续上。"
+fi
