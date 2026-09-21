@@ -1,0 +1,16 @@
+#!/bin/bash
+#PBS -N memnull
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:mem=128gb
+#PBS -l walltime=10:00:00
+#PBS -j oe
+#PBS -o logs/membership_null.log
+#
+# 真零假设 + 不依赖单一 base 的统计量。纯 CPU(statistic.py 只用 NumPy),
+# 所以【不要】要 GPU —— 上次那样会被路由到 g1 然后和自己的战役抢队列。
+# CPU 作业必须写 mem=(PITFALLS 第 8 条)。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+mkdir -p logs
+python -u scripts/membership_null.py
