@@ -1,0 +1,12 @@
+#!/bin/bash
+#PBS -N mechnull
+#PBS -P 11704243
+#PBS -l select=1:ncpus=32:mem=128gb
+#PBS -l walltime=10:00:00
+#PBS -j oe
+#PBS -o logs/mechanism_null.log
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -euo pipefail
+mkdir -p logs
+python -u scripts/mechanism_null.py

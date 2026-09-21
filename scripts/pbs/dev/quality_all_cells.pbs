@@ -1,0 +1,55 @@
+#!/bin/bash
+#PBS -N qualall
+#PBS -P 11704243
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=48:00:00
+#PBS -j oe
+#PBS -o logs/quality_all_cells.log
+#
+# Table 1 的质量列,每个格子【一次调用】打完该格全部 arm。
+#
+# 为什么要重打已经有分的那些:PITFALLS 第 23 条 —— 同一份样本跨作业重打分差 1-5%,
+# 而现有的数散落在七八个不同作业里。互相要比的数必须出自同一次调用,否则表里
+# 相邻两行的差可能只是仪器。顺带补上 loo_igfm_d1_c1(原版 backbone)那个从没打过的洞。
+#
+# 每个格子写自己的文件(第 22 条:好样本打分慢,墙钟被切时至少保住已完成的格子)。
+source "${REPO:-$HOME/workspace/Project_CGM/CGM-OutlierMIA-master}/scripts/pbs/env.sh"
+conda activate "$ENV_PREFIX"; cd "$REPO"
+set -uo pipefail
+mkdir -p logs results/matrix/quality_final
+
+run_cell () {
+  local cell="$1"; shift
+  echo; echo "===== $cell($# 个 arm,一次调用) ====="
+  python -u scripts/eval_quality_tsgem.py \
+      --runs "$@" \
+      --cohort "data/cohort/matrix_$cell" \
+      --design results/matrix/design/rep1 \
+      --out "results/matrix/quality_final/$cell.json" \
+      --label "final_$cell" || echo "  ❌ $cell 打分失败"
+}
+
+run_cell d1_c1 \
+  results/runs/cp_matrix_d1_c1/base \
+  results/runs/loo_igfm_priv_d1_c1/base \
+  results/runs/loo_igfm_d1_c1/base \
+  results/runs/matrix_d1_c1/base \
+  results/runs/bl_fourier_diff_d1_c1/base \
+  results/runs/bl_diffwave_d1_c1/base \
+  results/runs/bl_diffusion_ts_d1_c1/base
+
+run_cell d1_c2 \
+  results/runs/cp_matrix_d1_c2/base \
+  results/runs/loo_igfm_priv_d1_c2/base \
+  results/runs/loo_igfm_d1_c2/base \
+  results/runs/matrix_d1_c2/base \
+  results/runs/bl_fourier_diff_d1_c2/base \
+  results/runs/bl_diffwave_d1_c2/base \
+  results/runs/bl_diffusion_ts_d1_c2/base
+
+run_cell d7_c1 \
+  results/runs/cp_matrix_d7_c1/base \
+  results/runs/loo_igfm_priv_d7_c1/base \
+  results/runs/matrix_d7_c1/base
+
+echo; echo "===== 产出 ====="; ls -l results/matrix/quality_final/ 2>&1

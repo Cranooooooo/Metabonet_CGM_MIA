@@ -27,9 +27,9 @@
 %% TITLE — declarative, clinical, mirrors the reference's form:
 %% instrument + active verb + finding + population
 %%============================================================%%
-\title[Membership risk in synthetic CGM]{Membership inference identifies
-concentrated re-identification risk in synthetic continuous glucose
-monitoring data}
+\title[Membership risk in synthetic CGM]{Membership inference recovers most
+patients from synthetic continuous glucose monitoring, and removing one
+representational capacity returns it to chance}
 
 \author*[1]{\fnm{Ling} \sur{Cheng}}\email{lcheng2@ic.ac.uk}
 
@@ -38,29 +38,26 @@ monitoring data}
 \orgaddress{\city{London}, \country{United Kingdom}}}
 
 %%============================================================%%
-%% ABSTRACT — one paragraph, unstructured, no subheadings.
-%% Target 150--220 words (two npj articles measured at 138 and 220).
-%% No citations, no equations.
+%% ABSTRACT — one paragraph, unstructured, no printed heading, 150--220 words.
 %%============================================================%%
 \abstract{Synthetic continuous glucose monitoring data is increasingly deposited
 in public repositories to enable sharing, on the premise that a release
 containing no copied record cannot identify anyone. We tested that premise
-directly. Using a public multi-study cohort of 506 people, we trained a
-generator on a background population and 26 further generators differing from it
-by exactly one patient, and asked whether that patient's real recordings lay
-closer to the release that had seen them. Exposure was bounded between a
-generator that memorises by construction and a permutation floor computed
-separately for each released dataset, which is not near zero. Of seven
-generators, the strongest exposed 24 of 26 patients against a floor of seven,
-and all thirteen matched controls were among them: from glucose alone, exposure
-is close to universal, and patients with atypical profiles are distinguished by
-the confidence of their recovery rather than by its occurrence. Two coordinates
-carry the entire recoverable signal, absolute level and temporal ordering, and
-removing both returns exposure to the floor. A generator whose latent bottleneck
-cannot store level per timepoint reaches that floor at the best fidelity we
-measured, and the same coordinate can be removed at release time by a custodian
-who cannot retrain, leaving translation-invariant glycaemic metrics exactly
-unchanged.}
+directly. Using a public multi-study cohort of 506 people we trained, for each
+of 26 target patients, one generator on a background population and one on that
+population plus the target, and asked whether the patient's real recordings lay
+closer to the release that had seen them. The symmetric design supplies its own
+null: because the background excludes every target, each of the other 25
+one-patient-different generators is itself a legitimate non-member model for any
+given target, giving 25 draws of the statistic under the null and an empirical
+significance per patient without further training. Across seven generators and
+three data compositions, a construction that memorises by definition is detected
+for 26 of 26 patients, confirming full power; the strongest published generator
+exposes 14 to 20 of 26. A generator whose latent bottleneck cannot store the
+absolute level of a window per timepoint exposes 1 to 3, against the 1.3
+expected by chance, while achieving the best generation fidelity of any learned
+model tested. Risk is not confined to patients with atypical glycaemic
+profiles: it reaches the matched controls equally.}
 
 \keywords{synthetic data, membership inference, continuous glucose monitoring,
 privacy, generative models, type~1 diabetes}
@@ -112,121 +109,128 @@ identifiable. A generator that is safe on average may still expose the people
 whose data motivated the release, and an aggregate metric will not say so. This
 is the sparse-population fairness question, and answering it requires attacking
 individual patients rather than scoring a distribution.
-
 We measure it directly. Using a public multi-study cohort of 506 people, we
-train a generator on a background population and 26 further generators that each
-add exactly one target patient, so that a pair of models differs by one person
-and nothing else, and we ask whether that person's real recordings lie closer to
-the release that saw them. We bound the result between a generator that
-memorises by construction and a permutation floor computed for each released
-dataset --- a floor that is not near zero, and whose omission makes every release
-look as though it leaks. Across seven generators and two data compositions we
-find that exposure from glucose alone is close to universal rather than confined
-to unusual patients, that it is carried by two coordinates of the signal and no
-others, that removing the model capacity which stores one of them returns
-exposure to the floor without any cost in fidelity, and that the same coordinate
-can be removed at release time by a custodian who cannot retrain, leaving
-shape-based glycaemic metrics untouched.
+train a generator on a background population and 26 further generators that
+each add exactly one target patient, so that a pair of models differs by one
+person and nothing else, and we ask whether that person's real recordings lie
+closer to the release that saw them. The design supplies its own null: because
+the background excludes every target, each of the other 25 one-patient-different
+generators is a genuine non-member model for any given target, giving 25 draws
+of the statistic under non-membership and an empirical significance per patient
+at no additional training cost. Across seven generators and three data
+compositions we find that a construction which memorises by definition is
+detected for every patient, that the strongest published generator is detected
+for most of them, that removing one representational capacity from the
+generator returns this to the chance rate without any cost in fidelity, and
+that the exposure is not confined to the patients with atypical physiology the
+study was built around.
 
 \section{Results}\label{sec:results}
 
-\subsection{Membership signal in synthetic CGM is bounded between a memorisation
-ceiling and a permutation floor}\label{subsec:instrument}
+\subsection{The design supplies its own null, and the attack detects a
+memoriser in every patient}\label{subsec:instrument}
 
-Each released dataset is attacked through the same paired comparison: for every
-target patient we hold one generator that saw them and one that did not, and ask
-whether the patient's real windows lie closer to the former's output
-(Fig.~\ref{fig:design}). The two generators differ by that one patient and by
-nothing else. We bound the resulting statistic from both sides before reading
-any generator's score.
+For each target patient we train one generator on a background population and
+one on that population plus the target, and measure how much closer the
+patient's real windows lie to the release that saw them
+(Fig.~\ref{fig:design}). Reading that gap requires knowing what it does when
+membership is absent, and the design answers this without further training.
 
-The upper bound is a generator that memorises by construction, releasing its
-training windows unchanged. Its median gap is \textbf{0.077} on the glucose-only
-composition and \textbf{0.106} with basal insulin, against \textbf{0.010} and
-\textbf{0.018} for the strongest learned generator --- an order of magnitude
-larger, and significantly positive in both arms ($p < 0.001$). The statistic
-therefore responds to memorisation when memorisation is present. It does not,
-however, separate the atypical arm from the control arm for this generator, and
-it should not: a model that copies every patient equally memorises the typical
-and the atypical alike.
+The background set excludes \emph{all} 26 targets. For a given target, each of
+the other 25 one-patient-different generators is therefore a legitimate
+\emph{non-member} model: it saw its own target, not this one. Evaluating the
+same statistic against those 25 gives its distribution under the null, and the
+observed value's rank among them is an empirical significance for that patient.
+This also removes a bias that a single shared reference introduces. All 26
+comparisons in the published convention share one background release, so that
+release's own idiosyncratic draw enters every comparison with the same sign;
+replacing it with the mean over the 25 non-member models deletes that offset
+structurally. On the seven-day composition the offset is large enough to change
+the conclusion on its own: the shared-reference gap is $-0.0018$, and the same
+data read against the non-member mean is $+0.0003$.
 
-The lower bound matters more, because it is the one the literature omits. We
-recompute the entire pipeline on permuted membership labels, so that no
-generator saw any target. Under permutation the count of patients recoverable
-above \mbox{AUC 0.55} is not near zero: across the twelve released datasets in
-this study it ranges from \textbf{3 to 11 of 26}, with a median of 7. The floor
-is a property of the released dataset rather than of the study, so it is
-computed separately for each one. Reported against zero, every generator in
-Table~\ref{tab:benchmark} would appear to leak; reported against its own floor,
-most do not.
+Against this null a construction that memorises by definition --- resampling its
+own training windows --- is detected for \textbf{26 of 26 patients} on every
+composition. The attack has full power where memorisation is total.
 
-\subsection{Membership is recoverable for nearly every patient from glucose
-alone, and most confidently for those with atypical
-profiles}\label{subsec:concentration}
+\emph{We do not use a within-window shuffle as a floor.} Permuting the samples
+inside a window destroys temporal order but preserves that window's value
+distribution exactly, and identity in glucose traces resides largely in that
+distribution: under such a permutation the most identifiable patient in this
+cohort still scores 1.000. A control that leaves the signal intact is not a
+control.
 
-We applied the paired design to seven generators across the two data
-compositions (Table~\ref{tab:benchmark}). Read as a raw count, the number of
-patients whose membership is recoverable above \mbox{AUC 0.55} suggests that
-every generator leaks: the counts range from 5 to 24 of 26. The permutation
-floor removes that impression. Once each released dataset is compared against
-its own floor, the generators separate sharply, and the separation does not
-track generation fidelity. The strongest published generator in our comparison,
-DiM-TS, exposes \textbf{24 of 26} patients from glucose alone against a floor of
-\textbf{7}. DiffWave, whose fidelity is an order of magnitude worse, sits at an
-excess of four patients over its floor; Diffusion-TS at $-1$; FourierDiffusion
-at two. The two best-fitting learned generators in the table occupy opposite
-extremes of the exposure column.
+\subsection{Membership is recoverable for most patients from the strongest
+published generator, and not only for atypical ones}\label{subsec:concentration}
 
-Exposure at this level is not confined to unusual patients. Of the 24 patients
-DiM-TS exposes from glucose alone, \textbf{13 of 13 are matched controls} and 11
-of 13 are the atypical targets --- that is, every typical patient in the design
-is recoverable, and marginally more reliably than the atypical ones. A study
-that reported only the count would conclude that atypical physiology confers no
-additional risk.
+Table~\ref{tab:benchmark} reports, for every generator and composition, how
+many of the 26 patients show membership significant at the 5\% level against
+the null above. With 26 patients, 1.3 is the number expected by chance.
 
-The severity of the exposure tells the opposite story. Within the same release
-the median per-patient AUC is \textbf{0.80} in the atypical arm against
-\textbf{0.635} in the matched control arm, where the same quantity computed on
-permuted membership sits at 0.51 and 0.50 respectively. The most exposed
-patient, an atypical one, reaches \mbox{AUC 0.96}; the second, also atypical,
-0.89. Atypical patients are therefore not exposed \emph{more often} under this
-composition --- they are exposed \emph{more confidently}, and the threshold count
-is the wrong instrument for seeing it.
+The strongest published generator in our comparison exposes \textbf{18 of 26}
+patients on one-day glucose, \textbf{14 of 26} with basal insulin added, and
+\textbf{20 of 26} on seven-day glucose. This is an order of magnitude above
+chance and is not a threshold artefact: the same release also carries the
+largest median gap in the table.
 
-TODO --- one closing sentence carrying the clinical reading: from a
-glucose-only release the question is not whether a patient can be recovered but
-how securely, and the patients recovered most securely are those whose profiles
-least resemble the cohort's.
+\emph{The risk is not concentrated in patients with atypical glycaemic
+profiles.} The design pairs 13 such patients against 13 controls matched on
+recording duration, and the significant patients divide almost evenly between
+them --- 8 atypical against 10 controls on one-day glucose, 7 against 7 with
+insulin, 8 against 12 at seven days. Tested directly, the between-arm contrast
+does not separate on any composition (AUC 0.50--0.64, all $p > 0.2$). We
+designed this study to detect whether rare physiology carries extra membership
+risk and, by this measure, it does not: what is unusual about these patients
+makes them no easier to recover than a typical patient from the same cohort.
+
+TODO --- state the median gaps per arm from
+\texttt{results/matrix/membership\_null.json} once the re-scored fidelity column
+lands, and give Table~\ref{tab:benchmark} its final numbers.
 
 \begin{table}[t]
-\caption{Generation fidelity and membership exposure for seven generators on two
-data compositions. Context-FID is lower-is-better. ``Arm AUC'' contrasts the
-atypical arm against the matched control arm; 0.5 is no separation. ``Exposed''
-counts patients above \mbox{AUC 0.55} out of 26, given against that release's own
-permutation floor. The floor, not zero, is the reference.}\label{tab:benchmark}
+\caption{Generation fidelity and membership exposure for seven generators on
+three data compositions. Context-FID is lower-is-better. ``Exposed'' counts
+patients of 26 whose membership is significant at the 5\% level against the
+non-member null of Section~\ref{subsec:instrument}; \textbf{1.3 of 26 is the
+number expected by chance}. Copy--paste is a construction that resamples its own
+training windows and is included to show the attack's power, not as a candidate
+release.}\label{tab:benchmark}
 \begin{tabular}{@{}lcccccc@{}}
 \toprule
-& \multicolumn{3}{c}{Glucose only} & \multicolumn{3}{c}{Glucose $+$ basal insulin} \\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}
-Generator & Context-FID & Arm AUC & Exposed & Context-FID & Arm AUC & Exposed \\
+& \multicolumn{2}{c}{1 day, glucose}
+& \multicolumn{2}{c}{1 day, glucose $+$ basal}
+& \multicolumn{2}{c}{7 days, glucose} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+Generator & FID & Exposed & FID & Exposed & FID & Exposed \\
 \midrule
-Copy--paste (ceiling) & 0.034 & 0.562 & --- & 0.043 & 0.680 & --- \\
-\textbf{This work} & \textbf{0.038} & 0.698 & \textbf{10 vs 10} & \textbf{0.055} & 0.479 & \textbf{5 vs 5} \\
-Backbone, unmodified & --- & 0.515 & 6 vs 5 & 0.055 & 0.598 & 7 vs 6 \\
-DiM-TS & 0.095 & 0.562 & \textbf{24 vs 7} & 0.159 & 0.698 & \textbf{15 vs 8} \\
-FourierDiffusion & 0.100 & 0.710 & 7 vs 5 & 0.194 & 0.485 & 6 vs 3 \\
-DiffWave & 0.368 & 0.639 & 12 vs 8 & 0.491 & 0.740 & 13 vs 11 \\
-Diffusion-TS & 0.422 & 0.828 & 7 vs 8 & 2.058 & 0.604 & 8 vs 4 \\
+Copy--paste (ceiling)  & 0.034 & 26 & 0.043 & 26 & 0.073 & 26 \\
+\textbf{This work}     & \textbf{0.038} & \textbf{1} & \textbf{0.055} & \textbf{3} & \textbf{0.127} & \textbf{3} \\
+Backbone, unmodified   & ---   & 1  & 0.055 & 1  & ---   & --- \\
+DiM-TS                 & 0.095 & \textbf{18} & 0.159 & \textbf{14} & 0.326 & \textbf{20} \\
+FourierDiffusion       & 0.100 & 1  & 0.194 & 1  & ---   & --- \\
+DiffWave               & 0.368 & 0  & 0.491 & 0  & ---   & --- \\
+Diffusion-TS           & 0.422 & 3  & 2.058 & 1  & ---   & --- \\
 \botrule
 \end{tabular}
-\footnotetext{The copy--paste ceiling has no permutation floor computed; it is a
-construction rather than a fitted model. The unmodified backbone was not scored
-for fidelity on the glucose-only composition. TODO: close both gaps.}
+\footnotetext{Fidelity values are being re-scored, one call per composition, so
+that a column is internally comparable; the same release re-scored in a
+different compute job differs by one to five per cent. Exposure counts are
+final. Dashes are cells not trained: only three generators were taken to seven
+days.}
 \end{table}
 
 \subsection{The membership signal is carried by absolute glucose level and by
 temporal ordering}\label{subsec:mechanism}
 
+TODO --- ALL COUNTS IN THIS SECTION ARE VOID and are being recomputed by
+\texttt{scripts/mechanism\_null.py} against the non-member null. The ablation
+itself (destroy one coordinate, repeat the attack) is sound; what is void is
+reading the result against the within-window shuffle. Two specific claims must
+not be carried over: that ``removing level and ordering together reaches the
+floor'', which has no floor to reach, and that differencing shows level carries
+the signal --- a pure level removal costs only 24 to 21 patients on the old
+reading, so differencing's effect came mostly from the low-frequency structure
+it also destroys.
 To locate the signal we destroyed one coordinate of the released windows at a
 time and repeated the attack unchanged (Fig.~\ref{fig:ablation}). Removing
 within-hour detail, by averaging to hourly resolution, costs nothing: the
@@ -256,40 +260,36 @@ On the two-channel composition, level alone is sufficient: differencing takes
 exposure from 15 to \textbf{6 of 26} against a floor of 8, at or below chance
 without any need to touch the ordering.
 
-\subsection{Adding basal insulin protects typical patients but leaves atypical
-patients exposed}\label{subsec:channel}
+\subsection{Adding basal insulin lowers measured exposure while lowering
+fidelity, and the two cannot be read apart}\label{subsec:channel}
 
-The second data composition separates the two arms that glucose alone had left
-indistinguishable by count. Releasing basal insulin alongside glucose reduces
-the number of exposed matched controls from \textbf{13 of 13 to 5 of 13}, while
-the atypical arm falls only from 11 of 13 to \textbf{10 of 13}
-(Fig.~\ref{fig:channel}). The protection is real but it is not distributed:
-it accrues almost entirely to the patients who were already typical.
+TODO --- REWRITE AGAINST THE NEW NULL. The previous version of this section
+claimed that adding basal insulin protects typical patients while leaving
+atypical ones exposed (13 of 13 controls falling to 5 of 13, against 11 of 13
+atypical falling to 10). Those counts came from a threshold read against the
+within-window shuffle, which Section~\ref{subsec:instrument} retires. Against
+the non-member null the split is 7 atypical and 7 controls, i.e.\ no asymmetry,
+and the claim does not survive.
 
-This is the opposite of what the real recordings predict. On real windows, a
-single day of basal insulin alone identifies its subject \textbf{29.3\%} of the
-time against a chance rate of 0.11\%, where a day of glucose alone manages
-\mbox{1.5--2.6\%}. Basal insulin is a programmed schedule --- person-specific,
-stable, and close in character to the absolute level that
-Section~\ref{subsec:mechanism} identifies as the carrier of the membership
-signal. By that logic, adding it should raise exposure, not lower it.
-
-The resolution is on the fidelity axis, and it is why the two axes must be read
-together. Every generator in Table~\ref{tab:benchmark} fits the two-channel
-composition worse than the one-channel composition. The released set is
-correspondingly noisier, and membership signal is lost with the fidelity. What
-survives that loss is the signal that was strongest to begin with, which is
-carried by the atypical patients. Adding a channel that is intrinsically more
-identifying therefore lowers measured exposure --- but it does so by degrading
-the release, and it leaves the most vulnerable patients where they were.
-
-TODO --- Fig.~\ref{fig:channel} must show all three quantities on one panel:
-real-data identifiability by channel, measured exposure by arm, and fidelity.
-Any two of them alone support the wrong conclusion.
+What does survive, and should be the content of this section: exposure falls
+from 18 to 14 of 26 when basal insulin is added, while \emph{every} generator
+fits the two-channel composition worse. So the apparent protection is bought by
+degrading the release, not by any privacy mechanism. The tension to state is
+that basal is the more identifying channel in the real recordings --- one day
+of basal alone retrieves its subject 29.3\% of the time against 1.5--2.6\% for
+glucose --- so an intrinsically more identifying channel lowered measured
+exposure. Figure~\ref{fig:channel} must carry real-data identifiability,
+exposure, and fidelity together; any two of them support the wrong conclusion.
 
 \subsection{Removing the model capacity that stores absolute level returns
-membership signal to the permutation floor}\label{subsec:modules}
+membership recovery to the chance rate}\label{subsec:modules}
 
+TODO --- re-express against the non-member null. The fidelity and the
+significance counts (1, 3 and 3 of 26 against 1.3 expected by chance) are in
+Table~\ref{tab:benchmark} and stand. What must go is every phrase of the form
+``at the permutation floor'', and the motivation paragraph, which rests on
+Section~\ref{subsec:mechanism} still naming absolute level as the carrier ---
+that is being re-measured.
 Section~\ref{subsec:mechanism} names absolute level as the carrier. We therefore
 changed the generator so that level cannot be stored per timepoint, rather than
 adding a penalty that discourages storing it (Fig.~\ref{fig:modules}).
@@ -329,6 +329,11 @@ exactly the window mean that the pooling broadcasts. The pooling does the work.
 \subsection{The released windows reproduce twenty clinical glycaemic metrics
 that the strongest baseline distorts}\label{subsec:mitigation}
 
+TODO --- the privacy half of this section is VOID. It quoted exposure counts
+read against the within-window shuffle, which Section~\ref{subsec:instrument}
+retires. The clinical half (twenty metrics, translation-invariant ones exactly
+unchanged, scale-dependent ones destroyed by stripping and restored by the
+permutation re-offset) stands as measured and needs no change.
 Fidelity measured in an embedding space does not establish that a release is
 clinically usable. We therefore computed twenty established glycaemic metrics
 per window and compared their distributions against the real cohort
@@ -399,83 +404,72 @@ built from \texttt{results/clinical/after\_strip.json}.
 %%============================================================%%
 \section{Discussion}\label{sec:discussion}
 
-Synthetic continuous glucose monitoring data is being released on the premise
-that a record which was never copied cannot identify anyone. The measurements
-here do not support that premise, and they locate the failure precisely enough
-to act on. From a glucose-only release by the strongest generator we compared,
-membership was recoverable for 24 of 26 patients against a permutation floor of
-seven --- and the recovery was not confined to unusual physiology. Every one of
-the thirteen matched controls was recoverable. A study reporting only how many
-patients cross a threshold would have concluded that atypical patients carry no
-extra risk; the severity says otherwise, with a median per-patient score of 0.80
-in the atypical arm against 0.635 in the control arm, and the two most exposed
-patients both atypical. Atypical patients are not exposed more often under this
-composition. They are exposed more confidently, which is the reading a threshold
-count cannot produce.
+Synthetic continuous glucose monitoring data is released on the premise that a
+record which was never copied cannot identify anyone. The measurements here do
+not support that premise. Against a null the design supplies for free --- the 25
+other one-patient-different generators, each a genuine non-member for any given
+target --- membership was recoverable at the 5\% level for 18 of 26 patients
+from a one-day glucose release by the strongest generator we compared, 14 with
+basal insulin added, and 20 at seven days. The chance expectation is 1.3. The
+same instrument detects a deliberate memoriser in 26 of 26 patients, so the
+power is not in question.
 
-What changes that picture is not the model but the data composition. Releasing
-basal insulin alongside glucose drops the exposed controls from thirteen of
-thirteen to five, while the atypical arm barely moves. The protection is real
-and it is unequally distributed: it accrues almost entirely to the patients who
-were already ordinary. This is worth stating plainly because the intuition runs
-the other way. On real recordings a single day of basal insulin identifies its
-subject 29.3\% of the time against 1.5--2.6\% for glucose, so the channel that
-protects here is the one that is intrinsically most identifying. The
-reconciliation is that every generator we tested fits two channels worse than
-one, the release is correspondingly noisier, and membership signal is lost along
-with fidelity. Adding an identifying channel lowered measured exposure by
-degrading the release --- which is not a privacy mechanism anyone should adopt
-deliberately, and which leaves the most vulnerable patients where they were.
+\emph{The risk is not the one we designed the study to find.} The cohort was
+built around 13 patients with atypical glycaemic profiles, matched to 13
+controls, on the expectation that rare physiology would be the vulnerable
+group. It is not. Significant patients divide almost evenly between the arms in
+every composition, and the between-arm contrast does not separate anywhere
+(AUC 0.50--0.64, all $p>0.2$). A custodian releasing synthetic CGM should not
+expect the exposure to be confined to unusual patients, and a privacy audit
+that samples only the unusual ones will under-report it.
 
-The ablation is the part of this work that generalises beyond the generators we
-happened to test. Removing absolute level and removing temporal ordering each
-take exposure from 24 patients to 13; removing both takes it to seven, which is
-the permutation floor for that release. Two coordinates account for the entire
-recoverable signal, and fine within-hour structure accounts for none of it. The
-two are not interchangeable in who they protect: with ordering destroyed the
-atypical arm still separates from the control arm, while with level destroyed
-that separation collapses. Absolute level is therefore the coordinate carrying
-the specifically atypical part of the signal, and that is a statement about
-glucose traces rather than about any particular architecture.
+TODO --- the mechanism paragraph. Rewrite once
+\texttt{scripts/mechanism\_null.py} reports which coordinate carries the signal
+against the non-member null. Do not reuse the previous reading: a pure removal
+of absolute level was far weaker than differencing, so the earlier attribution
+to level conflated it with the low-frequency structure differencing also
+destroys.
 
-Both interventions we report follow from that. A model whose latent bottleneck
-is structurally unable to store level per timepoint --- capacity removed rather
-than penalised --- produces releases whose membership gap is not significantly
-positive in either arm under either composition, at the best fidelity of any
-learned generator we tested. For custodians who cannot retrain, stripping level
-at release and restoring it by permutation leaves every translation-invariant
-glycaemic metric exactly unchanged and returns the scale-dependent ones to
-usable agreement with the real distributions. TODO --- position both against
-prior work on privacy-preserving synthetic health data, differential privacy for
-generative models, and nearest-neighbour privacy heuristics; citations needed.
+A generator whose latent bottleneck cannot store the absolute level of a window
+per timepoint --- capacity removed rather than penalised --- is recovered for 1,
+3 and 3 of 26 patients across the three compositions, which is the chance rate,
+at the best generation fidelity of any learned model we tested. Three of the
+four published baselines are also near chance, but at four to ten times worse
+fidelity; being unrecoverable is not by itself difficult, and the result here is
+the combination.
 
-Three things constrain what we can claim. First, and most importantly, our own
-two readings disagree on one cell. On the glucose-only composition the
-between-arm contrast for our model is 0.698 with $p=0.045$, which taken alone
-reads worse than the unmodified backbone at 0.515, while the per-patient count
-sits exactly on its own permutation floor and the backbone sits one above. With
-thirteen targets per arm the between-arm statistic takes discrete values and,
-within a single replicate whose 26 pairs share one background generator, it is a
-screen rather than a test. \textbf{We report one replicate.} The floor-referenced
-per-patient reading is the one we regard as load-bearing, and the honest position
-is that a second replicate is required to settle the contrast rather than that
-the disagreement can be argued away. Second, the intervention removes what is
-partly the clinically useful signal: mean glucose is both the strongest carrier
-of identity and a primary clinical quantity, and while the permutation re-offset
-restores its population distribution it permanently severs the association
-between a patient's glycaemic shape and the level they sit at. A release built
-this way cannot support a study asking whether more variable patients run higher
-mean glucose, and must say so. Third, atypical is defined here by one family of
-distributional metrics, on one cohort, at one window length; subjects unusual in
-some other sense may carry different risk.
+TODO --- position against prior work on privacy-preserving synthetic health
+data, differential privacy for generative models, and nearest-neighbour privacy
+heuristics; citations needed.
 
-For a custodian preparing a deposit today, the practical readings are these.
-Report per-patient exposure against a permutation floor computed on the released
-dataset itself, because against zero every release appears to leak and the
-comparison is uninformative. Do not treat a lower aggregate leakage number as
-evidence of protection without checking the fidelity that produced it. And if
-the release is glucose alone, expect every patient to be recoverable, not only
-the unusual ones.
+Three limitations bound what this supports. First, one replicate: the design
+trains one background generator and 26 paired models, and while the non-member
+null makes each patient's significance interpretable within that replicate, the
+between-arm comparison remains a screen rather than a test. Second, the
+intervention removes what is partly the clinically useful signal --- mean
+glucose is both a primary clinical quantity and a carrier of identity --- and
+while a permutation re-offset restores its population distribution, it
+permanently severs the association between a patient's glycaemic shape and the
+level they sit at, so a release built this way cannot support a study of that
+association and must say so. Third, ``atypical'' here is defined by one family
+of distributional metrics on one cohort; that the arms did not separate is
+evidence about this definition, not about every notion of an unusual patient.
+
+\emph{A note on controls, since it changed our own conclusions twice.} An
+earlier version of this analysis used a within-window permutation as its null.
+That transform destroys temporal order but preserves each window's value
+distribution exactly, and identity in glucose traces lives largely in that
+distribution --- under it, the most identifiable patient in this cohort still
+scores 1.000. Every exposure count we had read against it was a comparison
+between two quantities that were never ordered. The null a privacy evaluation
+uses deserves the same scrutiny as the attack.
+
+For a custodian preparing a deposit: evaluate membership per patient against a
+null built from models that genuinely did not see that patient, which a
+leave-one-out design supplies at no extra training cost; do not read a lower
+aggregate leakage number as protection without checking the fidelity that
+produced it; and do not assume the exposure is confined to the unusual patients
+in the cohort.
 
 \section{Methods}\label{sec:methods}
 
@@ -570,14 +564,29 @@ the released set, so this alone would bias the gap upwards. Both releases are
 therefore cut to the same size, at random and with a fixed seed, before any
 distance is computed.
 
-\subsection{Permutation floor}\label{subsec:floor}
-Per-patient membership scores do not have a floor at chance. To measure the
-floor for each released dataset we destroyed all within-window structure by
-permuting the samples inside every window independently, then repeated the entire
-attack unchanged. The resulting count of patients scoring above \mbox{AUC 0.55}
-is the floor for that dataset. It is computed separately for every release
-rather than once for the study, because it depends on the released set's own
-size and dispersion.
+\subsection{Null distribution for the membership statistic}\label{subsec:floor}
+The background generator is trained on subjects that exclude \emph{every}
+target in the design. For a given target, each of the other 25
+one-patient-different generators therefore saw a different patient and not this
+one, and is a legitimate non-member model for it. Evaluating the same statistic
+against those 25 releases gives its distribution under the null of
+non-membership, and the observed value's rank among them is a one-sided
+empirical $p$-value for that patient, with a resolution of $1/26$. No
+additional training is required.
+
+The same construction removes a bias. Under the paired convention all 26
+comparisons share one background release, so that release's own draw enters
+every comparison with the same sign and the median gap partly estimates it
+rather than membership. Replacing the single reference with the mean over the
+25 non-member models deletes the offset structurally. On the seven-day
+composition it is large enough to invert the sign of the result.
+
+\emph{We do not use a within-window permutation as a null.} Permuting samples
+within a window destroys temporal order but preserves that window's value
+multiset exactly, and identity in glucose traces resides largely in the value
+distribution rather than in its ordering; the most identifiable patient in this
+cohort scores 1.000 under that transform. Earlier revisions of this work used
+it, and every count read against it was uninterpretable.
 
 \subsection{Generation fidelity metrics}\label{subsec:fidelity}
 Fidelity is reported as Context-FID: a TS2Vec encoder is trained on the real
