@@ -76,3 +76,4 @@ paper-npjdm/*.bbl
 paper-npjdm/*.blg
 paper-npjdm/*.spl
 .build/
+paper-npjdm-src.zip
