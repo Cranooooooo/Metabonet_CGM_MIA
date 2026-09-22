@@ -1,0 +1,134 @@
+{
+ "d1_c1": {
+  "untouched": {
+   "n_sig": 18,
+   "sig_outlier": 8,
+   "sig_control": 10,
+   "median_gap": 0.008336039104809359
+  },
+  "hourly": {
+   "n_sig": 19,
+   "sig_outlier": 8,
+   "sig_control": 11,
+   "median_gap": 0.007534756863094641
+  },
+  "level": {
+   "n_sig": 18,
+   "sig_outlier": 7,
+   "sig_control": 11,
+   "median_gap": 0.0060212598899097095
+  },
+  "zscore": {
+   "n_sig": 16,
+   "sig_outlier": 6,
+   "sig_control": 10,
+   "median_gap": 0.038494036665984555
+  },
+  "diff": {
+   "n_sig": 17,
+   "sig_outlier": 8,
+   "sig_control": 9,
+   "median_gap": 0.00026903481533130033
+  },
+  "sorted": {
+   "n_sig": 8,
+   "sig_outlier": 7,
+   "sig_control": 1,
+   "median_gap": 0.0005489373252811763
+  },
+  "diff+sorted": {
+   "n_sig": 0,
+   "sig_outlier": 0,
+   "sig_control": 0,
+   "median_gap": -1.3811161720447872e-05
+  }
+ },
+ "d1_c2": {
+  "untouched": {
+   "n_sig": 14,
+   "sig_outlier": 7,
+   "sig_control": 7,
+   "median_gap": 0.0023025695532560356
+  },
+  "hourly": {
+   "n_sig": 16,
+   "sig_outlier": 9,
+   "sig_control": 7,
+   "median_gap": 0.0028789225542231595
+  },
+  "level": {
+   "n_sig": 17,
+   "sig_outlier": 8,
+   "sig_control": 9,
+   "median_gap": 0.0015014875701495692
+  },
+  "zscore": {
+   "n_sig": 12,
+   "sig_outlier": 6,
+   "sig_control": 6,
+   "median_gap": 0.012733017483142928
+  },
+  "diff": {
+   "n_sig": 8,
+   "sig_outlier": 4,
+   "sig_control": 4,
+   "median_gap": 0.00011681398200362805
+  },
+  "sorted": {
+   "n_sig": 8,
+   "sig_outlier": 6,
+   "sig_control": 2,
+   "median_gap": 0.0009226651593026835
+  },
+  "diff+sorted": {
+   "n_sig": 2,
+   "sig_outlier": 0,
+   "sig_control": 2,
+   "median_gap": 1.3906144537032244e-05
+  }
+ },
+ "d7_c1": {
+  "untouched": {
+   "n_sig": 20,
+   "sig_outlier": 8,
+   "sig_control": 12,
+   "median_gap": 0.009013360619544969
+  },
+  "hourly": {
+   "n_sig": 20,
+   "sig_outlier": 8,
+   "sig_control": 12,
+   "median_gap": 0.009373316228389744
+  },
+  "level": {
+   "n_sig": 18,
+   "sig_outlier": 7,
+   "sig_control": 11,
+   "median_gap": 0.0063203410945440325
+  },
+  "zscore": {
+   "n_sig": 18,
+   "sig_outlier": 7,
+   "sig_control": 11,
+   "median_gap": 0.05865043619521593
+  },
+  "diff": {
+   "n_sig": 12,
+   "sig_outlier": 8,
+   "sig_control": 4,
+   "median_gap": 9.563763753363957e-05
+  },
+  "sorted": {
+   "n_sig": 7,
+   "sig_outlier": 6,
+   "sig_control": 1,
+   "median_gap": 0.0005966454240225356
+  },
+  "diff+sorted": {
+   "n_sig": 0,
+   "sig_outlier": 0,
+   "sig_control": 0,
+   "median_gap": -1.3150325311082293e-06
+  }
+ }
+}

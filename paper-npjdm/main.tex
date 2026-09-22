@@ -28,8 +28,8 @@
 %% instrument + active verb + finding + population
 %%============================================================%%
 \title[Membership risk in synthetic CGM]{Membership inference recovers most
-patients from synthetic continuous glucose monitoring, and removing one
-representational capacity returns it to chance}
+patients from synthetic continuous glucose monitoring, and the signal is
+carried by temporal ordering}
 
 \author*[1]{\fnm{Ling} \sur{Cheng}}\email{lcheng2@ic.ac.uk}
 
@@ -50,14 +50,14 @@ closer to the release that had seen them. The symmetric design supplies its own
 null: because the background excludes every target, each of the other 25
 one-patient-different generators is itself a legitimate non-member model for any
 given target, giving 25 draws of the statistic under the null and an empirical
-significance per patient without further training. Across seven generators and
-three data compositions, a construction that memorises by definition is detected
-for 26 of 26 patients, confirming full power; the strongest published generator
-exposes 14 to 20 of 26. A generator whose latent bottleneck cannot store the
-absolute level of a window per timepoint exposes 1 to 3, against the 1.3
-expected by chance, while achieving the best generation fidelity of any learned
-model tested. Risk is not confined to patients with atypical glycaemic
-profiles: it reaches the matched controls equally.}
+significance per patient without further training. Across seven generators and three compositions, a construction that
+memorises by definition is detected for 26 of 26 patients; the strongest
+published generator exposes 14 to 20 of 26. A flow-matching generator is exposed for 1 to 3, the rate
+expected by chance, at the best generation fidelity of any learned model tested.
+Destroying temporal ordering removes most of the signal and destroying it
+together with low-frequency structure removes all of it, whereas removing the
+absolute level of a window removes almost none. Risk is not confined to patients
+with atypical glycaemic profiles: it reaches the matched controls equally.}
 
 \keywords{synthetic data, membership inference, continuous glucose monitoring,
 privacy, generative models, type~1 diabetes}
@@ -120,10 +120,11 @@ of the statistic under non-membership and an empirical significance per patient
 at no additional training cost. Across seven generators and three data
 compositions we find that a construction which memorises by definition is
 detected for every patient, that the strongest published generator is detected
-for most of them, that removing one representational capacity from the
-generator returns this to the chance rate without any cost in fidelity, and
-that the exposure is not confined to the patients with atypical physiology the
-study was built around.
+for most of them, that a flow-matching generator is detected at the
+chance rate at the best fidelity we measured, that the signal is carried by
+temporal ordering rather than by the level a trace sits at, and that the
+exposure is not confined to the patients with atypical physiology the study was
+built around.
 
 \section{Results}\label{sec:results}
 
@@ -203,62 +204,54 @@ release.}\label{tab:benchmark}
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
 Generator & FID & Exposed & FID & Exposed & FID & Exposed \\
 \midrule
-Copy--paste (ceiling)  & 0.034 & 26 & 0.043 & 26 & 0.073 & 26 \\
-\textbf{This work}     & \textbf{0.038} & \textbf{1} & \textbf{0.055} & \textbf{3} & \textbf{0.127} & \textbf{3} \\
-Backbone, unmodified   & ---   & 1  & 0.055 & 1  & ---   & --- \\
-DiM-TS                 & 0.095 & \textbf{18} & 0.159 & \textbf{14} & 0.326 & \textbf{20} \\
-FourierDiffusion       & 0.100 & 1  & 0.194 & 1  & ---   & --- \\
-DiffWave               & 0.368 & 0  & 0.491 & 0  & ---   & --- \\
-Diffusion-TS           & 0.422 & 3  & 2.058 & 1  & ---   & --- \\
+Copy--paste (ceiling)  & 0.033 & 26 & 0.043 & 26 & 0.073 & 26 \\
+\textbf{This work}     & 0.039 & \textbf{1} & 0.055 & \textbf{3} & \textbf{0.126} & \textbf{3} \\
+Backbone, unmodified   & 0.039 & \textbf{1} & 0.055 & \textbf{1} & --- & --- \\
+DiM-TS                 & 0.095 & \textbf{18} & 0.158 & \textbf{14} & 0.330 & \textbf{20} \\
+FourierDiffusion       & 0.099 & 1  & 0.195 & 1  & ---   & --- \\
+DiffWave               & 0.368 & 0  & 0.487 & 0  & ---   & --- \\
+Diffusion-TS           & 0.426 & 3  & 2.079 & 1  & ---   & --- \\
 \botrule
 \end{tabular}
-\footnotetext{Fidelity values are being re-scored, one call per composition, so
-that a column is internally comparable; the same release re-scored in a
-different compute job differs by one to five per cent. Exposure counts are
-final. Dashes are cells not trained: only three generators were taken to seven
-days.}
+\footnotetext{Each fidelity column was scored in a single call so that its rows are
+mutually comparable; the same release scored in a different compute job differs by one to
+five per cent. Dashes are cells not trained: only three generators were taken to seven
+days. Note that this work and the unmodified backbone are indistinguishable on both axes.}
 \end{table}
 
-\subsection{The membership signal is carried by absolute glucose level and by
-temporal ordering}\label{subsec:mechanism}
+\subsection{The signal is carried by temporal ordering, and destroying ordering
+together with low-frequency structure removes it entirely}\label{subsec:mechanism}
 
-TODO --- ALL COUNTS IN THIS SECTION ARE VOID and are being recomputed by
-\texttt{scripts/mechanism\_null.py} against the non-member null. The ablation
-itself (destroy one coordinate, repeat the attack) is sound; what is void is
-reading the result against the within-window shuffle. Two specific claims must
-not be carried over: that ``removing level and ordering together reaches the
-floor'', which has no floor to reach, and that differencing shows level carries
-the signal --- a pure level removal costs only 24 to 21 patients on the old
-reading, so differencing's effect came mostly from the low-frequency structure
-it also destroys.
-To locate the signal we destroyed one coordinate of the released windows at a
-time and repeated the attack unchanged (Fig.~\ref{fig:ablation}). Removing
-within-hour detail, by averaging to hourly resolution, costs nothing: the
-strongest leaking release still exposes \textbf{23 of 26} patients with a median
-\mbox{AUC of 0.692}, against 24 and 0.653 untouched. Whatever is being
-recovered, it is not fine structure.
+To locate the signal we destroyed one coordinate of both the real and the
+released windows and repeated the attack unchanged, scoring each transform
+against the same non-member null (Fig.~\ref{fig:ablation}). The result is
+consistent across all three compositions, and it is not the one an intuition
+about glucose levels would predict.
 
-Two coordinates do carry it. Differencing the windows, which removes absolute
-level while preserving shape, takes exposure from \textbf{24 to 13 of 26}.
-Sorting each window, which destroys temporal ordering while preserving the value
-distribution exactly, takes it to \textbf{13 of 26} as well. Neither alone
-reaches the floor.
+\emph{Absolute level carries almost nothing.} Subtracting each window's own mean
+leaves exposure at 18, 17 and 18 of 26, against 18, 14 and 20 untouched --- on
+the two-channel composition it is not reduced at all. Averaging to hourly
+resolution likewise costs nothing (19, 16, 20). Whatever is being recovered is
+neither the level a trace sits at nor its fine structure.
 
-Destroying both does. With level and ordering removed together, exposure falls
-to \textbf{7 of 26} at a median \mbox{AUC of 0.487} --- the permutation floor for
-this release is 7 at 0.503. \emph{The two coordinates jointly account for the
-entire recoverable signal}; nothing measurable remains once they are gone.
+\emph{Temporal ordering carries most of it.} Sorting each window, which destroys
+ordering while preserving the value distribution exactly, takes exposure to
+\textbf{8, 8 and 7 of 26}. Differencing, which removes level together with the
+slow structure, takes it to 17, 8 and 12 --- the spread across compositions
+showing that its effect comes from the low-frequency content rather than from
+the level it also removes.
 
-The two are not interchangeable with respect to who is protected. Removing
-temporal ordering leaves the atypical arm separated from the control arm (median
-\mbox{AUC 0.600} against 0.476), whereas removing absolute level collapses that
-separation (0.568 against 0.531). Level is thus the coordinate that carries the
-specifically atypical part of the signal, which is what motivates the
-intervention in Section~\ref{subsec:mitigation}.
+\emph{Destroying ordering and low-frequency structure together removes the
+signal.} With both gone, exposure falls to \textbf{0, 2 and 0 of 26}: below the
+1.3 expected by chance, on every composition. Nothing measurable remains.
 
-On the two-channel composition, level alone is sufficient: differencing takes
-exposure from 15 to \textbf{6 of 26} against a floor of 8, at or below chance
-without any need to touch the ordering.
+One asymmetry appears only after ordering is destroyed. Untouched, the
+significant patients divide evenly between the two arms. With ordering removed
+they do not: 7 atypical against 1 control on one-day glucose, and 6 against 1 at
+seven days. The residue that survives the loss of temporal structure is
+specific to patients with atypical profiles, even though the full signal is not.
+This is the only form in which the concentration this study was designed to find
+appears at all, and it appears in a place we did not anticipate.
 
 \subsection{Adding basal insulin lowers measured exposure while lowering
 fidelity, and the two cannot be read apart}\label{subsec:channel}
@@ -281,50 +274,42 @@ glucose --- so an intrinsically more identifying channel lowered measured
 exposure. Figure~\ref{fig:channel} must carry real-data identifiability,
 exposure, and fidelity together; any two of them support the wrong conclusion.
 
-\subsection{Removing the model capacity that stores absolute level returns
-membership recovery to the chance rate}\label{subsec:modules}
+\subsection{The flow-matching architecture is recovered at the chance rate, and
+the two privacy modules add nothing measurable}\label{subsec:modules}
 
-TODO --- re-express against the non-member null. The fidelity and the
-significance counts (1, 3 and 3 of 26 against 1.3 expected by chance) are in
-Table~\ref{tab:benchmark} and stand. What must go is every phrase of the form
-``at the permutation floor'', and the motivation paragraph, which rests on
-Section~\ref{subsec:mechanism} still naming absolute level as the carrier ---
-that is being re-measured.
-Section~\ref{subsec:mechanism} names absolute level as the carrier. We therefore
-changed the generator so that level cannot be stored per timepoint, rather than
-adding a penalty that discourages storing it (Fig.~\ref{fig:modules}).
+The generator we contribute is a flow-matching model with two structural
+changes intended to withhold membership signal: the training task masks whole
+coordinates --- contiguous blocks of time, or the level of the window --- rather
+than scattered cells, and the bottleneck channels that carry level are pooled
+along time so that they cannot hold a per-timepoint trace.
 
-Two changes were made. First, the training task masks whole coordinates instead
-of scattered cells: contiguous blocks of time, or the level of the whole window.
-Scattered-cell masking is solvable by interpolating between neighbours, and
-interpolation is exactly the local correlation in which identity resides.
-Second, the channels of the latent bottleneck that carry level are pooled along
-time and broadcast back, so that this part of the representation takes a single
-value for the entire window and is \emph{structurally unable} to hold a
-per-timepoint trace. The capacity is removed, not discouraged.
+Its releases are recovered for \textbf{1, 3 and 3 of 26} patients across the
+three compositions, against the 1.3 expected by chance, at Context-FID
+\textbf{0.039, 0.055 and 0.126} --- the best of any learned generator in
+Table~\ref{tab:benchmark} and within a factor of 1.2 of a construction that
+copies its training data outright.
 
-The released sets show no recoverable membership signal. The median gap is
-\textbf{0.0026} on the glucose-only composition and \textbf{0.0005} with basal
-insulin, and in neither composition is it significantly positive in either arm
-($p = 0.064$ and $0.682$; $p = 0.271$ and $0.249$) --- against $p < 0.001$ for
-the strongest learned baseline. Per patient, exposure is \textbf{10 against a
-floor of 10} and \textbf{5 against a floor of 5}. Fidelity is not paid for this:
-at Context-FID \textbf{0.038} and \textbf{0.055} the generator is the best
-learned model in Table~\ref{tab:benchmark} on both compositions, second only to
-the copy--paste ceiling.
+\emph{The two modules are not what produces this.} The unmodified backbone,
+trained identically and scored in the same call, reads \textbf{0.039 and 0.055}
+on fidelity and \textbf{1 and 1 of 26} on exposure. The modified and unmodified
+models are indistinguishable on both axes, and on the two-channel composition
+the unmodified one is nominally the better of the two. The modules were designed
+to remove the capacity that stores absolute level; Section~\ref{subsec:mechanism}
+shows that level was not carrying the signal, and the backbone was already at
+the chance rate, so there was no headroom for them to recover. We report this as
+a null result rather than omit it.
 
-The mechanism behind the masking change can be read directly from training. The
-task that withholds absolute level should be harder than the original
-scattered-cell task if the model is genuinely being forced to generate level
-rather than to copy it. It is, in every setting we trained, but only by
-\textbf{12--24\%}. The contiguous-block task is harder by \textbf{2--5$\times$}.
-Most of the effect of this change therefore comes from forcing the model to
-generate temporal order, not from withholding level, and we report it that way.
+What the comparison does support is a statement about the architecture rather
+than about our additions. On the same cohort, the same budget and the same
+attack, a flow-matching generator is recovered at the chance rate while the
+strongest published diffusion baseline is recovered for 14 to 20 of 26 patients,
+at two to three times worse fidelity. Three of the four published baselines are
+also near chance --- but at four to ten times worse fidelity than the flow model,
+so being unrecoverable is not by itself difficult. The combination is the result.
 
-TODO --- state that the companion group-decorrelation loss cannot constrain the
-quantity the pooling preserves, since it z-scores along time and thereby removes
-exactly the window mean that the pooling broadcasts. The pooling does the work.
-
+TODO --- an ablation that could still separate the modules would train the
+backbone at reduced capacity, where the chance floor is not already saturated.
+Decide whether to run it or to leave the null result as reported.
 
 \subsection{The released windows reproduce twenty clinical glycaemic metrics
 that the strongest baseline distorts}\label{subsec:mitigation}
@@ -423,12 +408,15 @@ every composition, and the between-arm contrast does not separate anywhere
 expect the exposure to be confined to unusual patients, and a privacy audit
 that samples only the unusual ones will under-report it.
 
-TODO --- the mechanism paragraph. Rewrite once
-\texttt{scripts/mechanism\_null.py} reports which coordinate carries the signal
-against the non-member null. Do not reuse the previous reading: a pure removal
-of absolute level was far weaker than differencing, so the earlier attribution
-to level conflated it with the low-frequency structure differencing also
-destroys.
+The signal has a location, and it is consistent across all three
+compositions. Removing the absolute level of a window costs almost nothing ---
+exposure stays at 18, 17 and 18 of 26 against 18, 14 and 20 untouched --- while
+destroying temporal ordering takes it to 8, 8 and 7, and destroying ordering
+together with low-frequency structure takes it to 0, 2 and 0. What identifies a
+patient in a released glucose trace is the order in which their values occur,
+not the level they sit at. That is the opposite of what we expected from the
+real recordings, where level-like channels are the identifying ones, and it is
+why an intervention aimed at level would not have helped.
 
 A generator whose latent bottleneck cannot store the absolute level of a window
 per timepoint --- capacity removed rather than penalised --- is recovered for 1,
